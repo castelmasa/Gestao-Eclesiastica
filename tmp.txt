@@ -1,0 +1,300 @@
+import { motion } from "motion/react";
+import React, { useState, useRef, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Plus, Search, FileText, Download, Paperclip, MessageSquare, QrCode, Printer, Activity } from "lucide-react"
+import { toast } from "sonner"
+import { QRCodeSVG } from "qrcode.react"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
+import { logAction } from "@/lib/audit"
+import { useAuth } from "@/contexts/AuthContext"
+import { useBranch } from "@/contexts/BranchContext"
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"
+import { CameraCapture } from "@/components/CameraCapture"
+import { Html5QrcodeScanner } from "html5-qrcode"
+
+const initialAssets = [
+  { id: "PAT-001", tag: "EQP-001", name: "Mesa de Som Yamaha MG16XU", category: "Áudio e Vídeo", location: "Templo Principal", value: 3500.00, status: "Em uso", specs: "16 canais, efeitos SPX", notes: "Comprada em 2023", fileName: "nf-001.pdf", purchaseDate: "2023-01-15", depreciationRate: 10, lastMaintenance: "2024-05-10" },
+  { id: "PAT-002", tag: "EQP-002", name: "Projetor Epson PowerLite", category: "Áudio e Vídeo", location: "Templo Principal", value: 4200.00, status: "Em uso", specs: "4000 lumens, Full HD", notes: "", fileName: "", purchaseDate: "2022-11-20", depreciationRate: 15, lastMaintenance: "" },
+  { id: "PAT-003", tag: "MOB-001", name: "Cadeiras Plásticas Brancas (50 un)", category: "Mobiliário", location: "Salão Social", value: 1500.00, status: "Em uso", specs: "Plástico injetado", notes: "Lote 1", fileName: "", purchaseDate: "2024-02-01", depreciationRate: 5, lastMaintenance: "" },
+  { id: "PAT-004", tag: "INF-001", name: "Notebook Dell Inspiron", category: "Informática", location: "Secretaria", value: 2800.00, status: "Manutenção", specs: "Core i5, 8GB RAM, 256GB SSD", notes: "Tela piscando", fileName: "", purchaseDate: "2021-08-05", depreciationRate: 20, lastMaintenance: "2025-01-12" },
+]
+
+
+function QrScanner({ onResult }: { onResult: (text: string) => void }) {
+  useEffect(() => {
+    const scanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+    scanner.render(
+      (text) => {
+        scanner.clear();
+        onResult(text);
+      },
+      (error) => {
+        // ignore errors
+      }
+    );
+    return () => {
+      scanner.clear().catch(() => {});
+    };
+  }, [onResult]);
+  return <div id="qr-reader" className="w-full overflow-hidden rounded-lg"></div>;
+}
+
+export function Patrimonio() {
+  const { activeBranch } = useBranch();
+  const { user } = useAuth()
+  const [assets, setAssets] = useState(initialAssets)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false)
+  const [isCameraOpen, setIsCameraOpen] = useState(false)
+  const [scannedDocs, setScannedDocs] = useState<string[]>([])
+  const [isLabelModalOpen, setIsLabelModalOpen] = useState(false)
+  const [editingItem, setEditingItem] = useState<any>(null)
+  const [isScannerOpen, setIsScannerOpen] = useState(false)
+  const [selectedAssetForLabel, setSelectedAssetForLabel] = useState<any>(null)
+
+  const printRef = useRef<HTMLDivElement>(null)
+
+  const filteredAssets = assets.filter(a => {
+      if (activeBranch !== 'all') {
+         const congNorm = a.location?.toLowerCase().trim() || "";
+         let branchNorm = activeBranch.toLowerCase().trim();
+         if (branchNorm === 'sede') branchNorm = 'sede';
+         else if (branchNorm === 'filial_1') branchNorm = 'filial 1';
+         else if (branchNorm === 'filial_2') branchNorm = 'filial 2';
+         
+         if (!congNorm.includes(branchNorm)) return false;
+      }
+      return a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.tag.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.category.toLowerCase().includes(searchTerm.toLowerCase())
+  })
+
+  const [churchData, setChurchData] = useState<any>(null)
+
+  useEffect(() => {
+    const savedData = localStorage.getItem("churchConfig")
+    if (savedData) {
+      setChurchData(JSON.parse(savedData))
+    }
+
+    const savedAssets = localStorage.getItem("churchAssets")
+    if (!savedAssets) {
+      localStorage.setItem("churchAssets", JSON.stringify(initialAssets))
+    } else {
+      setAssets(JSON.parse(savedAssets))
+    }
+  }, [])
+
+  const handleGenerateReport = (type: string) => {
+    const doc = new jsPDF()
+    
+    if (churchData) {
+      doc.setFontSize(16)
+      doc.text(churchData.nome || "Igreja", 14, 15)
+      doc.setFontSize(10)
+      doc.text(`${churchData.endereco || ""} - ${churchData.cidade || ""}`, 14, 20)
+      doc.text(`CNPJ: ${churchData.cnpj || ""}`, 14, 25)
+      if (churchData.logoFileName) {
+         doc.text(`(Logo: ${churchData.logoFileName})`, 150, 20) // Placeholder for logo
+      }
+    }
+
+    doc.setFontSize(18)
+    doc.text(`Relatório de Patrimônio: ${type}`, 14, churchData ? 35 : 22)
+    doc.setFontSize(11)
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, churchData ? 42 : 30)
+
+    let dataToPrint = assets
+    if (type === "Bens em Manutenção") {
+      dataToPrint = assets.filter(a => a.status === "Manutenção")
+    }
+
+    let headRow = [['Etiqueta', 'Descrição', 'Categoria', 'Localização', 'Status', 'Valor']];
+    let tableData = [];
+
+    if (type === "Inventário Detalhado") {
+      headRow = [['Etiqueta', 'Descrição', 'Data de Compra', 'Status', 'Valor Aquisição']];
+      tableData = dataToPrint.map(a => [
+        a.tag,
+        a.name,
+        a.purchaseDate ? new Date(a.purchaseDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : "-",
+        a.status,
+        `R$ ${a.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+      ])
+      const total = dataToPrint.reduce((acc, curr) => acc + curr.value, 0)
+      tableData.push(["", "", "", "TOTAL:", `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`])
+    } else {
+      tableData = dataToPrint.map(a => [
+        a.tag,
+        a.name,
+        a.category,
+        a.location,
+        a.status,
+        `R$ ${a.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+      ])
+      const total = dataToPrint.reduce((acc, curr) => acc + curr.value, 0)
+      tableData.push(["", "", "", "", "TOTAL:", `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`])
+    }
+
+    autoTable(doc, {
+      startY: churchData ? 48 : 36,
+      head: headRow,
+      body: tableData,
+    })
+
+    doc.save(`relatorio_patrimonio_${type.toLowerCase().replace(/ /g, '_')}.pdf`)
+    toast.success(`Relatório (${type}) gerado com sucesso!`)
+    setIsReportModalOpen(false)
+  }
+
+  const handleAddAsset = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    
+    const file = formData.get("file") as File
+    const fileName = file && file.size > 0 ? file.name : ""
+
+    const newAsset = {
+      scannedDocs: scannedDocs,
+      id: `PAT-${String(assets.length + 1).padStart(3, '0')}`,
+      tag: formData.get("tag") as string,
+      name: formData.get("name") as string,
+      category: formData.get("category") as string,
+      location: formData.get("location") as string,
+      branchId: formData.get("branchId") as string || "sede",
+      value: parseFloat((formData.get("value") as string).replace(',', '.')),
+      status: formData.get("status") as string,
+      specs: formData.get("specs") as string,
+      notes: formData.get("notes") as string,
+      fileName: fileName,
+      purchaseDate: formData.get("purchaseDate") as string,
+      depreciationRate: parseFloat((formData.get("depreciationRate") as string) || "0"),
+      lastMaintenance: formData.get("lastMaintenance") as string
+    }
+
+    setAssets([newAsset, ...assets])
+    
+    // Simulating save to localStorage for layout check
+    const updated = [newAsset, ...assets];
+    localStorage.setItem("churchAssets", JSON.stringify(updated));
+    window.dispatchEvent(new Event('storage'));
+
+    setScannedDocs([])
+    setIsAddModalOpen(false)
+    toast.success("Bem patrimonial cadastrado com sucesso!")
+    logAction("Criação de Patrimônio", `Ativo cadastrado: ${newAsset.name} (${newAsset.tag})`, user?.name || "Desconhecido")
+  }
+
+  const handleOpenLabelModal = (asset: any) => {
+    setSelectedAssetForLabel(asset)
+    setIsLabelModalOpen(true)
+  }
+
+  const handlePrintLabel = () => {
+    const printContent = printRef.current
+    if (printContent) {
+      const originalContents = document.body.innerHTML
+      document.body.innerHTML = printContent.innerHTML
+      window.print()
+      document.body.innerHTML = originalContents
+      window.location.reload() // Reload to restore React state after messing with DOM
+    }
+  }
+
+  const totalValue = assets.reduce((acc, curr) => acc + curr.value, 0)
+  const maintenanceCount = assets.filter(a => a.status === 'Manutenção').length
+
+  // Calculate data for Pie Chart
+  const assetDistribution = assets.reduce((acc, asset) => {
+      const category = asset.category || "Outros";
+      const existing = acc.find((item: any) => item.name === category);
+      if (existing) {
+          existing.value += 1;
+      } else {
+          acc.push({ name: category, value: 1 });
+      }
+      return acc;
+  }, [] as any[]);
+
+
+  const statusDistribution = assets.reduce((acc, asset) => {
+      const status = asset.status || "Desconhecido";
+      const existing = acc.find((item: any) => item.name === status);
+      if (existing) {
+          existing.value += 1;
+      } else {
+          acc.push({ name: status, value: 1 });
+      }
+      return acc;
+  }, [] as any[]);
+
+  
+  const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#64748b'];
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Patrimônio</h2>
+          <p className="text-muted-foreground mt-1">Controle de bens tangíveis e relatórios de inventário.</p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Valor Total do Patrimônio</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">R$ {totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Baseado no valor de compra dos bens.
+            </p>
+          </CardContent>
+        </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Itens em Manutenção</CardTitle>
+            <Activity className="h-4 w-4 text-amber-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-600">{maintenanceCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Equipamentos que requerem atenção.
+            </p>
+          </CardContent>
+        </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Itens Emprestados</CardTitle>
+            <Activity className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">
+              {assets.filter(a => a.status === "Emprestado").length}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Bens cedidos temporariamente.
+            </p>
+          </CardContent>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+          <Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>

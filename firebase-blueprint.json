@@ -1,0 +1,196 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the church management system",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["Administrador", "Secretária", "Tesoureiro", "Membro"] },
+        "status": { "type": "string", "enum": ["trial", "active", "expired", "blocked", "exempt"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expirationDate": { "type": ["string", "null"], "format": "date-time" },
+        "accessCount": { "type": "number" },
+        "permissions": {
+          "type": "object",
+          "description": "Module level permissions",
+          "properties": {
+            "financeiro": { "$ref": "#/entities/ModulePermission" },
+            "secretaria": { "$ref": "#/entities/ModulePermission" },
+            "patrimonio": { "$ref": "#/entities/ModulePermission" },
+            "configuracoes": { "$ref": "#/entities/ModulePermission" },
+            "parametros": { "$ref": "#/entities/ModulePermission" }
+          }
+        }
+      },
+      "required": ["name", "email", "role"]
+    },
+    "ModulePermission": {
+      "title": "ModulePermission",
+      "description": "Permissions for a specific module",
+      "type": "object",
+      "properties": {
+        "view": { "type": "boolean" },
+        "add": { "type": "boolean" },
+        "edit": { "type": "boolean" },
+        "delete": { "type": "boolean" }
+      },
+      "required": ["view", "add", "edit", "delete"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A financial transaction (income or expense)",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["entrada", "saida"] },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "description": { "type": "string" },
+        "branchId": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "category", "amount", "date", "branchId", "userId"]
+    },
+    "Member": {
+      "title": "Member",
+      "description": "A church member profile",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "birthDate": { "type": "string" },
+        "branchId": { "type": "string" },
+        "role": { "type": "string" },
+        "status": { "type": "string", "enum": ["ativo", "inativo", "disciplina"] },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "branchId", "status", "userId"]
+    },
+    "Branch": {
+      "title": "Branch",
+      "description": "A church branch or congregation",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["sede", "filial"] },
+        "address": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "type", "userId"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "System audit trail record",
+      "type": "object",
+      "properties": {
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "user": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["action", "details", "user"]
+    },
+    "SystemBackup": {
+      "title": "SystemBackup",
+      "description": "Metadata for system backups stored in Firebase Storage or Firestore",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "format": { "type": "string", "enum": ["json", "csv"] },
+        "destination": { "type": "string" },
+        "storageUrl": { "type": "string" },
+        "storagePath": { "type": "string" },
+        "fileSizeBytes": { "type": "number" },
+        "membersCount": { "type": "number" },
+        "transactionsCount": { "type": "number" },
+        "type": { "type": "string", "enum": ["manual", "automatic"] },
+        "status": { "type": "string", "enum": ["success", "failed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["name", "format", "createdAt"]
+    },
+    "BackupConfig": {
+      "title": "BackupConfig",
+      "description": "Backup scheduler configuration",
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "frequency": { "type": "string", "enum": ["daily", "weekly", "monthly"] },
+        "scheduledTime": { "type": "string" },
+        "destination": { "type": "string", "enum": ["firebase_storage", "google_drive", "local_download"] },
+        "includeMembers": { "type": "boolean" },
+        "includeFinance": { "type": "boolean" },
+        "includeAssets": { "type": "boolean" },
+        "format": { "type": "string", "enum": ["json", "csv", "both"] },
+        "lastRunAt": { "type": "string", "format": "date-time" },
+        "nextRunAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["enabled", "frequency"]
+    },
+    "ErrorLog": {
+      "title": "ErrorLog",
+      "description": "System error or critical exception record",
+      "type": "object",
+      "properties": {
+        "message": { "type": "string" },
+        "source": { "type": "string" },
+        "severity": { "type": "string", "enum": ["critical", "error", "warning"] },
+        "stack": { "type": "string" },
+        "componentStack": { "type": "string" },
+        "url": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "churchBranch": { "type": "string" },
+        "resolved": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["message", "source", "severity"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Users collection with RBAC roles and Licensing"
+    },
+    "transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Financial records of the church"
+    },
+    "members/{memberId}": {
+      "schema": { "$ref": "#/entities/Member" },
+      "description": "Church congregation members"
+    },
+    "branches/{branchId}": {
+      "schema": { "$ref": "#/entities/Branch" },
+      "description": "Church locations (sede, filiais)"
+    },
+    "audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Action logs for system monitoring"
+    },
+    "system_backups/{backupId}": {
+      "schema": { "$ref": "#/entities/SystemBackup" },
+      "description": "System backup records"
+    },
+    "backup_configs/{configId}": {
+      "schema": { "$ref": "#/entities/BackupConfig" },
+      "description": "Backup scheduling configuration"
+    },
+    "error_logs/{logId}": {
+      "schema": { "$ref": "#/entities/ErrorLog" },
+      "description": "System exception and error tracking logs"
+    },
+    "secretaria_files/{fileId}": {
+      "schema": { "$ref": "#/entities/SystemBackup" },
+      "description": "Scanned document files uploaded in secretaria"
+    }
+  }
+}

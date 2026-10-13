@@ -1,0 +1,10 @@
+{
+  "name": "Gestão Eclesiástica SaaS",
+  "description": "Sistema completo para administração de igrejas: financeiro, secretaria e patrimônio.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

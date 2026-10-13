@@ -1,0 +1,1001 @@
+1448:      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+1449-        <div>
+1450-          <h2 className="text-3xl font-bold tracking-tight text-foreground">Secretaria</h2>
+1451-          <p className="text-muted-foreground mt-1">Gestão de membros, carteirinhas e comunicados.</p>
+1452-        </div>
+1453-        <div className="flex flex-wrap gap-2">
+1454-          <Dialog open={isDocsModalOpen} onOpenChange={setIsDocsModalOpen}>
+1455-            <DialogTrigger asChild>
+1456-              <Button variant="outline"><FileText className="mr-2 h-4 w-4" /> Documentos e Certificados</Button>
+1457-            </DialogTrigger>
+1458-            <DialogContent className="sm:max-w-[500px]">
+1459-              <DialogHeader>
+1460-                <DialogTitle>Documentos e Certificados</DialogTitle>
+1461-                <DialogDescription>Gere documentos ou crie seus próprios modelos.</DialogDescription>
+1462-              </DialogHeader>
+1463-
+1464-              <div className="flex space-x-4 border-b mb-4 overflow-x-auto pb-1">
+1465-                <button 
+1466-                  className={`pb-2 text-sm font-medium whitespace-nowrap ${docsTab === 'gerar' ? 'border-b-2 border-slate-900 text-slate-900 dark:border-white dark:text-white' : 'text-slate-500'}`}
+1467-                  onClick={() => setDocsTab('gerar')}
+1468-                >
+1469-                  Gerar Documento
+1470-                </button>
+1471-                <button 
+1472-                  className={`pb-2 text-sm font-medium whitespace-nowrap ${docsTab === 'visualizar' ? 'border-b-2 border-slate-900 text-slate-900 dark:border-white dark:text-white' : 'text-slate-500'}`}
+1473-                  onClick={() => setDocsTab('visualizar')}
+1474-                >
+1475-                  Visualização
+1476-                </button>
+1477-                <button 
+1478-                  className={`pb-2 text-sm font-medium whitespace-nowrap ${docsTab === 'historico' ? 'border-b-2 border-slate-900 text-slate-900 dark:border-white dark:text-white' : 'text-slate-500'}`}
+1479-                  onClick={() => setDocsTab('historico')}
+1480-                >
+1481-                  Histórico
+1482-                </button>
+1483-                <button 
+1484-                  className={`pb-2 text-sm font-medium whitespace-nowrap ${docsTab === 'modelos' ? 'border-b-2 border-slate-900 text-slate-900 dark:border-white dark:text-white' : 'text-slate-500'}`}
+1485-                  onClick={() => setDocsTab('modelos')}
+1486-                >
+1487-                  Meus Modelos
+1488-                </button>
+1489-                <button 
+1490-                  className={`pb-2 text-sm font-medium whitespace-nowrap ${docsTab === 'logos' ? 'border-b-2 border-slate-900 text-slate-900 dark:border-white dark:text-white' : 'text-slate-500'}`}
+1491-                  onClick={() => setDocsTab('logos')}
+1492-                >
+1493-                  Logos
+1494-                </button>
+1495-              </div>
+1496-
+1497-              {docsTab === 'gerar' && (
+1498-                <>
+1499-                  <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto px-2">
+1500-                    <div className="grid grid-cols-2 gap-4">
+1501-                      <div className="space-y-2">
+1502-                        <Label>Tipo de Documento</Label>
+1503-                        <Select value={docType} onValueChange={handleDocTypeChange}>
+1504-                          <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+1505-                          <SelectContent>
+1506-                          {customTemplates.length > 0 && (
+1507-                            <optgroup label="Meus Modelos (Customizados)">
+1508-                              {customTemplates.map((t: any) => (
+1509-                                <SelectItem key={t.id} value={`custom_${t.id}`}>[{t.category?.toUpperCase()}] {t.name}</SelectItem>
+1510-                              ))}
+1511-                            </optgroup>
+1512-                          )}
+1513-                            <optgroup label="Atas e Relatórios">
+1514-                              <SelectItem value="ata-reuniao">Ata de Reunião</SelectItem>
+1515-                            </optgroup>
+1516-                            <optgroup label="Cartas">
+1517-                              <SelectItem value="carta-aniversario">Carta de Aniversário</SelectItem>
+1518-                              <SelectItem value="carta-despedida">Carta de Despedida/Transferência</SelectItem>
+1519-                              <SelectItem value="carta-recebimento">Carta de Recebimento</SelectItem>
+1520-                              <SelectItem value="carta-recomendacao">Carta de Recomendação</SelectItem>
+1521-                            </optgroup>
+1522-                            <optgroup label="Certificados e Formulários">
+1523-                              <SelectItem value="cert-batismo">Certificado de Batismo nas Águas</SelectItem>
+1524-                              <SelectItem value="cert-apresentacao">Certificado de Apresentação de Criança</SelectItem>
+1525-                              <SelectItem value="cert-discipulado">Certificado de Discipulado</SelectItem>
+1526-                              <SelectItem value="cert-visitante">Lembrança de Visitante</SelectItem>
+1527-                              <SelectItem value="form-portaria">Formulário de Portaria</SelectItem>
+1528-                              <SelectItem value="convites">Convites Diversos (Cards)</SelectItem>
+1529-                            </optgroup>
+1530-                          </SelectContent>
+1531-                        </Select>
+1532-                      </div>
+1533-                      <div className="space-y-2">
+1534-                        <Label>Modelo de Fundo (Opcional)</Label>
+1535-                        <Select value={docTemplateId} onValueChange={setDocTemplateId}>
+1536-                          <SelectTrigger><SelectValue placeholder="Sem fundo" /></SelectTrigger>
+1537-                          <SelectContent>
+1538-                            <SelectItem value="nenhum">Nenhum (Borda Padrão)</SelectItem>
+1539-                            {customTemplates.map((t: any) => (
+1540-                              <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+1541-                            ))}
+1542-                          </SelectContent>
+1543-                        </Select>
+1544-                      </div>
+1545-                    </div>
+1546-
+1547-                    <div className="space-y-2">
+1548-                      <Label>Preencher com Membro Cadastrado (Opcional)</Label>
+1549-                      <Select onValueChange={(val) => {
+1550-                        const m = members.find((x: any) => x.id.toString() === val);
+1551-                        if (m) setDocName(m.name);
+1552-                      }}>
+1553-                        <SelectTrigger><SelectValue placeholder="Selecione um membro para preencher o nome" /></SelectTrigger>
+1554-                        <SelectContent>
+1555-                          {members.map((m: any) => (
+1556-                            <SelectItem key={m.id} value={m.id.toString()}>{m.name}</SelectItem>
+1557-                          ))}
+1558-                        </SelectContent>
+1559-                      </Select>
+1560-                    </div>
+1561-
+1562-                    <div className="space-y-2">
+1563-                      <Label>Nome (Pode ser editado livremente)</Label>
+1564-                      <Input value={docName} onChange={(e) => setDocName(e.target.value)} placeholder="Ex: João Silva" />
+1565-                    </div>
+1566-
+1567-                    <div className="space-y-2">
+1568-                      <Label>Assunto / Título do Documento</Label>
+1569-                      <Input value={docSubject} onChange={(e) => setDocSubject(e.target.value)} placeholder="Ex: CARTA DE RECOMENDAÇÃO" />
+1570-                    </div>
+1571-
+1572-                    <div className="space-y-2">
+1573-                      <Label>Conteúdo Inicial do Documento</Label>
+1574-                      <Textarea value={docContent} onChange={(e) => setDocContent(e.target.value)} placeholder="Corpo do documento..." rows={5} />
+1575-                      <p className="text-xs text-muted-foreground">Variáveis suportadas: {"{NOME_MEMBRO}"}, {"{DATA_ATUAL}"}, {"{CARGO_IGREJA}"}, {"{SAUDACAO: 'Prezado' / 'Prezada'}"}, {"{SE_CASADO: 'Texto'}"}</p>
+1576-                    </div>
+1577-
+1578-                    {(docType === 'cert-batismo' || docType === 'cert-apresentacao') && (
+1579-                      <div className="space-y-2">
+1580-                        <Label>Nome do Pastor Titular</Label>
+1581-                        <Input value={docPastor} onChange={(e) => setDocPastor(e.target.value)} placeholder="Ex: Pr. Antônio" />
+1582-                      </div>
+1583-                    )}
+1584-
+1585-                    {docType === 'cert-apresentacao' && (
+1586-                      <div className="space-y-2">
+1587-                        <Label>Nome dos Pais/Responsáveis</Label>
+1588-                        <Input value={docParent} onChange={(e) => setDocParent(e.target.value)} placeholder="Ex: José e Ana" />
+1589-                      </div>
+1590-                    )}
+1591-
+1592-                    <div className="space-y-2">
+1593-                      <Label>Assinatura Digital (Opcional - Rodapé)</Label>
+1594-                      <Input value={docSignature} onChange={(e) => setDocSignature(e.target.value)} placeholder="Ex: Pr. João Silva - Presidente" />
+1595-                    </div>
+1596-
+1597-                    <div className="space-y-2">
+1598-                      <Label>Logo do Documento (Opcional)</Label>
+1599-                      <Select value={selectedLogoId} onValueChange={setSelectedLogoId}>
+1600-                          <SelectTrigger><SelectValue placeholder="Logo da aba Configuração" /></SelectTrigger>
+1601-                          <SelectContent>
+1602-                              <SelectItem value="none">Sem logo</SelectItem>
+1603-                              {churchLogos.map((l: any) => (
+1604-                                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+1605-                              ))}
+1606-                          </SelectContent>
+1607-                      </Select>
+1608-                      <div className="mt-1">
+1609-                        <Label className="text-xs text-muted-foreground">Ou anexar manualmente (PNG/JPG):</Label>
+1610-                        <Input type="file" accept="image/png, image/jpeg" onChange={(e) => {
+1611-                          if (e.target.files && e.target.files[0]) {
+1612-                            const file = e.target.files[0];
+1613-                            const reader = new FileReader();
+1614-                            reader.onloadend = () => {
+1615-                              setDocLogo(reader.result as string);
+1616-                              setSelectedLogoId(''); // reset managed logo
+1617-                            };
+1618-                            reader.readAsDataURL(file);
+1619-                          }
+1620-                        }} />
+1621-                        {docLogo && !selectedLogoId && <p className="text-xs text-green-600 mt-1">✓ Logo manual anexada com sucesso!</p>}
+1622-                      </div>
+1623-                    </div>
+1624-                    
+1625-                    <div className="space-y-2">
+1626-                      <Label>Data de Emissão / Evento (Opcional)</Label>
+1627-                      <Input type="date" value={docDate} onChange={(e) => setDocDate(e.target.value)} />
+1628-                    </div>
+1629-
+1630-                    <div className="space-y-2">
+1631-                      <Label>Informações Adicionais / Rodapé (Opcional)</Label>
+1632-                      <Textarea value={docExtras} onChange={(e) => setDocExtras(e.target.value)} placeholder="Escreva aqui detalhes como igreja de origem, validade, etc..." rows={2} />
+1633-                    </div>
+1634-                  </div>
+1635-              <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-between w-full">
+1636-                <Button type="button" variant="outline" className="text-amber-600 border-amber-200 hover:bg-amber-50" onClick={() => {
+1637-                  generateDocumentPDF(false, true);
+1638-                  toast.success("Documento salvo como rascunho para aprovação.");
+1639-                }}>
+1640-                  <FileText className="w-4 h-4 mr-2" />
+1641-                  Salvar p/ Aprovação
+1642-                </Button>
+1643-                <Button onClick={() => generateDocumentPDF(false)}>Gerar PDF (Burlar Validação)</Button>
+1644-              </DialogFooter>
+1645-            </>
+1646-          )}
+1647-
+1648-          {docsTab === 'visualizar' && (
+1649-            <div className="flex flex-col items-center justify-center p-4 bg-muted/30 overflow-hidden h-[60vh] rounded-md border">
+1650-              {pdfPreviewUrl ? (
+1651-                <iframe src={`${pdfPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0`} className="w-full h-full border-0" title="PDF Preview" />
+1652-              ) : (
+1653-                <div className="text-muted-foreground text-sm">Carregando visualização...</div>
+1654-              )}
+1655-            </div>
+1656-          )}
+1657-
+1658-          {docsTab === 'historico' && (
+1659-            <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
+1660-              <h3 className="font-semibold text-sm">Documentos Emitidos</h3>
+1661-              {documentHistory.length === 0 ? (
+1662-                <div className="text-center py-6 text-muted-foreground text-sm border border-dashed rounded-md">
+1663-                  Nenhum documento emitido ainda.
+1664-                </div>
+1665-              ) : (
+1666-                <div className="space-y-3">
+1667-                  {documentHistory.map((docItem: any) => (
+1668-                    <div key={docItem.id} className="p-3 border rounded-md shadow-sm space-y-2 text-sm bg-card">
+1669-                      <div className="flex justify-between items-start">
+1670-                        <div>
+1671-                          <p className="font-medium flex items-center gap-2">
+1672-                            {docItem.subject || docItem.name}
+1673-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${(!docItem.status || docItem.status === 'aprovado') ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+1674-                                {(!docItem.status || docItem.status === 'aprovado') ? 'Aprovado' : 'Pendente'}
+1675-                            </span>
+1676-                          </p>
+1677-                          <p className="text-xs text-muted-foreground">Para: {docItem.name}</p>
+1678-                          <p className="text-xs text-muted-foreground">Data: {new Date(docItem.date).toLocaleString('pt-BR')}</p>
+1679-                        </div>
+1680-                        <div className="flex gap-2 flex-wrap justify-end max-w-[50%]">
+1681-                          {docItem.status === 'pendente' ? (
+1682-                            <Button variant="default" size="sm" onClick={() => handleApproveDocument(docItem.id)}>
+1683-                              Aprovar
+1684-                            </Button>
+1685-                          ) : (
+1686-                            <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => handleEmailDocument(docItem)}>
+1687-                              <Mail className="w-3.5 h-3.5 mr-1" /> E-mail
+1688-                            </Button>
+1689-                          )}
+1690-                          <Button variant="outline" size="sm" onClick={() => {
+1691-                            setDocType(docItem.type);
+1692-                            setDocName(docItem.name);
+1693-                            setDocSubject(docItem.subject);
+1694-                            setDocContent(docItem.content);
+1695-                            setDocTemplateId(docItem.templateId || 'nenhum');
+1696-                            setDocsTab('gerar');
+1697-                          }}>
+1698-                            Editar Novo
+1699-                          </Button>
+1700-                        </div>
+1701-                      </div>
+1702-                    </div>
+1703-                  ))}
+1704-                </div>
+1705-              )}
+1706-            </div>
+1707-          )}
+1708-
+1709-          {docsTab === 'modelos' && (
+1710-            <div className="space-y-4 py-2">
+1711-              {editingTemplate ? (
+1712-                <form onSubmit={handleSaveTemplate} className="space-y-4 border rounded-md p-4 bg-muted/20">
+1713-                  <h3 className="font-semibold">{editingTemplate.id ? 'Editar Modelo' : 'Novo Modelo'}</h3>
+1714-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+1715-                      <div className="space-y-2">
+1716-                        <Label htmlFor="name">Nome do Modelo</Label>
+1717-                        <Input id="name" name="name" defaultValue={editingTemplate.name} placeholder="Ex: Certificado Elegante" required />
+1718-                      </div>
+1719-                      <div className="space-y-2">
+1720-                        <Label htmlFor="category">Categoria</Label>
+1721-                        <Select name="category" defaultValue={editingTemplate.category || 'geral'}>
+1722-                          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+1723-                          <SelectContent>
+1724-                            <SelectItem value="geral">Geral</SelectItem>
+1725-                            <SelectItem value="carta">Carta</SelectItem>
+1726-                            <SelectItem value="certificado">Certificado</SelectItem>
+1727-                            <SelectItem value="declaracao">Declaração</SelectItem>
+1728-                          </SelectContent>
+1729-                        </Select>
+1730-                      </div>
+1731-                  </div>
+1732-                  <div className="space-y-2">
+1733-                    <Label htmlFor="subject">Assunto Padrão</Label>
+1734-                    <Input id="subject" name="subject" defaultValue={editingTemplate.subject} placeholder="Ex: CARTA DE APRESENTAÇÃO" />
+1735-                  </div>
+1736-                  <div className="space-y-2">
+1737-                    <Label htmlFor="content">Conteúdo Padrão</Label>
+1738-                    <Textarea id="content" name="content" defaultValue={editingTemplate.content} placeholder="Corpo do texto usando {NOME_MEMBRO}..." rows={4} />
+1739-                  </div>
+1740-                  <div className="space-y-2">
+1741-                    <Label htmlFor="templateImage">Arte de Fundo (A4 Recomendado, Opcional)</Label>
+1742-                    <Input id="templateImage" type="file" accept="image/png, image/jpeg" />
+1743-                    {editingTemplate.backgroundImage && <p className="text-xs text-muted-foreground mt-1">Já possui imagem. Envie outra apenas se quiser alterar.</p>}
+1744-                  </div>
+1745-                  <div className="flex justify-end gap-2 mt-4">
+1746-                    <Button type="button" variant="ghost" onClick={() => setEditingTemplate(null)}>Cancelar</Button>
+1747-                    <Button type="submit">Salvar Modelo</Button>
+1748-                  </div>
+1749-                </form>
+1750-              ) : (
+1751-                <>
+1752-                  <div className="flex justify-between items-center mb-4">
+1753-                    <p className="text-sm text-slate-500">Faça upload de suas artes (PNG/JPG) para usar como fundo de certificados.</p>
+1754-                    <Button size="sm" onClick={() => setEditingTemplate({ id: '', name: '', backgroundImage: null })}><Plus className="h-4 w-4 mr-1" /> Adicionar</Button>
+1755-                  </div>
+1756-                  {customTemplates.length === 0 ? (
+1757-                    <div className="text-center py-6 text-muted-foreground text-sm border border-dashed rounded-md">
+1758-                      Nenhum modelo personalizado cadastrado.
+1759-                    </div>
+1760-                  ) : (
+1761-                    <div className="space-y-3">
+1762-                      {customTemplates.map((t: any) => (
+1763-                        <div key={t.id} className="flex justify-between items-center p-3 border rounded-md shadow-sm">
+1764-                          <div className="flex items-center gap-3">
+1765-                            <div className="h-10 w-8 bg-slate-200 rounded border overflow-hidden">
+1766-                              {t.backgroundImage ? (
+1767-                                  <img src={t.backgroundImage} alt="thumb" className="w-full h-full object-cover" />
+1768-                              ) : (
+1769-                                  <div className="w-full h-full flex items-center justify-center bg-slate-100 text-xs text-slate-400">TXT</div>
+1770-                              )}
+1771-                            </div>
+1772-                            <div>
+1773-                                <span className="font-medium text-sm block">{t.name}</span>
+1774-                                <span className="text-xs text-muted-foreground uppercase">{t.category || 'GERAL'}</span>
+1775-                            </div>
+1776-                          </div>
+1777-                          <div className="flex gap-1">
+1778-                            <Button variant="ghost" size="sm" onClick={() => setEditingTemplate(t)}>Editar</Button>
+1779-                            <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600" onClick={() => setTemplateToDelete(t)}>Excluir</Button>
+1780-                          </div>
+1781-                        </div>
+1782-                      ))}
+1783-                    </div>
+1784-                  )}
+1785-                </>
+1786-              )}
+1787-            </div>
+1788-          )}
+1789-
+1790-          {docsTab === 'logos' && (
+1791-            <div className="space-y-4 py-2">
+1792-              {editingLogo ? (
+1793-                <form onSubmit={handleSaveLogo} className="space-y-4 border rounded-md p-4 bg-muted/20">
+1794-                  <h3 className="font-semibold">{editingLogo.id ? 'Editar Logo' : 'Nova Logo'}</h3>
+1795-                  <div className="space-y-2">
+1796-                    <Label htmlFor="name">Nome / Título da Logo</Label>
+1797-                    <Input id="name" name="name" defaultValue={editingLogo.name} placeholder="Ex: Logo Sede Branca" required />
+1798-                  </div>
+1799-                  <div className="space-y-2">
+1800-                    <Label htmlFor="logoImage">Arquivo da Logo (PNG/JPG)</Label>
+1801-                    <Input id="logoImage" type="file" accept="image/png, image/jpeg" />
+1802-                    {editingLogo.dataUrl && <p className="text-xs text-muted-foreground mt-1">Já possui imagem. Envie outra apenas se quiser alterar.</p>}
+1803-                  </div>
+1804-                  <div className="flex justify-end gap-2 mt-4">
+1805-                    <Button type="button" variant="ghost" onClick={() => setEditingLogo(null)}>Cancelar</Button>
+1806-                    <Button type="submit">Salvar Logo</Button>
+1807-                  </div>
+1808-                </form>
+1809-              ) : (
+1810-                <>
+1811-                  <div className="flex justify-between items-center mb-4">
+1812-                    <p className="text-sm text-slate-500">Gerencie diferentes logotipos da igreja para inserir nos cabeçalhos.</p>
+1813-                    <Button size="sm" onClick={() => setEditingLogo({ id: '', name: '', dataUrl: null })}><Plus className="h-4 w-4 mr-1" /> Adicionar</Button>
+1814-                  </div>
+1815-                  {churchLogos.length === 0 ? (
+1816-                    <div className="text-center py-6 text-muted-foreground text-sm border border-dashed rounded-md">
+1817-                      Nenhuma logo cadastrada.
+1818-                    </div>
+1819-                  ) : (
+1820-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+1821-                      {churchLogos.map((l: any) => (
+1822-                        <div key={l.id} className="flex flex-col p-2 border rounded-md shadow-sm items-center bg-card relative">
+1823-                          <div className="h-16 w-full flex items-center justify-center p-1 mb-2 bg-slate-50 rounded">
+1824-                            {l.dataUrl && <img src={l.dataUrl} alt={l.name} className="max-w-full max-h-full object-contain" />}
+1825-                          </div>
+1826-                          <span className="font-medium text-xs text-center w-full truncate mb-2">{l.name}</span>
+1827-                          <div className="flex gap-1 w-full justify-between">
+1828-                            <Button variant="outline" size="sm" className="h-7 text-xs w-full" onClick={() => setEditingLogo(l)}>Editar</Button>
+1829-                            <Button variant="outline" size="sm" className="h-7 text-xs w-full text-red-500 hover:text-red-600" onClick={() => executeDeleteLogo(l)}>Excluir</Button>
+1830-                          </div>
+1831-                        </div>
+1832-                      ))}
+1833-                    </div>
+1834-                  )}
+1835-                </>
+1836-              )}
+1837-            </div>
+1838-          )}
+1839-
+1840-        </DialogContent>
+1841-      </Dialog>
+1842-
+1843-          <Dialog open={isPrintModalOpen} onOpenChange={setIsPrintModalOpen}>
+1844-            <DialogTrigger asChild>
+1845-              <Button variant="outline"><Printer className="mr-2 h-4 w-4" /> Relatórios e Carteirinhas</Button>
+1846-            </DialogTrigger>
+1847-            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+1848-              <DialogHeader>
+1849-                <DialogTitle>Impressão e Relatórios</DialogTitle>
+1850-                <DialogDescription>Gere relatórios de membros ou imprima carteirinhas personalizadas.</DialogDescription>
+1851-              </DialogHeader>
+1852-              
+1853-              <div className="flex space-x-4 border-b mb-4">
+1854-                <button 
+1855-                  className={`pb-2 text-sm font-medium ${printTab === 'list' ? 'border-b-2 border-slate-900 text-slate-900 dark:border-white dark:text-white' : 'text-slate-500'}`}
+1856-                  onClick={() => setPrintTab('list')}
+1857-                >
+1858-                  Lista de Membros
+1859-                </button>
+1860-                <button 
+1861-                  className={`pb-2 text-sm font-medium ${printTab === 'cards' ? 'border-b-2 border-slate-900 text-slate-900 dark:border-white dark:text-white' : 'text-slate-500'}`}
+1862-                  onClick={() => setPrintTab('cards')}
+1863-                >
+1864-                  Carteirinhas
+1865-                </button>
+1866-              </div>
+1867-
+1868-              
+1869-              {printTab === 'list' && (
+1870-                <div className="space-y-6 py-4">
+1871-                  <div className="grid gap-4 md:grid-cols-2">
+1872-                    <div className="grid gap-2">
+1873-                        <Label>Tipo de Relatório</Label>
+1874-                        <Select value={reportType} onValueChange={setReportType}>
+1875-                          <SelectTrigger><SelectValue /></SelectTrigger>
+1876-                          <SelectContent>
+1877-                            <SelectItem value="ativos">Membros Ativos</SelectItem>
+1878-                            <SelectItem value="aniversariantes">Aniversariantes do Mês</SelectItem>
+1879-                          </SelectContent>
+1880-                        </Select>
+1881-                    </div>
+1882-                    {reportType === 'aniversariantes' && (
+1883-                        <div className="grid gap-2">
+1884-                            <Label>Mês</Label>
+1885-                            <Select value={reportMonth} onValueChange={setReportMonth}>
+1886-                              <SelectTrigger><SelectValue /></SelectTrigger>
+1887-                              <SelectContent>
+1888-                                <SelectItem value="01">Janeiro</SelectItem>
+1889-                                <SelectItem value="02">Fevereiro</SelectItem>
+1890-                                <SelectItem value="03">Março</SelectItem>
+1891-                                <SelectItem value="04">Abril</SelectItem>
+1892-                                <SelectItem value="05">Maio</SelectItem>
+1893-                                <SelectItem value="06">Junho</SelectItem>
+1894-                                <SelectItem value="07">Julho</SelectItem>
+1895-                                <SelectItem value="08">Agosto</SelectItem>
+1896-                                <SelectItem value="09">Setembro</SelectItem>
+1897-                                <SelectItem value="10">Outubro</SelectItem>
+1898-                                <SelectItem value="11">Novembro</SelectItem>
+1899-                                <SelectItem value="12">Dezembro</SelectItem>
+1900-                              </SelectContent>
+1901-                            </Select>
+1902-                        </div>
+1903-                    )}
+1904-                    <div className="grid gap-2">
+1905-                        <Label>Departamento / Cargo (Opcional)</Label>
+1906-                        <Select value={reportRole} onValueChange={setReportRole}>
+1907-                          <SelectTrigger><SelectValue /></SelectTrigger>
+1908-                          <SelectContent>
+1909-                            <SelectItem value="all">Todos os Departamentos</SelectItem>
+1910-                            {Array.from(new Set(members.map((m: any) => m.role))).filter(Boolean).map(role => (
+1911-                                <SelectItem key={role as string} value={role as string}>{role as string}</SelectItem>
+1912-                            ))}
+1913-                          </SelectContent>
+1914-                        </Select>
+1915-                    </div>
+1916-                  </div>
+1917-                  <div className="flex gap-2">
+1918-                    <Button onClick={generateCustomReportPDF}>Gerar Relatório em PDF</Button>
+1919-                  </div>
+1920-                  
+1921-                  <div className="border-t pt-4 mt-4 space-y-4">
+1922-                    <p className="text-sm font-semibold text-slate-700">Relatório Padrão (Exibe apenas os filtros ativos na tela)</p>
+1923-                    <div className="flex gap-2">
+1924-                        <Button variant="outline" onClick={generateMemberListPDF}>Lista Atual em PDF</Button>
+1925-                        <Button variant="outline" onClick={generateMemberListCSV}>Lista Atual em Excel (.xlsx)</Button>
+1926-                    </div>
+1927-                  </div>
+1928-                </div>
+1929-              )}
+1930-
+1931-
+1932-              {printTab === 'cards' && (
+1933-                <div className="space-y-6 py-2">
+1934-                  {/* Card Preview */}
+1935-                  <div className="flex flex-col items-center gap-4 mb-4 pt-4 border-b pb-6 overflow-hidden">
+1936-                    <div className="flex items-center justify-between w-full px-4 mb-2"><h3 className="font-semibold text-slate-700">Visualização Online</h3><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => generateCardsPNG(true)}><Download className="w-4 h-4 mr-2" /> Baixar PNG</Button><Button variant="outline" size="sm" onClick={() => generateCardsPDF(true)}><Download className="w-4 h-4 mr-2" /> Baixar PDF</Button></div></div>
+1937-                    <div className="flex flex-col sm:flex-row gap-4 origin-top" style={{ transform: 'scale(0.85)' }}>
+1938-                      {/* Front */}
+1939-                      <div id="card-preview-front"
+1940-                        className="border border-slate-300 shadow-sm relative text-[8px] font-sans overflow-hidden"
+1941-                        style={{ width: '90mm', height: '60mm', backgroundColor: cardColorFront }}
+1942-                      >
+1943-                        <div className="flex p-2 items-center">
+1944-                           <div className="w-16 h-10 flex items-center justify-center overflow-hidden">
+1945-                              {churchData?.logoDataUrl ? (
+1946-                                  <img src={churchData.logoDataUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
+1947-                              ) : (
+1948-                                  <span className="text-[6px] text-slate-400">LOGO</span>
+1949-                              )}
+1950-                           </div>
+1951-                           <div className="flex flex-col items-center flex-1 px-1">
+1952-                             <h1 className="font-[900] text-[10px] leading-tight text-center whitespace-nowrap overflow-hidden text-ellipsis w-[60mm]">
+1953-                                {(churchData?.nome || "IGREJA O BRASIL PARA CRISTO").toUpperCase()}
+1954-                             </h1>
+1955-                             <p className="text-[5.5px] font-bold leading-tight text-center mt-1">
+1956-                                {churchData?.endereco || "RUA BARTOLOMEU BUENO, Nº 629"} - {churchData?.bairro || "BAIRRO SANTA CASA"}
+1957-                             </p>
+1958-                             <p className="text-[5.5px] font-bold leading-tight text-center">
+1959-                                CEP {churchData?.cep || "16880-000"} - {churchData?.cidade || "VALPARAÍSO - SP"}
+1960-                             </p>
+1961-                           </div>
+1962-                        </div>
+1963-                        <h2 className="text-center font-bold text-[14px] mt-1 mb-2">CARTÃO DE MEMBRO</h2>
+1964-                        
+1965-                        <div className="px-2 flex gap-2">
+1966-                           {/* Photo */}
+1967-                           <div className="w-[18mm] h-[26mm] border border-slate-400 rounded flex items-center justify-center bg-white overflow-hidden shrink-0">
+1968-                              {previewMember?.photoUrl ? (
+1969-                                <img src={previewMember.photoUrl} alt="Foto" className="w-full h-full object-cover" />
+1970-                              ) : (
+1971-                                <span className="text-slate-400 text-[6px]">Foto</span>
+1972-                              )}
+1973-                           </div>
+1974-                           
+1975-                           {/* Fields */}
+1976-                           <div className="flex-1 flex flex-col gap-[3mm]">
+1977-                              <div className="relative border border-slate-400 rounded h-[6mm] px-1 pt-[1.5mm]">
+1978-                                 <span className="absolute -top-[1.5mm] left-0.5 bg-transparent text-[5.5px] font-bold">Nome</span>
+1979-                                 <span className="font-bold text-[8px] truncate block pt-[0.5mm]">{previewMember?.name}</span>
+1980-                              </div>
+1981-                              <div className="flex gap-2">
+1982-                                  <div className="relative border border-slate-400 rounded h-[6mm] px-1 pt-[1.5mm] flex-[1.4]">
+1983-                                     <span className="absolute -top-[1.5mm] left-0.5 bg-transparent text-[5.5px] font-bold">Cargo</span>
+1984-                                     <span className="font-bold text-[8px] truncate block pt-[0.5mm]">{previewMember?.role}</span>
+1985-                                  </div>
+1986-                                  <div className="relative border border-slate-400 rounded h-[6mm] px-1 pt-[1.5mm] flex-[1]">
+1987-                                     <span className="absolute -top-[1.5mm] left-0.5 bg-transparent text-[5.5px] font-bold">Expedida em</span>
+1988-                                     <span className="font-bold text-[8px] truncate block pt-[0.5mm]">{new Date().toLocaleDateString('pt-BR')}</span>
+1989-                                  </div>
+1990-                              </div>
+1991-                              <div className="relative border border-slate-400 rounded h-[6mm] px-1 pt-[1.5mm]">
+1992-                                 <span className="absolute -top-[1.5mm] left-0.5 bg-transparent text-[5.5px] font-bold">Cidade</span>
+1993-                                 <span className="font-bold text-[8px] truncate block pt-[0.5mm]">{previewMember?.cidade || ""} - {previewMember?.naturalidade?.split('/')[1] || "SP"}</span>
+1994-                              </div>
+1995-                           </div>
+1996-                        </div>
+1997-                      </div>
+1998-
+1999-                      {/* Back */}
+2000-                      <div 
+2001-                        className="border border-slate-300 shadow-sm relative text-[8px] font-sans flex flex-col p-2 overflow-hidden"
+2002-                        style={{ width: '90mm', height: '60mm', backgroundColor: cardColorBack }}
+2003-                      >
+2004-                        <div className="flex flex-col gap-[3mm] flex-1">
+2005-                           <div className="flex gap-2">
+2006-                              <div className="relative border border-slate-400 rounded h-[5.5mm] px-1 pt-[1.5mm] flex-[3]">
+2007-                                 <span className="absolute -top-[1.5mm] left-0.5 text-[5px] font-bold px-0.5" style={{ backgroundColor: cardColorBack }}>Pai</span>
+2008-                                 <span className="font-bold text-[8px] truncate block">{previewMember?.pai || " "}</span>
+2009-                              </div>
+2010-                              <div className="relative border border-slate-400 rounded h-[5.5mm] px-1 pt-[1.5mm] flex-[1]">
+2011-                                 {(() => {
+2012-                                     const isIrregular = previewMember?.validade && new Date(previewMember.validade.split('/').reverse().join('-')) < new Date();
+2013-                                     return (
+2014-                                        <>
+2015-                                            <span className="absolute -top-[1.5mm] left-0.5 text-[5px] font-bold px-0.5" style={{ backgroundColor: isIrregular ? '#fef2f2' : cardColorBack, color: isIrregular ? '#dc2626' : 'inherit' }}>Validade {isIrregular && '(Vencida)'}</span>
+2016-                                            <span className={`font-bold text-[8px] truncate block ${isIrregular ? 'text-red-600' : ''}`}>{previewMember?.validade || " "}</span>
+2017-                                        </>
+2018-                                     )
+2019-                                 })()}
+2020-                              </div>
+2021-                           </div>
+2022-                           
+2023-                           <div className="flex gap-2">
+2024-                              <div className="relative border border-slate-400 rounded h-[5.5mm] px-1 pt-[1.5mm] flex-[3]">
+2025-                                 <span className="absolute -top-[1.5mm] left-0.5 text-[5px] font-bold px-0.5" style={{ backgroundColor: cardColorBack }}>Mãe</span>
+2026-                                 <span className="font-bold text-[8px] truncate block">{previewMember?.mae || " "}</span>
+2027-                              </div>
+2028-                              <div className="relative border border-slate-400 rounded h-[5.5mm] px-1 pt-[1.5mm] flex-[1]">
+2029-                                 <span className="absolute -top-[1.5mm] left-0.5 text-[5px] font-bold px-0.5" style={{ backgroundColor: cardColorBack }}>Data do Batismo</span>
+2030-                                 <span className="font-bold text-[8px] truncate block">{previewMember?.dataBatismo || " "}</span>
+2031-                              </div>
+2032-                           </div>
+2033-
+2034-                           <div className="flex gap-2">
+2035-                              <div className="relative border border-slate-400 rounded h-[5.5mm] px-1 pt-[1.5mm] flex-[1.5]">
+2036-                                 <span className="absolute -top-[1.5mm] left-0.5 text-[5px] font-bold px-0.5" style={{ backgroundColor: cardColorBack }}>Naturalidade</span>
+2037-                                 <span className="font-bold text-[8px] truncate block">{previewMember?.naturalidade || " "}</span>
+2038-                              </div>
+2039-                              <div className="relative border border-slate-400 rounded h-[5.5mm] px-1 pt-[1.5mm] flex-[1]">
+2040-                                 <span className="absolute -top-[1.5mm] left-0.5 text-[5px] font-bold px-0.5" style={{ backgroundColor: cardColorBack }}>Sexo</span>
+2041-                                 <span className="font-bold text-[8px] truncate block">{previewMember?.sexo || " "}</span>
+2042-                              </div>
+2043-                              <div className="relative border border-slate-400 rounded h-[5.5mm] px-1 pt-[1.5mm] flex-[1]">
+2044-                                 <span className="absolute -top-[1.5mm] left-0.5 text-[5px] font-bold px-0.5" style={{ backgroundColor: cardColorBack }}>Membro desde</span>
+2045-                                 <span className="font-bold text-[8px] truncate block">{previewMember?.membroDesde || " "}</span>
+2046-                              </div>
+2047-                           </div>
+2048-
+2049-                                                      <div className="flex gap-2">
+2050-                              <div className="relative border border-slate-400 rounded h-[5.5mm] px-1 pt-[1.5mm] flex-[1.5]">
+2051-                                 <span className="absolute -top-[1.5mm] left-0.5 text-[5px] font-bold px-0.5" style={{ backgroundColor: cardColorBack }}>Nascimento</span>
+2052-                                 <span className="font-bold text-[8px] truncate block">{previewMember?.dataNascimento || " "}</span>
+2053-                              </div>
+2054-                              <div className="relative border border-slate-400 rounded h-[5.5mm] px-1 pt-[1.5mm] flex-[1.5]">
+2055-                                 <span className="absolute -top-[1.5mm] left-0.5 text-[5px] font-bold px-0.5" style={{ backgroundColor: cardColorBack }}>Estado Civil</span>
+2056-                                 <span className="font-bold text-[8px] truncate block">{previewMember?.estadoCivil || " "}</span>
+2057-                              </div>
+2058-                              <div className="flex-[0.5]"></div>
+2059-                           </div>
+2060-                           <div className="flex gap-2">
+2061-                              <div className="relative border border-slate-400 rounded h-[5.5mm] px-1 pt-[1.5mm] flex-[1.5]">
+2062-                                 <span className="absolute -top-[1.5mm] left-0.5 text-[5px] font-bold px-0.5" style={{ backgroundColor: cardColorBack }}>Nº CPF</span>
+2063-                                 <span className="font-bold text-[8px] truncate block">{previewMember?.cpf || " "}</span>
+2064-                              </div>
+2065-                              <div className="relative border border-slate-400 rounded h-[5.5mm] px-1 pt-[1.5mm] flex-[1.5]">
+2066-                                 <span className="absolute -top-[1.5mm] left-0.5 text-[5px] font-bold px-0.5" style={{ backgroundColor: cardColorBack }}>Nº RG</span>
+2067-                                 <span className="font-bold text-[8px] truncate block">{previewMember?.rg || " "}</span>
+2068-                              </div>
+2069-                              <div className="flex-[0.5]"></div>
+2070-                           </div>
+2071-                           
+2072-                        </div>
+2073-                        
+2074-                        <div className="flex mt-3 mb-1 px-4 gap-4 justify-between h-[10mm] items-end relative">
+2075-                            <div className="flex-1 flex flex-col items-center relative">
+2076-                                {churchData?.secretarySignatureUrl && (
+2077-                                    <img src={churchData.secretarySignatureUrl} className="absolute bottom-2 h-[8mm] object-contain opacity-80" alt="Assinatura" />
+2078-                                )}
+2079-                                <div className="w-full border-b border-slate-400 z-10"></div>
+2080-                                <span 
+2081-                                  className="font-bold mt-0.5 w-full text-center"
+2082-                                  style={{ fontSize: (previewMember?.name || "").length > 26 ? '4.5px' : (previewMember?.name || "").length > 20 ? '5px' : '6px', whiteSpace: 'nowrap' }}
+2083-                                >
+2084-                                  {previewMember?.name || " "}
+2085-                                </span>
+2086-                                <span className="text-[5px] mt-0.5">MEMBRO</span>
+2087-                            </div>
+2088-                            <div className="flex-1 flex flex-col items-center relative">
+2089-                                {churchData?.pastorSignatureUrl && (
+2090-                                    <img src={churchData.pastorSignatureUrl} className="absolute bottom-2 h-[8mm] object-contain opacity-80" alt="Assinatura Pastor" />
+2091-                                )}
+2092-                                <div className="w-full border-b border-slate-400 z-10"></div>
+2093-                                <span 
+2094-                                  className="font-bold mt-0.5 w-full text-center"
+2095-                                  style={{ fontSize: (churchData?.pastorTitular || "Pastor Responsável").length > 26 ? '4.5px' : (churchData?.pastorTitular || "Pastor Responsável").length > 20 ? '5px' : '6px', whiteSpace: 'nowrap' }}
+2096-                                >
+2097-                                  {churchData?.pastorTitular || "Pastor Responsável"}
+2098-                                </span>
+2099-                                <span className="text-[5px] mt-0.5">PASTOR LOCAL</span>
+2100-                            </div>
+2101-                        </div>
+2102-                      </div>
+2103-                    </div>
+2104-                  </div>
+2105-
+2106-                  {/* Seleção de Membros */}
+2107-                  <div className="space-y-3">
+2108-                    <h4 className="text-sm font-medium">Seleção de Membros</h4>
+2109-                    <Select value={cardSelection} onValueChange={(v: any) => setCardSelection(v)}>
+2110-                      <SelectTrigger>
+2111-                        <SelectValue placeholder="Selecione..." />
+2112-                      </SelectTrigger>
+2113-                      <SelectContent>
+2114-                        <SelectItem value="all">Todos os membros (filtrados)</SelectItem>
+2115-                        <SelectItem value="single">Membro Específico</SelectItem>
+2116-                        <SelectItem value="range">Intervalo de Membros</SelectItem>
+2117-                        <SelectItem value="selected">Membros Selecionados (Lista)</SelectItem>
+2118-                      </SelectContent>
+2119-                    </Select>
+2120-
+2121-                    {cardSelection === 'single' && (
+2122-                      <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
+2123-                        <SelectTrigger>
+2124-                          <SelectValue placeholder="Selecione o membro..." />
+2125-                        </SelectTrigger>
+2126-                        <SelectContent>
+2127-                          {members.map((m: any) => (
+2128-                            <SelectItem key={m.id} value={m.id.toString()}>{m.name}</SelectItem>
+2129-                          ))}
+2130-                        </SelectContent>
+2131-                      </Select>
+2132-                    )}
+2133-
+2134-                    {cardSelection === 'range' && (
+2135-                      <div className="flex gap-4 items-center">
+2136-                        <div className="flex-1">
+2137-                          <Label className="text-xs text-slate-500">De:</Label>
+2138-                          <Select value={startMemberId} onValueChange={setStartMemberId}>
+2139-                            <SelectTrigger>
+2140-                              <SelectValue placeholder="Membro inicial..." />
+2141-                            </SelectTrigger>
+2142-                            <SelectContent>
+2143-                              {members.map((m: any) => (
+2144-                                <SelectItem key={m.id} value={m.id.toString()}>{m.name}</SelectItem>
+2145-                              ))}
+2146-                            </SelectContent>
+2147-                          </Select>
+2148-                        </div>
+2149-                        <div className="flex-1">
+2150-                          <Label className="text-xs text-slate-500">Até:</Label>
+2151-                          <Select value={endMemberId} onValueChange={setEndMemberId}>
+2152-                            <SelectTrigger>
+2153-                              <SelectValue placeholder="Membro final..." />
+2154-                            </SelectTrigger>
+2155-                            <SelectContent>
+2156-                              {members.map((m: any) => (
+2157-                                <SelectItem key={m.id} value={m.id.toString()}>{m.name}</SelectItem>
+2158-                              ))}
+2159-                            </SelectContent>
+2160-                          </Select>
+2161-                        </div>
+2162-                      </div>
+2163-                    )}
+2164-                  </div>
+2165-
+2166-                  {/* Layout and Colors */}
+2167-                  <div className="space-y-3">
+2168-                    <h4 className="text-sm font-medium">Layout e Cores</h4>
+2169-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+2170-                      <div className="space-y-2">
+2171-                        <Label>Cor de Fundo (Frente)</Label>
+2172-                        <div className="flex gap-2">
+2173-                          <Input type="color" value={cardColorFront} onChange={(e) => setCardColorFront(e.target.value)} className="w-12 h-10 p-1 cursor-pointer" />
+2174-                          <Input type="text" value={cardColorFront} onChange={(e) => setCardColorFront(e.target.value)} className="flex-1 font-mono uppercase" />
+2175-                        </div>
+2176-                        <div className="flex flex-wrap gap-1.5 mt-2">
+2177-                          {["#ffffff", "#f8fafc", "#e2e8f0", "#fef3c7", "#fde68a", "#d9f99d", "#bbf7d0", "#bae6fd", "#c7d2fe", "#e9d5ff", "#fecdd3", "#fed7aa", "#1e293b", "#0f172a"].map(c => (
+2178-                            <div key={c} onClick={() => setCardColorFront(c)} className="w-6 h-6 rounded-md border shadow-sm cursor-pointer hover:scale-110 transition-transform" style={{backgroundColor: c}} title={c} />
+2179-                          ))}
+2180-                        </div>
+2181-                      </div>
+2182-                      <div className="space-y-2">
+2183-                        <Label>Cor de Fundo (Verso)</Label>
+2184-                        <div className="flex gap-2">
+2185-                          <Input type="color" value={cardColorBack} onChange={(e) => setCardColorBack(e.target.value)} className="w-12 h-10 p-1 cursor-pointer" />
+2186-                          <Input type="text" value={cardColorBack} onChange={(e) => setCardColorBack(e.target.value)} className="flex-1 font-mono uppercase" />
+2187-                        </div>
+2188-                        <div className="flex flex-wrap gap-1.5 mt-2">
+2189-                          {["#ffffff", "#f8fafc", "#e2e8f0", "#fef3c7", "#fde68a", "#d9f99d", "#bbf7d0", "#bae6fd", "#c7d2fe", "#e9d5ff", "#fecdd3", "#fed7aa", "#1e293b", "#0f172a"].map(c => (
+2190-                            <div key={c} onClick={() => setCardColorBack(c)} className="w-6 h-6 rounded-md border shadow-sm cursor-pointer hover:scale-110 transition-transform" style={{backgroundColor: c}} title={c} />
+2191-                          ))}
+2192-                        </div>
+2193-                      </div>
+2194-                    </div>
+2195-                  </div>
+2196-
+2197-                  <div className="flex gap-2 mt-4"><Button variant="outline" className="flex-1" onClick={() => generateCardsPNG(false)}>Exportar PNGs (ZIP)</Button><Button className="flex-1" onClick={() => generateCardsPDF(false)}>Gerar PDF</Button></div>
+2198-                </div>
+2199-              )}
+2200-            </DialogContent>
+2201-          </Dialog>
+2202-          <Button variant="outline" onClick={handleSendNotice}><Mail className="mr-2 h-4 w-4" /> Enviar Aviso</Button>
+2203-          <Button variant="outline" onClick={generateActiveMembersEventListPDF}><FileText className="mr-2 h-4 w-4" /> Lista para Eventos</Button>
+2204-          
+2205-          <Dialog open={isMemberModalOpen} onOpenChange={setIsMemberModalOpen}>
+2206-            <DialogTrigger asChild>
+2207-              <Button onClick={handleOpenAddModal}><Plus className="mr-2 h-4 w-4" /> Novo Membro</Button>
+2208-            </DialogTrigger>
+2209-            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+2210-              <DialogHeader>
+2211-                <DialogTitle>{editingMember ? "Editar Membro" : "Novo Membro"}</DialogTitle>
+2212-                <DialogDescription>
+2213-                  {editingMember ? "Altere os dados do membro." : "Preencha os dados completos para cadastrar um novo membro."}
+2214-                </DialogDescription>
+2215-              </DialogHeader>
+2216-              <form id="memberForm" onSubmit={handleSaveMember}>
+2217-                <div className="grid gap-6 py-4">
+2218-                  
+2219-                  {/* Dados Pessoais */}
+2220-                  <div className="space-y-4">
+2221-                    <h3 className="text-sm font-medium text-slate-500 border-b pb-2">Dados Pessoais</h3>
+2222-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+2223-                      
+2224-                <div className="grid gap-2">
+2225-                  
+2226-                  <Label htmlFor="branchId" className="flex items-center gap-1">
+2227-                     Igreja / Filial
+2228-                     <Tooltip>
+2229-                        <TooltipTrigger asChild>
+2230-                           <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+2231-                        </TooltipTrigger>
+2232-                        <TooltipContent>
+2233-                           Define qual congregação o membro frequenta.
+2234-                        </TooltipContent>
+2235-                     </Tooltip>
+2236-                  </Label>
+2237-
+2238-                  <Select name="branchId" defaultValue={editingMember?.branchId || "sede"}>
+2239-                    <SelectTrigger>
+2240-                      <SelectValue placeholder="Selecione a congregação" />
+2241-                    </SelectTrigger>
+2242-                    <SelectContent>
+2243-                      <SelectItem value="sede">Sede Principal</SelectItem>
+2244-                      <SelectItem value="filial_1">Filial 1 (Centro)</SelectItem>
+2245-                      <SelectItem value="filial_2">Filial 2 (Bairro)</SelectItem>
+2246-                    </SelectContent>
+2247-                  </Select>
+2248-                </div>
+2249-
+2250-                <div className="grid gap-2">
+2251-                  <Label htmlFor="name">Nome Completo</Label>
+2252-                        <Input id="name" name="name" defaultValue={editingMember?.name} placeholder="Ex: João Silva" required />
+2253-                      </div>
+2254-                      <div className="grid gap-2">
+2255-                        <Label htmlFor="sexo">Sexo</Label>
+2256-                        <Select name="sexo" defaultValue={editingMember?.sexo || "Masculino"}>
+2257-                          <SelectTrigger>
+2258-                            <SelectValue placeholder="Selecione..." />
+2259-                          </SelectTrigger>
+2260-                          <SelectContent>
+2261-                            <SelectItem value="Masculino">Masculino</SelectItem>
+2262-                            <SelectItem value="Feminino">Feminino</SelectItem>
+2263-                          </SelectContent>
+2264-                        </Select>
+2265-                      </div>
+2266-                    </div>
+2267-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+2268-                      <div className="grid gap-2">
+2269-                        <Label htmlFor="dataNascimento">Data de Nascimento</Label>
+2270-                        <Input id="dataNascimento" name="dataNascimento" type="date" defaultValue={parseBRDateForInput(editingMember?.dataNascimento)} />
+2271-                      </div>
+2272-                      <div className="grid gap-2">
+2273-                        <Label htmlFor="naturalidade">Naturalidade</Label>
+2274-                        <Input id="naturalidade" name="naturalidade" defaultValue={editingMember?.naturalidade} placeholder="Ex: São Paulo/SP" />
+2275-                      </div>
+2276-                      <div className="grid gap-2">
+2277-                        <Label htmlFor="estadoCivil">Estado Civil</Label>
+2278-                        <Select name="estadoCivil" defaultValue={editingMember?.estadoCivil || "Solteiro"}>
+2279-                          <SelectTrigger>
+2280-                            <SelectValue placeholder="Selecione..." />
+2281-                          </SelectTrigger>
+2282-                          <SelectContent>
+2283-                            <SelectItem value="Solteiro">Solteiro</SelectItem>
+2284-                            <SelectItem value="Casado">Casado</SelectItem>
+2285-                            <SelectItem value="Divorciado">Divorciado</SelectItem>
+2286-                            <SelectItem value="Viúvo">Viúvo</SelectItem>
+2287-                          </SelectContent>
+2288-                        </Select>
+2289-                      </div>
+2290-                    </div>
+2291-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+2292-                      <div className="grid gap-2">
+2293-                        <Label htmlFor="pai">Nome do Pai</Label>
+2294-                        <Input id="pai" name="pai" defaultValue={editingMember?.pai} placeholder="Nome do Pai" />
+2295-                      </div>
+2296-                      <div className="grid gap-2">
+2297-                        <Label htmlFor="mae">Nome da Mãe</Label>
+2298-                        <Input id="mae" name="mae" defaultValue={editingMember?.mae} placeholder="Nome da Mãe" />
+2299-                      </div>
+2300-                    </div>
+2301-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+2302-                      <div className="grid gap-2">
+2303-                        <Label htmlFor="rg">RG</Label>
+2304-                        <Input id="rg" name="rg" defaultValue={editingMember?.rg} placeholder="00.000.000-0" />
+2305-                      </div>
+2306-                      <div className="grid gap-2">
+2307-                        
+2308-                  <Label htmlFor="cpf" className="flex items-center gap-1">
+2309-                     CPF
+2310-                     <Tooltip>
+2311-                        <TooltipTrigger asChild>
+2312-                           <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+2313-                        </TooltipTrigger>
+2314-                        <TooltipContent>
+2315-                           Documento usado para validações fiscais e emissões de recibos de contribuição.
+2316-                        </TooltipContent>
+2317-                     </Tooltip>
+2318-                  </Label>
+2319-
+2320-                        <Input id="cpf" name="cpf" defaultValue={editingMember?.cpf} placeholder="000.000.000-00" onChange={handleCpfChange} required />
+2321-                      </div>
+2322-                    </div>
+2323-                  </div>
+2324-
+2325-                  {/* Contato e Endereço */}
+2326-                  <div className="space-y-4">
+2327-                    <h3 className="text-sm font-medium text-slate-500 border-b pb-2">Contato e Endereço</h3>
+2328-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+2329-                      <div className="grid gap-2">
+2330-                        <Label htmlFor="email">E-mail</Label>
+2331-                        <Input id="email" name="email" type="email" defaultValue={editingMember?.email} placeholder="joao@email.com" />
+2332-                      </div>
+2333-                      <div className="grid gap-2">
+2334-                        <Label htmlFor="phone">Telefone / WhatsApp</Label>
+2335-                        <Input id="phone" name="phone" defaultValue={editingMember?.phone} placeholder="(00) 00000-0000" onChange={handlePhoneChange} required />
+2336-                      </div>
+2337-                    </div>
+2338-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+2339-                      <div className="grid gap-2 md:col-span-3">
+2340-                        <Label htmlFor="endereco">Endereço (Rua, Número, Complemento)</Label>
+2341-                        <Input id="endereco" name="endereco" defaultValue={editingMember?.endereco} placeholder="Rua das Flores, 123" />
+2342-                      </div>
+2343-                      <div className="grid gap-2">
+2344-                        <Label htmlFor="cep">CEP</Label>
+2345-                        <Input id="cep" name="cep" defaultValue={editingMember?.cep} placeholder="00000-000" onChange={handleCepChange} />
+2346-                      </div>
+2347-                    </div>
+2348-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+2349-                      <div className="grid gap-2">
+2350-                        <Label htmlFor="bairro">Bairro</Label>
+2351-                        <Input id="bairro" name="bairro" defaultValue={editingMember?.bairro} placeholder="Centro" />
+2352-                      </div>
+2353-                      <div className="grid gap-2">
+2354-                        <Label htmlFor="cidade">Cidade</Label>
+2355-                        <Input id="cidade" name="cidade" defaultValue={editingMember?.cidade} placeholder="São Paulo" />
+2356-                      </div>
+2357-                    </div>
+2358-                  </div>
+2359-
+2360-                  {/* Eclesiástico e Foto */}
+2361-                  <div className="space-y-4">
+2362-                    <h3 className="text-sm font-medium text-slate-500 border-b pb-2">Dados Eclesiásticos e Foto</h3>
+2363-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+2364-                      <div className="grid gap-2">
+2365-                        <Label htmlFor="role">Cargo / Função</Label>
+2366-                        <Input id="role" name="role" defaultValue={editingMember?.role} placeholder="Ex: Membro, Diácono" required />
+2367-                      </div>
+2368-                      <div className="grid gap-2">
+2369-                                              <div className="grid gap-2">
+2370-                        <Label htmlFor="tags">Tags (separadas por vírgula)</Label>
+2371-                        <Input id="tags" name="tags" defaultValue={editingMember?.tags ? editingMember.tags.join(", ") : ""} placeholder="Ex: Músico, Obreiro, Voluntário" />
+2372-                      </div>
+2373-                      </div>
+2374-                      <div className="grid gap-2">
+2375-                        <Label htmlFor="status">Status</Label>
+2376-                        <Select name="status" defaultValue={editingMember?.status || "Ativo"} required>
+2377-                          <SelectTrigger>
+2378-                            <SelectValue placeholder="Selecione..." />
+2379-                          </SelectTrigger>
+2380-                          <SelectContent>
+2381-                            <SelectItem value="Ativo">Ativo</SelectItem>
+2382-                            <SelectItem value="Inativo">Inativo</SelectItem>
+2383-                          </SelectContent>
+2384-                        </Select>
+2385-                      </div>
+2386-                    </div>
+2387-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+2388-                      <div className="grid gap-2">
+2389-                        <Label htmlFor="dataBatismo">Data do Batismo</Label>
+2390-                        <Input id="dataBatismo" name="dataBatismo" type="date" defaultValue={parseBRDateForInput(editingMember?.dataBatismo)} />
+2391-                      </div>
+2392-                      <div className="grid gap-2">
+2393-                        <Label htmlFor="membroDesde">Membro Desde</Label>
+2394-                        <Input id="membroDesde" name="membroDesde" type="date" defaultValue={parseBRDateForInput(editingMember?.membroDesde)} />
+2395-                      </div>
+2396-                      <div className="grid gap-2">
+2397-                        <Label htmlFor="validade">Validade (Carteirinha)</Label>
+2398-                        <Input id="validade" name="validade" type="date" defaultValue={parseBRDateForInput(editingMember?.validade)} />
+2399-                      </div>
+2400-                    </div>
+2401-                    <div className="grid gap-2">
+2402-                      <Label htmlFor="photo">Upload de Foto (Para Carteirinha)</Label>
+2403-                      {photoPreview && (
+2404-                        <div className="mt-2 mb-2">
+2405-                          <img src={photoPreview} alt="Preview da Foto" className="w-24 h-24 object-cover rounded-md border border-border shadow-sm" />
+2406-                        </div>
+2407-                      )}
+2408-                      <Input 
+2409-                        id="photo" 
+2410-                        name="photo" 
+2411-                        type="file" 
+2412-                        accept="image/*" 
+2413-                        onChange={(e) => {
+2414-                          const file = e.target.files?.[0];
+2415-                          if (file) {
+2416-                            const reader = new FileReader();
+2417-                            reader.onloadend = () => {
+2418-                              setPhotoPreview(reader.result as string);
+2419-                            };
+2420-                            reader.readAsDataURL(file);
+2421-                          } else {
+2422-                            // Se desmarcar, volta pra original ou nulo
+2423-                            setPhotoPreview(editingMember?.photoUrl || null);
+2424-                          }
+2425-                        }}
+2426-                      />
+2427-                    </div>
+2428-                  </div>
+2429-
+2430-                </div>
+2431-
+2432-                {/* INÍCIO DO HISTÓRICO DE COMUNICAÇÕES */}
+2433-                {editingMember && (
+2434-                  <div className="col-span-1 sm:col-span-2 pt-4 border-t mt-4">
+2435-                    <h3 className="text-lg font-semibold mb-3">Histórico de Comunicações / Cuidado Pastoral</h3>
+2436-                    <div className="space-y-4">
+2437-                      {editingMember.communications && editingMember.communications.length > 0 ? (
+2438-                        <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+2439-                          {editingMember.communications.map((comm: any, idx: number) => (
+2440-                            <div key={comm.id || idx} className="p-3 bg-muted/30 border rounded-md text-sm">
+2441-                              <div className="flex justify-between font-semibold mb-1">
+2442-                                <span>{comm.type}</span>
+2443-                                <span className="text-muted-foreground">{new Date(comm.date).toLocaleDateString('pt-BR')}</span>
+2444-                              </div>
+2445-                              <p className="text-muted-foreground">{comm.notes}</p>
+2446-                            </div>
+2447-                          ))}
+2448-                        </div>
