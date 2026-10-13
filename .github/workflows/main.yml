@@ -17,7 +17,8 @@ jobs:
       - name: Limpar cache
         run: rm -rf node_modules package-lock.json
       - name: Instalar dependências
-        run: npm install --legacy-peer-deps
+        
+        run: npm install --legacy-peer-deps && npm rebuild
 
       - name: Executar build
         run: npm run build
