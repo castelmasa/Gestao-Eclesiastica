@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      (function() {
+        // Intercept Vite HMR WebSocket connections since HMR is disabled in this environment
+        var NativeWebSocket = window.WebSocket;
+        if (NativeWebSocket) {
+          function PatchedWebSocket(url, protocols) {
+            var isHmr = false;
+            if (protocols === 'vite-hmr' || (Array.isArray(protocols) && protocols.indexOf('vite-hmr') !== -1)) {
+              isHmr = true;
+            }
+            if (typeof url === 'string' && (url.indexOf('vite-hmr') !== -1 || url.indexOf('vite') !== -1)) {
+              isHmr = true;
+            }
+            if (isHmr) {
+              var target = new EventTarget();
+              var dummy = {
+                readyState: 1, // OPEN
+                CONNECTING: 0,
+                OPEN: 1,
+                CLOSING: 2,
+                CLOSED: 3,
+                url: String(url),
+                protocol: 'vite-hmr',
+                extensions: '',
+                binaryType: 'blob',
+                bufferedAmount: 0,
+                send: function() {},
+                close: function() {
+                  dummy.readyState = 3;
+                },
+                onopen: null,
+                onclose: null,
+                onerror: null,
+                onmessage: null,
+                addEventListener: function(type, listener, options) {
+                  target.addEventListener(type, listener, options);
+                },
+                removeEventListener: function(type, listener, options) {
+                  target.removeEventListener(type, listener, options);
+                },
+                dispatchEvent: function(event) {
+                  return target.dispatchEvent(event);
+                }
+              };
+              setTimeout(function() {
+                if (dummy.readyState === 1) {
+                  var ev = new Event('open');
+                  if (typeof dummy.onopen === 'function') {
+                    try { dummy.onopen(ev); } catch (e) {}
+                  }
+                  try { dummy.dispatchEvent(ev); } catch (e) {}
+                }
+              }, 10);
+              return dummy;
+            }
+            return new NativeWebSocket(url, protocols);
+          }
+          PatchedWebSocket.prototype = NativeWebSocket.prototype;
+          PatchedWebSocket.CONNECTING = 0;
+          PatchedWebSocket.OPEN = 1;
+          PatchedWebSocket.CLOSING = 2;
+          PatchedWebSocket.CLOSED = 3;
+          window.WebSocket = PatchedWebSocket;
+        }
+
+        function isViteBenign(arg) {
+          if (!arg) return false;
+          var str = '';
+          try {
+            str = typeof arg === 'string' ? arg : (arg.message || arg.stack || JSON.stringify(arg) || '');
+          } catch (e) {
+            str = String(arg);
+          }
+          return str.indexOf('[vite]') !== -1 ||
+                 str.indexOf('websocket') !== -1 ||
+                 str.indexOf('WebSocket') !== -1 ||
+                 str.indexOf('vite-hmr') !== -1;
+        }
+
+        var methods = ['error', 'warn', 'log', 'info', 'debug'];
+        for (var i = 0; i < methods.length; i++) {
+          (function(m) {
+            var orig = console[m];
+            console[m] = function() {
+              for (var j = 0; j < arguments.length; j++) {
+                if (isViteBenign(arguments[j])) {
+                  return;
+                }
+              }
+              if (orig) orig.apply(console, arguments);
+            };
+          })(methods[i]);
+        }
+
+        window.addEventListener('error', function(e) {
+          if (isViteBenign(e.message) || isViteBenign(e.error)) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(e) {
+          if (isViteBenign(e.reason)) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+          }
+        }, true);
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="OBPC 2ª Cong" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="alternate icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>Igreja O Brasil para Cristo - 2ª Congregação | Gestão Eclesiástica</title>
+    <meta name="description" content="Sistema de Gestão Eclesiástica da Igreja O Brasil para Cristo, 2ª Congregação." />
+    <meta property="og:title" content="Igreja O Brasil para Cristo - 2ª Congregação" />
+    <meta property="og:description" content="Sistema de Gestão Eclesiástica da Igreja O Brasil para Cristo, 2ª Congregação." />
+    <script type="module" crossorigin src="/assets/index-CoiWKtK6.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BaF0zi7y.css">
+  <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
+
