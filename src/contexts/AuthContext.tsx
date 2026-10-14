@@ -521,9 +521,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('church_session_user');
       localStorage.removeItem('church_authenticated_email');
       await signOut(auth);
-}
-  } catch (error) { console.error('Error signing out:', error); }
-  setuser(null)};
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+    setUser(null);
+  };
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">

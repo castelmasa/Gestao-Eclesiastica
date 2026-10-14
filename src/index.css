@@ -467,3 +467,9 @@
   }
 }
 
+/* Ensure UI is never frozen by stuck modal pointer-events */
+body {
+  pointer-events: auto !important;
+}
+
+

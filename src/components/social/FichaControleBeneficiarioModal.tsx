@@ -233,7 +233,8 @@ export function FichaControleBeneficiarioModal({
         { align: "center" }
       );
 
-      doc.save(`ficha-analitica-social-${beneficiary.nome.toLowerCase().replace(/\s+/g, "-")}.pdf`);
+      const safeBenName = (beneficiary?.nome || (beneficiary as any)?.name || "beneficiario").toLowerCase().replace(/\s+/g, "-");
+      doc.save(`ficha-analitica-social-${safeBenName}.pdf`);
       toast.success("Ficha Analítica gerada com sucesso!");
     } catch (e) {
       console.error("Erro ao gerar PDF da ficha:", e);
@@ -372,7 +373,8 @@ export function FichaControleBeneficiarioModal({
         { align: "center" }
       );
 
-      doc.save(`ficha-simplificada-social-${beneficiary.nome.toLowerCase().replace(/\s+/g, "-")}.pdf`);
+      const safeBenName = (beneficiary?.nome || (beneficiary as any)?.name || "beneficiario").toLowerCase().replace(/\s+/g, "-");
+      doc.save(`ficha-simplificada-social-${safeBenName}.pdf`);
       toast.success("Ficha Simplificada gerada com sucesso!");
     } catch (e) {
       console.error("Erro ao gerar PDF da ficha simplificada:", e);

@@ -107,11 +107,15 @@ export function initGlobalErrorHandlers() {
   isInitialized = true;
 
   window.addEventListener("error", (event) => {
-    // Ignore harmless browser extension or resize observer errors
+    const msg = event.message || "";
+    // Ignore harmless browser extension, resize observer, or DOM translate mismatch errors
     if (
-      event.message?.includes("ResizeObserver") ||
-      event.message?.includes("Script error.") ||
-      event.message?.includes("chrome-extension")
+      msg.includes("ResizeObserver") ||
+      msg.includes("Script error.") ||
+      msg.includes("chrome-extension") ||
+      msg.includes("The node to be removed is not a child of this node") ||
+      msg.includes("removeChild") ||
+      msg.includes("insertBefore")
     ) {
       return;
     }
@@ -133,7 +137,13 @@ export function initGlobalErrorHandlers() {
     // Ignore canceled navigation or cancelled firestore queries during unmount
     const reason = event.reason;
     const reasonMsg = reason?.message || String(reason || "");
-    if (reasonMsg.includes("cancelled") || reasonMsg.includes("aborted")) {
+    if (
+      reasonMsg.includes("cancelled") ||
+      reasonMsg.includes("aborted") ||
+      reasonMsg.includes("ServiceWorker") ||
+      reasonMsg.includes("sw.js") ||
+      reasonMsg.includes("The node to be removed is not a child of this node")
+    ) {
       return;
     }
 

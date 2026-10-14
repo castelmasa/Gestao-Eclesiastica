@@ -1807,11 +1807,13 @@ export function Financeiro() {
                         <SelectValue placeholder="Selecione um item rápido ou digite abaixo..." />
                       </SelectTrigger>
                       <SelectContent className="max-h-56">
-                        {availableItems.filter(i => i.type?.toLowerCase() === transactionType || !i.type).map(i => (
-                          <SelectItem key={i.id || i.name} value={i.name}>
-                            {i.name} ({i.category})
-                          </SelectItem>
-                        ))}
+                        {availableItems
+                          .filter(i => Boolean(i?.name && String(i.name).trim() !== "") && (i.type?.toLowerCase() === transactionType || !i.type))
+                          .map(i => (
+                            <SelectItem key={i.id || i.name} value={String(i.name)}>
+                              {i.name} ({i.category || 'Geral'})
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
 

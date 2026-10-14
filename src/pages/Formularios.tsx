@@ -311,10 +311,13 @@ export function Formularios() {
     }
   }, [])
 
-  const filteredMembers = members.filter(m => 
-    (m.nome || m.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
-    m.cpf?.includes(searchTerm)
-  ).slice(0, 25)
+  const safeSearch = (searchTerm || "").toLowerCase().trim();
+  const filteredMembers = (members || []).filter(m => {
+    if (!m) return false;
+    const mName = (m.nome || m.name || "").toLowerCase();
+    const mCpf = String(m.cpf || "");
+    return mName.includes(safeSearch) || (safeSearch !== "" && mCpf.includes(safeSearch));
+  }).slice(0, 25)
 
   const handleSelectMember = (m: any | null) => {
     if (!m) {
@@ -3511,7 +3514,7 @@ export function Formularios() {
                                 <Button
                                   key={b.id}
                                   type="button"
-                                  variant={reciboCongregacao.toLowerCase() === b.name.toLowerCase() ? "default" : "outline"}
+                                  variant={(reciboCongregacao || "").toLowerCase() === (b.name || "").toLowerCase() ? "default" : "outline"}
                                   size="sm"
                                   className="h-6 text-[10px] px-2 py-0"
                                   onClick={() => setReciboCongregacao(b.name)}
