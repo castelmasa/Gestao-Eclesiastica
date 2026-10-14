@@ -351,6 +351,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginWithGoogle = async () => {
     try {
+
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
@@ -520,11 +521,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('church_session_user');
       localStorage.removeItem('church_authenticated_email');
       await signOut(auth);
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-    setUser(null);
-  };
+ 
 
   if (loading) {
     return (
