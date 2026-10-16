@@ -31,7 +31,8 @@ import {
   Share2,
   Megaphone,
   Radio,
-  FileText
+  FileText,
+  Search
 } from "lucide-react"
 import { toast } from "sonner"
 import { logAction } from "@/lib/audit"
@@ -79,6 +80,9 @@ export function ComunicadosModal({
   const [copiedEmails, setCopiedEmails] = useState(false)
   const [copiedWhatsApp, setCopiedWhatsApp] = useState(false)
   const [isSendingEmailJs, setIsSendingEmailJs] = useState(false)
+  const [selectedPresetId, setSelectedPresetId] = useState<string>("ceia")
+  const [presetCategory, setPresetCategory] = useState<string>("todos")
+  const [presetSearch, setPresetSearch] = useState<string>("")
 
   // Load history from localStorage
   const [history, setHistory] = useState<ComunicadoHistoryItem[]>(() => {
@@ -99,36 +103,206 @@ export function ComunicadosModal({
     ]
   })
 
-  // Pre-made church templates
+  // Pre-made church templates organizados por categoria (Conforme Anexo 2)
   const presets = [
+    // 1. Cultos & Celebrações
     {
       id: "ceia",
       label: "🍷 Culto de Santa Ceia",
+      category: "cultos",
+      categoryLabel: "Cultos Especiais",
       subject: "Celebração da Santa Ceia do Senhor",
+      defaultDate: "Domingo às 19h00",
       body: `A Paz do Senhor, amados irmãos da ${churchName}! 🍷🍞\n\nNeste próximo domingo, celebraremos a Santa Ceia do Senhor Jesus Cristo, um momento solene de comunhão, memória do sacrifício na cruz e renovação da nossa aliança com Deus.\n\n"Fazei isto em memória de mim." (1 Coríntios 11:24)\n\nConvidamos você e toda a sua família para estarem conosco. Venha com o coração aberto para adorar e receber a bênção do Senhor!`,
     },
     {
+      id: "missoes",
+      label: "🌍 Culto de Missões",
+      category: "cultos",
+      categoryLabel: "Cultos Especiais",
+      subject: "Grande Culto de Missões e Evangelismo",
+      defaultDate: "Domingo às 19h00",
+      body: `A Paz do Senhor, amados irmãos da ${churchName}! 🌍📖\n\nConvidamos toda a igreja e comunidade para o nosso Culto Especial de Missões. Será uma noite de clamor pelos missionários nos campos, conscientização da Grande Comissão e testemunhos do agir sobrenatural de Deus alcançando vidas.\n\n"Ide por todo o mundo, pregai o evangelho a toda criatura." (Marcos 16:15)\n\nTraga sua oferta missionária e venha interceder pelas nações conosco!`,
+    },
+    {
+      id: "jovens",
+      label: "⚡ Culto dos Jovens",
+      category: "cultos",
+      categoryLabel: "Cultos Especiais",
+      subject: "Culto dos Jovens - Juventude com Propósito",
+      defaultDate: "Sábado às 19h30",
+      body: `A Paz do Senhor, juventude forte e abençoada! ⚡🔥\n\nConvocamos todos os jovens e adolescentes da ${churchName} para o nosso Culto dos Jovens. Será uma noite memorável de louvor contagiante, adoração genuína e ministração da Palavra de Deus para impactar a nossa geração.\n\n"Ninguém despreze a tua mocidade; mas sê o exemplo dos fiéis, na palavra, no trato, no amor, no espírito, na fé, na pureza." (1 Timóteo 4:12)\n\nConvide seus amigos da escola, faculdade e bairro. Esperamos por você!`,
+    },
+    {
+      id: "criancas",
+      label: "🎈 Culto das Crianças",
+      category: "cultos",
+      categoryLabel: "Cultos Especiais",
+      subject: "Grande Culto das Crianças",
+      defaultDate: "Domingo às 18h30",
+      body: `A Paz do Senhor, amada igreja e família! 🎈👶\n\nConvidamos todas as crianças, pais e familiares para o nosso animado Culto das Crianças. Teremos louvores infantis, apresentações dos pequeninos, teatrinho bíblico e uma palavra de amor e fé diretamente ao coração dos nossos filhos!\n\n"Deixai vir a mim as criancinhas e não as impeçais, porque das tais é o Reino de Deus." (Lucas 18:16)\n\nTraga seus filhos para este culto lindo e acolhedor!`,
+    },
+    {
+      id: "culto-espaco-kids",
+      label: "🧸 Culto Espaço Kids",
+      category: "cultos",
+      categoryLabel: "Cultos Especiais",
+      subject: "Culto Festivo no Espaço Kids",
+      defaultDate: "Domingo às 09h00",
+      body: `A Paz do Senhor, amada comunidade e pais! 🧸🌟\n\nÉ com grande alegria que convidamos todas as crianças para o nosso Culto Festivo no Espaço Kids da ${churchName}! Uma programação especial estruturada para ensinar as Sagradas Escrituras com amor, dinamismo, histórias bíblicas e alegria.\n\n"Instrui o menino no caminho em que deve andar, e, até quando envelhecer, não se desviará dele." (Provérbios 22:6)\n\nTraga suas crianças para vivenciarem a presença de Deus desde cedo!`,
+    },
+    {
+      id: "varoes",
+      label: "🛡️ Culto dos Varões",
+      category: "cultos",
+      categoryLabel: "Cultos Especiais",
+      subject: "Culto dos Varões - Homens de Honra e Oração",
+      defaultDate: "Quinta-feira às 19h30",
+      body: `A Paz do Senhor, valorosos varões e irmãos da ${churchName}! 🛡️⚔️\n\nConvocamos todos os homens da igreja para o nosso Culto do Ministério de Varões. Um tempo oportuno para oração pelos lares, sacerdócio da família e fortalecimento espiritual mútuo sob a luz da Bíblia.\n\n"Sede vigilantes, permanecei firmes na fé, portai-vos varonilmente, sede fortes." (1 Coríntios 16:13)\n\nSua presença é fundamental para compor este exército de intercessores!`,
+    },
+
+    // 2. Departamentos & Grupos
+    {
+      id: "mulheres",
+      label: "🌸 Encontro de Mulheres",
+      category: "departamentos",
+      categoryLabel: "Departamentos & Grupos",
+      subject: "Encontro do Ministério de Mulheres",
+      defaultDate: "Sábado às 16h00",
+      body: `A Paz do Senhor, queridas irmãs e amigas da ${churchName}! 🌸👑\n\nConvidamos todas as mulheres para um Encontro Especial de edificação, cura interior, louvor e comunhão. Será uma tarde enriquecedora de ministração bíblica, testemunhos e um fraterno chá da comunhão.\n\n"Mulher virtuosa, quem a achará? O seu valor muito excede o de finas joias." (Provérbios 31:10)\n\nVenha ser renovada na presença do Senhor e traga uma amiga com você!`,
+    },
+    {
+      id: "espaco-kids",
+      label: "🎨 Espaço Kids",
+      category: "departamentos",
+      categoryLabel: "Departamentos & Grupos",
+      subject: "Atividades do Espaço Kids e Apoio aos Pais",
+      defaultDate: "Aos Domingos nos Cultos",
+      body: `A Paz do Senhor, prezados pais e responsáveis da ${churchName}! 🎨🖍️\n\nLembramos que o Espaço Kids está com equipe de monitoras preparadas para receber suas crianças durante todos os nossos cultos oficiais. Um ambiente seguro, limpo e com material bíblico adaptado para a idade do seu filho.\n\n"Grandes serão a paz e a instrução dos teus filhos." (Isaías 54:13)\n\nDeixe seu pequeno em boas mãos enquanto você cultua e adora a Deus em paz!`,
+    },
+    {
+      id: "confraternizacao",
+      label: "🎉 Confraternização",
+      category: "departamentos",
+      categoryLabel: "Departamentos & Grupos",
+      subject: "Grande Confraternização da Família da Igreja",
+      defaultDate: "Sábado a partir das 11h00",
+      body: `A Paz do Senhor, família da fé da ${churchName}! 🎉🍲\n\nChegou a hora de celebrarmos a nossa Confraternização Geral da Igreja! Um dia reservado para a comunhão fraterna, alegria cristã, dinâmicas de integração, almoço comunitário e louvor a Deus por sua bondade.\n\n"Oh! Quão bom e quão suave é que os irmãos vivam em união!" (Salmos 133:1)\n\nTraga sua família e participe com o coração cheio de júbilo!`,
+    },
+
+    // 3. Ensino & Batismo
+    {
+      id: "curso-batismo",
+      label: "📖 Curso de Batismo nas Águas",
+      category: "ensino",
+      categoryLabel: "Ensino & Batismo",
+      subject: "Inscrições Abertas: Curso de Batismo nas Águas",
+      defaultDate: "Domingos às 09h00",
+      body: `A Paz do Senhor, irmãos e novos convertidos da ${churchName}! 📖💧\n\nA secretaria e a liderança pastoral informam que estão abertas as inscrições para o Curso Preparatório de Batismo nas Águas. As aulas ensinam os pilares fundamentais da doutrina bíblica e preparam os candidatos para este ato solene de obediência.\n\n"Quem crer e for batizado será salvo." (Marcos 16:16)\n\nProcure a liderança ou a secretaria para confirmar sua participação e receber o material!`,
+    },
+    {
+      id: "discipulado",
+      label: "🌱 Discipulado",
+      category: "ensino",
+      categoryLabel: "Ensino & Batismo",
+      subject: "Encontros de Discipulado Cristão e Crescimento Espiritual",
+      defaultDate: "Quartas-feiras às 19h30",
+      body: `A Paz do Senhor, queridos irmãos da ${churchName}! 🌱✝️\n\nConvidamos você para integrar as novas turmas de Discipulado Cristão. Venha fortalecer a sua fé, aprender o caráter de Cristo e entender como caminhar firme nos ensinamentos do Evangelho no dia a dia.\n\n"Antes, crescei na graça e no conhecimento de nosso Senhor e Salvador Jesus Cristo." (2 Pedro 3:18)\n\nVenha crescer espiritualmente conosco!`,
+    },
+    {
+      id: "batismo-aguas",
+      label: "🌊 Batismo nas Águas",
+      category: "ensino",
+      categoryLabel: "Ensino & Batismo",
+      subject: "Celebração do Batismo nas Águas da Igreja",
+      defaultDate: "Domingo às 10h00",
+      body: `A Paz do Senhor, amada igreja da ${churchName}! 🌊🕊️\n\nCom imenso júbilo no Espírito Santo, convidamos todos os irmãos, familiares e amigos para a Solenidade de Batismo nas Águas. Venha celebrar a vitória de vidas que publicamente confessarão Jesus Cristo como seu único Salvador!\n\n"Fomos sepultados com ele pelo batismo na morte, para que, como Cristo ressuscitou dentre os mortos, assim andemos nós também em novidade de vida." (Romanos 6:4)\n\nContamos com sua oração e presença festiva!`,
+    },
+
+    // 4. Oração & Espiritualidade
+    {
       id: "vigilia",
       label: "🔥 Vigília & Oração",
+      category: "oracao",
+      categoryLabel: "Oração & Espiritualidade",
       subject: "Vigília de Oração e Clamor da Igreja",
+      defaultDate: "Sexta-feira às 23h00",
       body: `A Paz do Senhor, família da fé! 🔥🙌\n\nConvidamos toda a igreja para a nossa abençoada Vigília de Oração. Será uma noite de busca intensa pela presença do Espírito Santo, intercessão pelas famílias, cura e libertação.\n\nTraga seus pedidos de oração e venha buscar a face de Deus conosco!\n\n"Clama a mim, e responder-te-ei, e anunciar-te-ei coisas grandes e firmes que não sabes." (Jeremias 33:3)`,
     },
     {
+      id: "virgilia",
+      label: "🕯️ Virgília",
+      category: "oracao",
+      categoryLabel: "Oração & Espiritualidade",
+      subject: "Grande Virgília de Clamor, Oração e Avivamento",
+      defaultDate: "Sexta-feira a partir das 23h00",
+      body: `A Paz do Senhor, povo de Deus da ${churchName}! 🕯️🕊️\n\nConvocamos toda a igreja para a nossa Grande Virgília de Oração e Avivamento. Venha romper a madrugada em intercessão, buscando poder do alto, quebra de cadeias e renovo espiritual sobre as nossas vidas e lares.\n\n"E perto da meia-noite, Paulo e Silas oravam e cantavam hinos a Deus, e os outros presos os escutavam." (Atos 16:25)\n\nDeus tem uma resposta para o seu clamor na vigília!`,
+    },
+    {
+      id: "consagracao",
+      label: "🙏 Consagração e Jejum",
+      category: "oracao",
+      categoryLabel: "Oração & Espiritualidade",
+      subject: "Manhã de Consagração e Jejum Congregacional",
+      defaultDate: "Sábado das 08h00 às 11h00",
+      body: `A Paz do Senhor, amados irmãos da ${churchName}! 🙏🍞\n\nConvidamos toda a igreja para a nossa Manhã de Consagração e Jejum. Um tempo separado para buscarmos a Deus em oração, santificar nossos pensamentos e nos humilhar diante do Todo-Poderoso.\n\n"Santificai um jejum, convocai uma assembleia solene... e clamai ao Senhor." (Joel 1:14)\n\nVenha consagrar o seu coração e colher os frutos da oração respondida!`,
+    },
+
+    // 5. Liderança & Reuniões
+    {
+      id: "reuniao-lideranca",
+      label: "👔 Reunião com a Liderança",
+      category: "lideranca",
+      categoryLabel: "Liderança & Ministério",
+      subject: "Convocação: Reunião Geral com a Liderança",
+      defaultDate: "Segunda-feira às 20h00",
+      body: `A Paz do Senhor, prezados líderes e coordenadores da ${churchName}! 👔📋\n\nA liderança pastoral convoca todos os coordenadores de ministérios, departamentos e diretores para uma Reunião Geral de Liderança. Pautas: avaliação ministerial, alinhamento das escalas e planejamento estratégico dos eventos.\n\n"Onde não há conselho os projetos saem vãos, mas na multidão de conselheiros se confirmam." (Provérbios 15:22)\n\nContamos com a pontualidade e o zelo de cada obreiro convocado!`,
+    },
+    {
+      id: "reuniao-louvor",
+      label: "🎵 Reunião como o Ministério de Louvor",
+      category: "lideranca",
+      categoryLabel: "Liderança & Ministério",
+      subject: "Reunião de Alinhamento: Ministério de Louvor e Músicos",
+      defaultDate: "Sábado às 17h00",
+      body: `A Paz do Senhor, amados levitas, músicos e equipe de som da ${churchName}! 🎵🎸🎤\n\nConvocamos todo o Ministério de Louvor para nossa reunião de alinhamento espiritual, organização de escalas de cultos, ensaios e planejamento técnico. Vamos juntos buscar aperfeiçoamento e consagração diante do altar.\n\n"Cantai-lhe um cântico novo; tocai bem e com júbilo." (Salmos 33:3)\n\nSua presença é essencial para o bom andamento dos louvores na casa do Senhor!`,
+    },
+    {
+      id: "reuniao-diaconos",
+      label: "🤝 Reunião com os Diáconos, Diaconisas e Cooperadores",
+      category: "lideranca",
+      categoryLabel: "Liderança & Ministério",
+      subject: "Reunião de Alinhamento: Diáconos, Diaconisas e Cooperadores",
+      defaultDate: "Sábado às 18h00",
+      body: `A Paz do Senhor, estimados diáconos, diaconisas e cooperadores da ${churchName}! 🤝⛪\n\nConvocamos todo o corpo de apoio e serviço eclesiástico para a nossa reunião de alinhamento dos serviços aos cultos, recepção calorosa de membros e visitantes, apoio à mesa da Santa Ceia e zelo pelo templo.\n\n"Porque os que servirem bem como diáconos adquirirão para si uma boa posição e muita confiança na fé que há em Cristo Jesus." (1 Timóteo 3:13)\n\nPedimos o compromisso e a pontualidade de todos!`,
+    },
+    {
       id: "reuniao",
-      label: "📋 Reunião / Assembleia",
-      subject: "Convocação para Reunião Administrativa da Igreja",
+      label: "📋 Reunião / Assembleia Geral",
+      category: "lideranca",
+      categoryLabel: "Liderança & Ministério",
+      subject: "Convocação para Assembleia Administrativa da Igreja",
+      defaultDate: "Domingo às 17h00",
       body: `A Paz do Senhor, prezados membros e liderança da ${churchName}! 📋⛪\n\nA diretoria e a secretaria da igreja convocam todos os membros e obreiros para a nossa Reunião Geral de Prestação de Contas, Planejamento e Avisos Importantes.\n\nA sua presença e participação é muito importante para a boa condução da obra do Senhor!\n\nContamos com todos. Que Deus abençoe!`,
     },
+
+    // 6. Ações Comunitárias e Livre
     {
       id: "social",
       label: "🤝 Ação Social & Mutirão",
+      category: "geral",
+      categoryLabel: "Comunidade & Outros",
       subject: "Mutirão Comunitário e Ação Solidária da Igreja",
+      defaultDate: "Sábado às 08h00",
       body: `A Paz do Senhor, queridos irmãos! 🤝❤️\n\nNossa igreja realizará uma ação especial de arrecadação de alimentos e roupas para famílias em situação de vulnerabilidade e manutenção da nossa casa de oração.\n\nVocê pode contribuir com alimentos não perecíveis ou participando voluntariamente no dia. Toda ajuda é bem-vinda!\n\n"Servi uns aos outros pelo amor." (Gálatas 5:13)`,
     },
     {
       id: "livre",
       label: "✍️ Comunicado em Branco",
+      category: "geral",
+      categoryLabel: "Comunidade & Outros",
       subject: "Comunicado Oficial da Secretaria",
+      defaultDate: "",
       body: `A Paz do Senhor, amados irmãos da ${churchName}!\n\n[Escreva aqui o comunicado da igreja com as orientações necessárias...]\n\nAtenciosamente,\nSecretaria e Pastorado da Igreja`,
     },
   ]
@@ -193,9 +367,25 @@ export function ComunicadosModal({
     }
   }, [isOpen])
 
+  const filteredPresets = useMemo(() => {
+    return presets.filter(p => {
+      const matchesCategory = presetCategory === "todos" || p.category === presetCategory
+      const matchesSearch = !presetSearch.trim() || 
+        p.label.toLowerCase().includes(presetSearch.toLowerCase()) || 
+        p.subject.toLowerCase().includes(presetSearch.toLowerCase()) ||
+        p.categoryLabel.toLowerCase().includes(presetSearch.toLowerCase())
+      return matchesCategory && matchesSearch
+    })
+  }, [presets, presetCategory, presetSearch])
+
   const handleApplyPreset = (preset: typeof presets[0]) => {
+    setSelectedPresetId(preset.id)
     setNoticeSubject(preset.subject)
     setNoticeBody(preset.body)
+    if (preset.defaultDate) {
+      setNoticeEventDate(preset.defaultDate)
+    }
+    toast.success(`Modelo "${preset.label}" carregado com sucesso!`, { duration: 2000 })
   }
 
   // Generate full text formatted for WhatsApp
@@ -502,25 +692,87 @@ export function ComunicadosModal({
               </div>
             </div>
 
-            {/* Modelos Prontos da Igreja */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                Modelos Rápidos de Avisos (clique para preencher):
-              </Label>
-              <div className="flex flex-wrap gap-1.5">
-                {presets.map((preset) => (
+            {/* Modelos Rápidos de Avisos (Conforme Anexo 2: Bem organizadinho e elegante) */}
+            <div className="space-y-2.5 p-3 rounded-xl border bg-slate-50/70 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <Label className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  Modelos Rápidos de Avisos & Comunicados ({presets.length} opções):
+                </Label>
+                
+                {/* Campo de Busca Rápida de Modelo */}
+                <div className="relative w-full sm:w-56">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={presetSearch}
+                    onChange={(e) => setPresetSearch(e.target.value)}
+                    placeholder="Filtrar por nome ou assunto..."
+                    className="h-7 text-xs pl-8 pr-2 bg-background border-slate-300 dark:border-slate-700"
+                  />
+                </div>
+              </div>
+
+              {/* Filtros por Categoria em Pílulas elegantes */}
+              <div className="flex flex-wrap items-center gap-1">
+                {[
+                  { id: "todos", label: "🌟 Todos", count: presets.length },
+                  { id: "cultos", label: "⛪ Cultos Especiais", count: presets.filter(p => p.category === "cultos").length },
+                  { id: "departamentos", label: "👥 Departamentos", count: presets.filter(p => p.category === "departamentos").length },
+                  { id: "ensino", label: "📖 Ensino & Batismo", count: presets.filter(p => p.category === "ensino").length },
+                  { id: "oracao", label: "🔥 Oração & Jejum", count: presets.filter(p => p.category === "oracao").length },
+                  { id: "lideranca", label: "📋 Liderança & Reuniões", count: presets.filter(p => p.category === "lideranca").length },
+                  { id: "geral", label: "🤝 Comunidade & Livre", count: presets.filter(p => p.category === "geral").length },
+                ].map((cat) => (
                   <Button
-                    key={preset.id}
+                    key={cat.id}
                     type="button"
                     size="sm"
-                    variant="outline"
-                    onClick={() => handleApplyPreset(preset)}
-                    className="text-xs h-7 px-2 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    variant={presetCategory === cat.id ? "default" : "outline"}
+                    onClick={() => setPresetCategory(cat.id)}
+                    className={`h-6 text-[11px] px-2.5 rounded-full font-medium transition-all ${
+                      presetCategory === cat.id
+                        ? "shadow-sm"
+                        : "border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 text-muted-foreground hover:text-foreground"
+                    }`}
                   >
-                    {preset.label}
+                    {cat.label} ({cat.count})
                   </Button>
                 ))}
+              </div>
+
+              {/* Grid elegante e rolável com os cards de modelos */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 max-h-[160px] overflow-y-auto pr-1">
+                {filteredPresets.map((preset) => {
+                  const isSelected = selectedPresetId === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleApplyPreset(preset)}
+                      className={`text-left p-2 rounded-lg border text-xs transition-all flex flex-col justify-between h-[56px] ${
+                        isSelected
+                          ? "bg-primary/10 border-primary text-primary font-semibold ring-1 ring-primary/40 shadow-xs"
+                          : "bg-background border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 text-slate-800 dark:text-slate-200"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full gap-1">
+                        <span className="font-semibold truncate text-[11px]">{preset.label}</span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-0.5 truncate w-full">
+                        <span className="truncate">{preset.categoryLabel}</span>
+                        {preset.defaultDate && (
+                          <span className="shrink-0 text-[9px] opacity-75 hidden sm:inline">📅</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+                {filteredPresets.length === 0 && (
+                  <div className="col-span-full py-4 text-center text-xs text-muted-foreground">
+                    Nenhum modelo encontrado para "{presetSearch}".
+                  </div>
+                )}
               </div>
             </div>
 

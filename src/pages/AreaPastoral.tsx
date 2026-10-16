@@ -591,14 +591,33 @@ export function AreaPastoral() {
         {/* TAB 2: FICHA DE ACOMPANHAMENTO PASTORAL (IMPRESSÃO A4) */}
         <TabsContent value="ficha" className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <Printer className="w-5 h-5 text-primary" />
-                Emissão da Ficha Oficial de Acompanhamento Pastoral (A4)
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Gere e imprima a ficha oficial para levar na pasta pastoral, visitas a enfermos ou registro de aconselhamento no gabinete.
-              </CardDescription>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg font-bold flex items-center gap-2">
+                  <Printer className="w-5 h-5 text-primary" />
+                  Emissão da Ficha Oficial de Acompanhamento Pastoral (A4)
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Gere e imprima a ficha oficial para levar na pasta pastoral, visitas a enfermos ou registro de aconselhamento no gabinete.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  onClick={handleDownloadFichaPDF}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-8"
+                >
+                  <Download className="w-3.5 h-3.5 mr-1.5" /> Salvar em PDF
+                </Button>
+                <Button 
+                  onClick={handlePrintFicha}
+                  size="sm"
+                  className="bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs h-8 px-4 shadow-sm"
+                >
+                  <Printer className="w-3.5 h-3.5 mr-1.5" /> Imprimir Ficha
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Opções de Preenchimento Conforme Solicitado pelo Usuário */}
@@ -720,29 +739,6 @@ export function AreaPastoral() {
                       className="h-8 text-xs" 
                     />
                   </div>
-                </div>
-              </div>
-
-              {/* Botões de Ação de Impressão */}
-              <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-slate-900 text-white shadow-md">
-                <div className="space-y-0.5">
-                  <span className="font-bold text-sm block">Ações de Impressão Oficial</span>
-                  <span className="text-xs text-slate-300">Formato A4 padronizado em 100% de escala e alinhamento centralizado.</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    onClick={handleDownloadFichaPDF}
-                    variant="outline"
-                    className="bg-transparent border-white/30 text-white hover:bg-white/10 text-xs h-9"
-                  >
-                    <Download className="w-4 h-4 mr-1.5" /> Salvar em PDF
-                  </Button>
-                  <Button 
-                    onClick={handlePrintFicha}
-                    className="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs h-9 px-5 shadow-sm"
-                  >
-                    <Printer className="w-4 h-4 mr-1.5" /> Imprimir Ficha (Escolher Impressora)
-                  </Button>
                 </div>
               </div>
 

@@ -34,7 +34,6 @@ const allNavigation = [
   { name: "Gestor de Eventos", href: "/agenda", icon: CalendarDays, module: "public", section: "Principal" },
   { name: "Área Pastoral", href: "/pastor", icon: ShieldCheck, module: "pastoral", section: "Gestão" },
   { name: "Secretaria", href: "/secretaria", icon: Users, module: "secretaria", section: "Gestão" },
-  { name: "Formulários", href: "/formularios", icon: Printer, module: "secretaria", section: "Gestão" },
   { name: "Serviço Social", href: "/servico-social", icon: HeartHandshake, module: "social", section: "Gestão" },
   { name: "Financeiro", href: "/financeiro", icon: Wallet, module: "financeiro", section: "Gestão" },
   { name: "Patrimônio", href: "/patrimonio", icon: Building2, module: "patrimonio", section: "Gestão" },

@@ -315,7 +315,7 @@ export function FichaMembroPrintable({
               <span className="font-black text-[11px] w-[75px] shrink-0 text-black uppercase">
                 CPF:
               </span>
-              <div className="w-[140px] min-h-[24px] bg-slate-50 text-black px-2 py-0.5 font-mono font-bold text-[10.5px] flex items-center border border-slate-700">
+              <div className="w-[175px] min-h-[24px] bg-slate-50 text-black px-2 py-0.5 font-mono font-bold text-[11px] flex items-center border border-slate-700">
                 {d.cpf || ""}
               </div>
 

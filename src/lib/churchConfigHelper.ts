@@ -54,61 +54,115 @@ const DEFAULT_CHURCH_CONFIG = {
 export function getChurchLeadershipConfig(activeBranchId?: string, branchList: any[] = []): LeadershipSignatures {
   let savedConfig: any = {};
   try {
-    const raw = localStorage.getItem("churchConfig");
-    if (raw) savedConfig = JSON.parse(raw);
+    const rawGlobal = localStorage.getItem("churchConfig");
+    if (rawGlobal) savedConfig = JSON.parse(rawGlobal);
   } catch (e) {
     console.warn("Falha ao carregar churchConfig do localStorage:", e);
   }
 
-  // Se houver filial específica selecionada
+  // Se houver filial específica selecionada, carregar sua respectiva configuração de parâmetros
+  let branchSpecificConfig: any = {};
+  if (activeBranchId && activeBranchId !== "all" && activeBranchId !== "sede") {
+    try {
+      const rawBranch = localStorage.getItem(`churchConfig_${activeBranchId}`);
+      if (rawBranch) branchSpecificConfig = JSON.parse(rawBranch);
+    } catch (e) {
+      console.warn("Falha ao carregar branchConfig do localStorage:", e);
+    }
+  }
+
+  // Merge das configurações: global < filial
+  const mergedConfig = { ...savedConfig, ...branchSpecificConfig };
+
   let branchObj: any = null;
   if (activeBranchId && activeBranchId !== "all" && branchList.length > 0) {
     branchObj = branchList.find(b => b.id === activeBranchId);
   }
 
-  const pastorName = branchObj?.pastor || savedConfig.pastorTitular || DEFAULT_CHURCH_CONFIG.pastorTitular;
-  const pastorSig = branchObj?.pastorSignatureUrl || savedConfig.pastorSignatureUrl || "";
-  
-  const tesoureiroName = savedConfig.tesoureiro1 || DEFAULT_CHURCH_CONFIG.tesoureiro1;
-  const tesoureiroSig = savedConfig.tesoureiro1SignatureUrl || "";
+  const pastorName =
+    branchObj?.pastor ||
+    mergedConfig.pastorTitular ||
+    mergedConfig.pastor ||
+    DEFAULT_CHURCH_CONFIG.pastorTitular;
 
-  const secretariaName = savedConfig.secretario1 || DEFAULT_CHURCH_CONFIG.secretario1;
-  const secretariaSig = savedConfig.secretario1SignatureUrl || "";
+  const pastorSig =
+    branchObj?.pastorSignatureUrl ||
+    mergedConfig.pastorSignatureUrl ||
+    savedConfig.pastorSignatureUrl ||
+    "";
 
-  const churchName = branchObj?.name || savedConfig.nome || DEFAULT_CHURCH_CONFIG.nome;
-  const churchAddress = branchObj?.address || savedConfig.endereco || DEFAULT_CHURCH_CONFIG.endereco;
-  const churchCnpj = branchObj?.cnpj || savedConfig.cnpj || DEFAULT_CHURCH_CONFIG.cnpj;
+  const tesoureiroName =
+    mergedConfig.tesoureiro1 ||
+    mergedConfig.tesoureiro ||
+    savedConfig.tesoureiro1 ||
+    DEFAULT_CHURCH_CONFIG.tesoureiro1;
+
+  const tesoureiroSig =
+    mergedConfig.tesoureiro1SignatureUrl ||
+    mergedConfig.tesoureiroSignatureUrl ||
+    savedConfig.tesoureiro1SignatureUrl ||
+    savedConfig.tesoureiroSignatureUrl ||
+    "";
+
+  const secretariaName =
+    mergedConfig.secretario1 ||
+    mergedConfig.secretaria ||
+    mergedConfig.secretaryName ||
+    savedConfig.secretario1 ||
+    DEFAULT_CHURCH_CONFIG.secretario1;
+
+  const secretariaSig =
+    mergedConfig.secretario1SignatureUrl ||
+    mergedConfig.secretarySignatureUrl ||
+    savedConfig.secretario1SignatureUrl ||
+    savedConfig.secretarySignatureUrl ||
+    "";
+
+  const churchName =
+    branchObj?.name ||
+    mergedConfig.nome ||
+    DEFAULT_CHURCH_CONFIG.nome;
+
+  const churchAddress =
+    branchObj?.address ||
+    mergedConfig.endereco ||
+    DEFAULT_CHURCH_CONFIG.endereco;
+
+  const churchCnpj =
+    branchObj?.cnpj ||
+    mergedConfig.cnpj ||
+    DEFAULT_CHURCH_CONFIG.cnpj;
 
   return {
     pastor: {
       name: pastorName,
       role: "Pastor Presidente / Dirigente",
       signatureUrl: pastorSig,
-      phone: branchObj?.phone || savedConfig.pastorTelefone || "",
-      email: savedConfig.pastorEmail || "",
+      phone: branchObj?.phone || mergedConfig.pastorTelefone || savedConfig.pastorTelefone || "",
+      email: mergedConfig.pastorEmail || savedConfig.pastorEmail || "",
     },
     tesoureiro: {
       name: tesoureiroName,
       role: "Tesoureiro(a) Responsável",
       signatureUrl: tesoureiroSig,
-      phone: savedConfig.tesoureiro1Telefone || "",
-      email: savedConfig.tesoureiro1Email || "",
+      phone: mergedConfig.tesoureiro1Telefone || savedConfig.tesoureiro1Telefone || "",
+      email: mergedConfig.tesoureiro1Email || savedConfig.tesoureiro1Email || "",
     },
     secretaria: {
       name: secretariaName,
       role: "Secretário(a) Geral",
       signatureUrl: secretariaSig,
-      phone: savedConfig.secretario1Telefone || "",
-      email: savedConfig.secretario1Email || "",
+      phone: mergedConfig.secretario1Telefone || savedConfig.secretario1Telefone || "",
+      email: mergedConfig.secretario1Email || savedConfig.secretario1Email || "",
     },
     church: {
       name: churchName,
       cnpj: churchCnpj,
       address: churchAddress,
-      bairro: branchObj?.bairro || savedConfig.bairro || DEFAULT_CHURCH_CONFIG.bairro,
-      cidade: branchObj?.cidade || savedConfig.cidade || DEFAULT_CHURCH_CONFIG.cidade,
-      cep: savedConfig.cep || DEFAULT_CHURCH_CONFIG.cep,
-      logoUrl: savedConfig.logoDataUrl || "",
+      bairro: branchObj?.bairro || mergedConfig.bairro || DEFAULT_CHURCH_CONFIG.bairro,
+      cidade: branchObj?.cidade || mergedConfig.cidade || DEFAULT_CHURCH_CONFIG.cidade,
+      cep: mergedConfig.cep || savedConfig.cep || DEFAULT_CHURCH_CONFIG.cep,
+      logoUrl: mergedConfig.logoDataUrl || savedConfig.logoDataUrl || "",
     }
   };
 }

@@ -275,26 +275,26 @@ export function FichaCestaBasicaModal({
                   <div className="field-row">
                     <div className="field" style={{ flex: 3 }}>
                       <span className="field-lbl">Nome Completo do(a) Responsável:</span>
-                      <div className="field-val">{emBranco ? <div className="line-dots" /> : (nome || "________________________________________________________")}</div>
+                      <div className="field-val" style={{ minHeight: "18px" }}>{nome || ""}</div>
                     </div>
                     <div className="field" style={{ flex: 1.2, borderLeft: "1px solid #ccc" }}>
                       <span className="field-lbl">CPF:</span>
-                      <div className="field-val">{emBranco ? <div className="line-dots" /> : (cpf || "___.___.___-__")}</div>
+                      <div className="field-val" style={{ minHeight: "18px" }}>{cpf || (emBranco ? "___.___.___-__" : "")}</div>
                     </div>
                     <div className="field" style={{ flex: 1, borderLeft: "1px solid #ccc" }}>
                       <span className="field-lbl">RG:</span>
-                      <div className="field-val">{emBranco ? <div className="line-dots" /> : (rg || "__________")}</div>
+                      <div className="field-val" style={{ minHeight: "18px" }}>{rg || ""}</div>
                     </div>
                   </div>
 
                   <div className="field-row">
                     <div className="field" style={{ flex: 1 }}>
                       <span className="field-lbl">Data de Nascimento:</span>
-                      <div className="field-val">{emBranco ? <div className="line-dots" /> : (dataNascimento ? new Date(dataNascimento).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "__/__/____")}</div>
+                      <div className="field-val">{dataNascimento ? new Date(dataNascimento).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : (emBranco ? "__/__/____" : "")}</div>
                     </div>
                     <div className="field" style={{ flex: 1.2, borderLeft: "1px solid #ccc" }}>
                       <span className="field-lbl">Telefone / WhatsApp:</span>
-                      <div className="field-val">{emBranco ? <div className="line-dots" /> : (telefone || "(__) _____-____")}</div>
+                      <div className="field-val">{telefone || (emBranco ? "(__) _____-____" : "")}</div>
                     </div>
                     <div className="field" style={{ flex: 1.5, borderLeft: "1px solid #ccc" }}>
                       <span className="field-lbl">Congregação Atendente:</span>
@@ -305,18 +305,18 @@ export function FichaCestaBasicaModal({
                   <div className="field-row">
                     <div className="field" style={{ flex: 3 }}>
                       <span className="field-lbl">Endereço Residencial (Rua, Número, Complemento):</span>
-                      <div className="field-val">{emBranco ? <div className="line-dots" /> : (endereco || "________________________________________________________")}</div>
+                      <div className="field-val" style={{ minHeight: "18px" }}>{endereco || ""}</div>
                     </div>
                     <div className="field" style={{ flex: 1.5, borderLeft: "1px solid #ccc" }}>
                       <span className="field-lbl">Bairro / Localidade:</span>
-                      <div className="field-val">{emBranco ? <div className="line-dots" /> : (bairro || "____________________")}</div>
+                      <div className="field-val" style={{ minHeight: "18px" }}>{bairro || ""}</div>
                     </div>
                   </div>
 
                   <div className="field-row">
                     <div className="field" style={{ flex: 1 }}>
                       <span className="field-lbl">Ponto de Referência da Moradia:</span>
-                      <div className="field-val">{emBranco ? <div className="line-dots" /> : (pontoReferencia || "________________________________________________________")}</div>
+                      <div className="field-val" style={{ minHeight: "18px" }}>{pontoReferencia || ""}</div>
                     </div>
                   </div>
                 </div>
@@ -325,13 +325,21 @@ export function FichaCestaBasicaModal({
                 <div className="sec-header">2. Composição Familiar e Situação Socioeconômica</div>
                 <div style={{ padding: "4px" }}>
                   <div className="field-row">
-                    <div className="field" style={{ flex: 1 }}>
-                      <span className="field-lbl">Pessoas na Casa:</span>
-                      <div className="field-val">{emBranco ? "[   ] pessoa(s)" : `${membrosCasa} pessoa(s)`}</div>
+                    <div className="field" style={{ flex: 1.2 }}>
+                      <span className="field-lbl">Adultos na casa:</span>
+                      <div className="field-val" style={{ minHeight: "26px", display: "flex", alignItems: "center", paddingTop: "2px" }}>
+                        <div style={{ width: "32px", height: "24px", border: "2px solid #000", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "11px", background: "#fff" }}>
+                          {membrosCasa || ""}
+                        </div>
+                      </div>
                     </div>
-                    <div className="field" style={{ flex: 1, borderLeft: "1px solid #ccc" }}>
-                      <span className="field-lbl">Crianças / Menores:</span>
-                      <div className="field-val">{emBranco ? "[   ] criança(s)" : `${criancasCasa} criança(s)`}</div>
+                    <div className="field" style={{ flex: 1.2, borderLeft: "1px solid #ccc" }}>
+                      <span className="field-lbl">Qtd. Crianças / Menores:</span>
+                      <div className="field-val" style={{ minHeight: "26px", display: "flex", alignItems: "center", paddingTop: "2px" }}>
+                        <div style={{ width: "32px", height: "24px", border: "2px solid #000", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "11px", background: "#fff" }}>
+                          {criancasCasa || ""}
+                        </div>
+                      </div>
                     </div>
                     <div className="field" style={{ flex: 1.2, borderLeft: "1px solid #ccc" }}>
                       <span className="field-lbl">Condição da Moradia:</span>
@@ -339,7 +347,7 @@ export function FichaCestaBasicaModal({
                     </div>
                     <div className="field" style={{ flex: 1.2, borderLeft: "1px solid #ccc" }}>
                       <span className="field-lbl">Renda Familiar Est.:</span>
-                      <div className="field-val">{emBranco ? "R$ ____________" : (rendaFamiliar ? `R$ ${rendaFamiliar}` : "Sem renda fixa")}</div>
+                      <div className="field-val">{rendaFamiliar ? `R$ ${rendaFamiliar}` : (emBranco ? "R$ ____________" : "Sem renda fixa")}</div>
                     </div>
                   </div>
 
@@ -347,7 +355,7 @@ export function FichaCestaBasicaModal({
                     <div className="field" style={{ flex: 1 }}>
                       <span className="field-lbl">Benefícios do Governo Recebidos:</span>
                       <div className="field-val">
-                        ( &nbsp; ) Bolsa Família &nbsp;&nbsp;&nbsp;&nbsp; ( &nbsp; ) BPC / LOAS &nbsp;&nbsp;&nbsp;&nbsp; ( &nbsp; ) Auxílio Gás &nbsp;&nbsp;&nbsp;&nbsp; ( &nbsp; ) Nenhum
+                        ( &nbsp; ) Bolsa Família &nbsp;&nbsp;&nbsp;&nbsp; ( &nbsp; ) BPC / LOAS &nbsp;&nbsp;&nbsp;&nbsp; ( &nbsp; ) Auxílio Gás &nbsp;&nbsp;&nbsp;&nbsp; ( &nbsp; ) Aposentado &nbsp;&nbsp;&nbsp;&nbsp; ( &nbsp; ) Nenhum
                       </div>
                     </div>
                   </div>
@@ -387,9 +395,9 @@ export function FichaCestaBasicaModal({
                   </div>
 
                   <div className="field-row">
-                    <div className="field" style={{ flex: 1 }}>
+                    <div className="field" style={{ flex: 1.2 }}>
                       <span className="field-lbl">Responsável pela Entrega / Diaconia:</span>
-                      <div className="field-val">{emBranco ? <div className="line-dots" /> : (responsavelAtendimento || "Equipe da Ação Social / Diaconia")}</div>
+                      <div className="field-val" style={{ borderBottom: "1px solid #000", minHeight: "18px", width: "100%", marginTop: "2px" }}></div>
                     </div>
                     <div className="field" style={{ flex: 1, borderLeft: "1px solid #ccc" }}>
                       <span className="field-lbl">Previsão Próxima Liberação (Carência):</span>
@@ -414,8 +422,8 @@ export function FichaCestaBasicaModal({
                       </td>
                       <td>
                         <div className="sig-line" />
-                        <div style={{ fontWeight: "bold", fontSize: "8.5px" }}>{leadership.secretaria.name}</div>
-                        <div style={{ fontSize: "7px", color: "#64748b" }}>Secretaria / Ação Social</div>
+                        <div style={{ fontWeight: "bold", fontSize: "8.5px" }}>Assistência Social / Missões</div>
+                        <div style={{ fontSize: "7px", color: "#64748b" }}>Responsável Social</div>
                       </td>
                       <td>
                         <div className="sig-line" />

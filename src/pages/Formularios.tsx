@@ -69,8 +69,9 @@ export function Formularios() {
   const [solicitanteManualDoc, setSolicitanteManualDoc] = useState<string>('')
   const [solicitanteManualBatismo, setSolicitanteManualBatismo] = useState<string>('')
   
-  // Leadership & Configurações da Igreja
-  const leadership = useMemo(() => getChurchLeadershipConfig(activeBranch, branches), [activeBranch, branches]);
+  // Leadership & Configurações da Igreja (Sincronizado em tempo real com o módulo de Parâmetros)
+  const [leadershipRefresh, setLeadershipRefresh] = useState(0);
+  const leadership = useMemo(() => getChurchLeadershipConfig(activeBranch, branches), [activeBranch, branches, leadershipRefresh]);
   
   // Zoom & Alinhamento na Tela
   const [previewZoom, setPreviewZoom] = useState<number>(0.85)
@@ -222,11 +223,29 @@ export function Formularios() {
 
 
   useEffect(() => {
-    const savedConfig = localStorage.getItem("churchConfig")
-    if (savedConfig) {
-      const parsed = JSON.parse(savedConfig)
-      setChurchData(parsed)
-    }
+    const loadConfigData = () => {
+      try {
+        const key = activeBranch && activeBranch !== 'all' && activeBranch !== 'sede' ? `churchConfig_${activeBranch}` : 'churchConfig';
+        const branchSaved = localStorage.getItem(key);
+        const savedConfig = localStorage.getItem("churchConfig");
+        let merged = {};
+        if (savedConfig) merged = { ...merged, ...JSON.parse(savedConfig) };
+        if (branchSaved) merged = { ...merged, ...JSON.parse(branchSaved) };
+        setChurchData(merged);
+      } catch {}
+      setLeadershipRefresh(prev => prev + 1);
+    };
+
+    loadConfigData();
+    window.addEventListener("churchConfigUpdated", loadConfigData);
+    window.addEventListener("storage", loadConfigData);
+    return () => {
+      window.removeEventListener("churchConfigUpdated", loadConfigData);
+      window.removeEventListener("storage", loadConfigData);
+    };
+  }, [activeBranch]);
+
+  useEffect(() => {
     
     const savedMembers = localStorage.getItem("churchMembers")
     const savedSocial = localStorage.getItem("social_beneficiaries_cache")
@@ -405,18 +424,23 @@ export function Formularios() {
 
     logPrint(docName, memberName, printCopies);
 
-    toast.info("Abrindo caixa de seleção de impressora...");
-    
-    // Conforme Anexo 3: No campo informar o último número de impresso, deixa sempre zero para informar a quantidade
-    setSequenceNumber(0);
+    toast.success("Enviando formulário para impressão...", { id: "print-feedback" });
 
     printDocument(
       undefined,
       () => {
         setIsPreviewOpen(false);
+        setSequenceNumber(0);
       },
       'printable-standard'
     );
+
+    const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+    if (isIframe) {
+      setTimeout(() => {
+        handleDownloadStandardPDF();
+      }, 300);
+    }
   };
 
   const handleDownloadStandardPDF = async () => {
@@ -518,16 +542,23 @@ export function Formularios() {
 
     logPrint(`Documento Dinâmico: ${template.title}`, memberName);
     
-    toast.info("Abrindo caixa de seleção de impressora...");
-    
     // Conforme Anexo 3: No campo informar o último número de impresso, deixa sempre zero para informar a quantidade
     setSequenceNumber(0);
+
+    toast.success("Enviando modelo para impressão...", { id: "print-feedback-dyn" });
 
     printDocument(
       undefined,
       () => setIsPreviewOpen(false),
       'printable-dynamic'
     );
+
+    const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+    if (isIframe) {
+      setTimeout(() => {
+        handleDownloadDynamicPDF();
+      }, 300);
+    }
   };
 
   const saveTemplate = () => {
@@ -624,7 +655,8 @@ export function Formularios() {
           <div className="flex border-b border-black min-h-[7.5mm]">
             <div className="flex-1 border-r border-black p-1 relative">
               <span className="absolute top-0.5 left-1 font-bold text-[8px]">Igreja / Congregação (Cidade/Bairro)</span>
-              <div className="mt-2.5 ml-1 text-[10px] font-semibold">{activeBranchObj && activeBranchObj.id !== 'all' ? activeBranchObj.name : ""}</div>
+              {/* Deixar em branco conforme Anexo 2 */}
+              <div className="mt-2.5 ml-1 text-[10px] min-h-[14px]"></div>
             </div>
             <div className="w-[30mm] p-1 relative">
               <span className="absolute top-0.5 left-1 font-bold text-[8px]">Data</span>
@@ -636,7 +668,8 @@ export function Formularios() {
           <div className="flex border-b border-black min-h-[7.5mm]">
             <div className="flex-1 border-r border-black p-1 relative">
               <span className="absolute top-0.5 left-1 font-bold text-[8px]">Pastor ou Responsável pela Igreja / Congregação</span>
-              <div className="mt-2 ml-1 text-[10px] font-semibold">{leadership.pastor.name}</div>
+              {/* Deixar em branco conforme Anexo 2 */}
+              <div className="mt-2 ml-1 text-[10px] min-h-[14px]"></div>
             </div>
             <div className="w-[30mm] p-1 relative">
               <span className="absolute top-0.5 left-1 font-bold text-[8px]">RM</span>
@@ -955,7 +988,7 @@ export function Formularios() {
                            {/* Dados Centrais da Congregação / Igreja */}
                            <div className="flex-1 text-center px-2">
                               <h2 className={`font-bold text-[14px] uppercase leading-tight tracking-tight ${textMainClass}`}>
-                                {reciboCongregacao || displayChurchName}
+                                {displayChurchName}
                               </h2>
                               <p className={`text-[9.5px] uppercase font-bold mt-1 leading-none ${textMutedClass}`}>CNPJ: {displayCnpj}</p>
                               <p className={`text-[8.5px] uppercase font-bold leading-tight mt-1 ${textMutedClass}`}>{displayChurchAddress}</p>
@@ -991,7 +1024,7 @@ export function Formularios() {
                                  IGREJA / CONGREGAÇÃO
                               </div>
                               <div className={`${borderInnerClass} rounded-full flex-1 h-full px-4 flex items-center font-semibold text-[10.5px] truncate ${textMainClass}`}>
-                                 {reciboCongregacao || displayChurchName}
+                                 {isReciboBranco ? "" : (reciboCongregacao || displayChurchName)}
                               </div>
                            </div>
 
@@ -1057,38 +1090,48 @@ export function Formularios() {
                            {/* Três colunas de assinaturas: Beneficiário, Data e Tesoureiro */}
                            <div className="flex justify-between items-end px-2 text-[8.5px] font-bold mt-1">
                               {/* 1. Assinatura da Pessoa Beneficiada */}
-                              <div className="flex flex-col items-center w-[58mm]">
-                                 <div className={`w-full border-b ${lineClass} h-4 text-center text-[9px] font-bold truncate mb-0.5`}>
-                                    {isReciboBranco ? "" : (beneficiarioNome || "")}
+                              <div className="flex flex-col items-center w-[60mm]">
+                                 {/* Traço para assinatura física: fica em branco para a pessoa assinar à mão */}
+                                 <div className={`w-full border-b ${lineClass} h-6 text-center text-[9px] font-bold truncate mb-1`}>
                                  </div>
-                                 <span className="text-[8px] font-bold uppercase truncate max-w-full">
+                                 {/* Nome da pessoa abaixo do traço */}
+                                 <span className="text-[8.5px] font-bold uppercase truncate max-w-full">
                                     {isReciboBranco || !beneficiarioNome ? "ASSINATURA DO(A) BENEFICIÁRIO(A)" : beneficiarioNome}
                                  </span>
-                                 <span className="text-[7.5px] text-neutral-600 font-bold leading-none mt-0.5">
-                                    {isReciboBranco ? "CPF: ______________________" : (beneficiarioCpf ? `CPF: ${beneficiarioCpf}` : "Beneficiário(a) / Recebedor(a)")}
-                                 </span>
+                                 {/* Espaço aumentado e confortável para o CPF conforme Anexo 4 */}
+                                 <div className="mt-2.5 w-full flex items-center justify-center">
+                                    <span className="text-[8px] text-neutral-700 font-bold tracking-wide">
+                                       {isReciboBranco ? "CPF: ____________________________________" : (beneficiarioCpf ? `CPF: ${beneficiarioCpf}` : "Beneficiário(a) / Recebedor(a)")}
+                                    </span>
+                                 </div>
                               </div>
 
                               {/* 2. Data do Recibo */}
                               <div className="flex flex-col items-center w-[28mm]">
-                                 <div className={`w-full border-b ${lineClass} h-4 text-center text-[9px] font-semibold mb-0.5`}>
+                                 <div className={`w-full border-b ${lineClass} h-6 text-center text-[9px] font-semibold mb-1 flex items-end justify-center`}>
                                     {dataDisplay}
                                  </div>
-                                 <span className="text-[8px] font-bold uppercase">Data</span>
+                                 <span className="text-[8.5px] font-bold uppercase">Data</span>
+                                 <div className="mt-2.5 w-full flex items-center justify-center select-none text-transparent text-[8px]">
+                                    <span>.</span>
+                                 </div>
                               </div>
 
                               {/* 3. Tesoureiro ou Responsável da Igreja */}
-                              <div className="flex flex-col items-center w-[58mm]">
-                                 <div className={`w-full border-b ${lineClass} min-h-[16px] text-center text-[9px] font-medium truncate mb-0.5 flex flex-col items-center justify-end`}>
+                              <div className="flex flex-col items-center w-[60mm]">
+                                 <div className={`w-full border-b ${lineClass} min-h-[24px] text-center text-[9px] font-medium truncate mb-1 flex flex-col items-center justify-end`}>
                                     {!isReciboBranco && leadership.tesoureiro.signatureUrl && (
                                        <img src={leadership.tesoureiro.signatureUrl} alt="" className="h-5 object-contain" />
                                     )}
-                                    <span className="font-bold text-[9px]">
-                                      {isReciboBranco ? "" : (reciboTesoureiro || leadership.tesoureiro.name || "Tesoureiro")}
+                                 </div>
+                                 <span className="text-[8.5px] font-bold uppercase truncate max-w-full">
+                                    {isReciboBranco ? "ASSINATURA DO(A) TESOUREIRO(A)" : (reciboTesoureiro || leadership.tesoureiro.name || "Tesoureiro(a)")}
+                                 </span>
+                                 <div className="mt-2.5 w-full flex items-center justify-center">
+                                    <span className="text-[7.5px] text-neutral-500 font-semibold leading-none truncate max-w-full">
+                                       {churchData.nome || "Igreja O Brasil Para Cristo"}
                                     </span>
                                  </div>
-                                 <span className="text-[8px] font-bold uppercase">Tesoureiro(a) / Responsável</span>
-                                 <span className="text-[7.5px] text-neutral-500 font-semibold leading-none mt-0.5">Igreja O Brasil Para Cristo</span>
                               </div>
                            </div>
                         </div>
@@ -1189,7 +1232,7 @@ export function Formularios() {
     const candidatePai = "";
     const candidateMae = "";
     const candidateConjuge = "";
-    const pastorName = batismoPastor || churchData?.pastorTitular || "Pr. Presidente";
+    const pastorName = batismoPastor || leadership.pastor.name || "Pr. Presidente";
 
     return (
       <div id="printable-standard">
@@ -1283,15 +1326,15 @@ export function Formularios() {
                     <div className="flex">
                       <div className="flex-1 p-1 border-r border-black">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">RG / Órgão Emissor:</span>
-                        <div className="min-h-[14px]">_____________________</div>
+                        <div className="min-h-[16px]">_____________________</div>
                       </div>
-                      <div className="flex-1 p-1 border-r border-black">
+                      <div className="flex-[1.5] p-1 border-r border-black">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">CPF:</span>
-                        <div className="min-h-[14px] font-mono">_____._____._____-__</div>
+                        <div className="min-h-[16px] font-mono text-[9.5px] flex items-center font-bold tracking-wider">____ . ____ . ____ - __</div>
                       </div>
                       <div className="flex-1 p-1">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Celular / WhatsApp:</span>
-                        <div className="min-h-[14px]">(____) ____________</div>
+                        <div className="min-h-[16px]">(____) ____________</div>
                       </div>
                     </div>
                   </div>
@@ -1455,15 +1498,21 @@ export function Formularios() {
                     <div className="pt-5 grid grid-cols-2 gap-8 text-center">
                       <div>
                         <div className="border-b border-black min-h-[16px] flex items-end justify-center pb-0.5">
+                          {leadership.pastor.signatureUrl && (
+                            <img src={leadership.pastor.signatureUrl} alt="" className="h-6 object-contain" />
+                          )}
                         </div>
-                        <span className="font-bold text-[8.5px] uppercase block mt-0.5">Assinatura do Pastor / Oficiante</span>
+                        <span className="font-bold text-[8.5px] uppercase block mt-0.5">{pastorName}</span>
                         <span className="text-[7.5px] text-gray-600 block">Pastor Presidente / Oficiante</span>
                       </div>
                       <div>
                         <div className="border-b border-black min-h-[16px] flex items-end justify-center pb-0.5">
+                          {leadership.secretaria.signatureUrl && (
+                            <img src={leadership.secretaria.signatureUrl} alt="" className="h-6 object-contain" />
+                          )}
                         </div>
-                        <span className="font-bold text-[8.5px] uppercase block mt-0.5">Secretaria Eclesiástica / Discipulado</span>
-                        <span className="text-[7.5px] text-gray-600 block">Visto da Secretaria Eclesiástica</span>
+                        <span className="font-bold text-[8.5px] uppercase block mt-0.5">{leadership.secretaria.name}</span>
+                        <span className="text-[7.5px] text-gray-600 block">Secretaria Eclesiástica / Discipulado</span>
                       </div>
                     </div>
                   </div>
@@ -1490,7 +1539,7 @@ export function Formularios() {
     const paiNome = apresentacaoPai || selectedMember?.pai || selectedMember?.nome || "___________________________________________";
     const maeNome = apresentacaoMae || selectedMember?.mae || "___________________________________________";
     const padrinhos = apresentacaoPadrinhos || "___________________________________________";
-    const pastorName = apresentacaoPastor || churchData?.pastorTitular || "Pr. Presidente";
+    const pastorName = apresentacaoPastor || leadership.pastor.name || "Pr. Presidente";
     const dataCulto = apresentacaoDataCulto || new Date().toLocaleDateString("pt-BR");
 
     return (
@@ -1651,8 +1700,8 @@ export function Formularios() {
                   </div>
                   <div>
                     <div className="border-b border-black min-h-[16px] flex items-end justify-center pb-0.5">
-                      {churchData.pastorSignatureUrl && (
-                        <img src={churchData.pastorSignatureUrl} alt="" className="h-6 object-contain" />
+                      {(leadership.pastor.signatureUrl || churchData.pastorSignatureUrl) && (
+                        <img src={leadership.pastor.signatureUrl || churchData.pastorSignatureUrl} alt="" className="h-6 object-contain" />
                       )}
                     </div>
                     <span className="font-bold text-[8.5px] uppercase block mt-1">{pastorName}</span>
@@ -1681,7 +1730,7 @@ export function Formularios() {
     const brotherTel = selectedMember?.telefone || selectedMember?.phone || "(____) ____________";
     const brotherEnd = selectedMember?.endereco || "___________________________________________";
     const discipulador = reconciliacaoDiscipulador || "___________________________________________";
-    const pastorName = churchData?.pastorTitular || "Pr. Presidente";
+    const pastorName = leadership.pastor.name || "Pr. Presidente";
     const dataDecisao = reconciliacaoData || new Date().toLocaleDateString("pt-BR");
 
     return (
@@ -1838,8 +1887,8 @@ export function Formularios() {
                   </div>
                   <div>
                     <div className="border-b border-black min-h-[16px] flex items-end justify-center pb-0.5">
-                      {churchData.pastorSignatureUrl && (
-                        <img src={churchData.pastorSignatureUrl} alt="" className="h-6 object-contain" />
+                      {(leadership.pastor.signatureUrl || churchData.pastorSignatureUrl) && (
+                        <img src={leadership.pastor.signatureUrl || churchData.pastorSignatureUrl} alt="" className="h-6 object-contain" />
                       )}
                     </div>
                     <span className="font-bold text-[8.5px] uppercase block mt-1">{pastorName}</span>
@@ -1866,7 +1915,7 @@ export function Formularios() {
   const renderFichaCasamento = () => {
     const noivoNome = casamentoNoivo || "___________________________________________";
     const noivaNome = casamentoNoiva || "___________________________________________";
-    const pastorName = casamentoPastor || churchData?.pastorTitular || "Pr. Presidente";
+    const pastorName = casamentoPastor || leadership.pastor.name || "Pr. Presidente";
     const dataHora = casamentoDataHora || "____/____/________ às ____:____ hs";
     const local = casamentoLocal || "Templo Sede";
     const testemunhas = casamentoTestemunhas || "___________________________________________";
@@ -1952,12 +2001,16 @@ export function Formularios() {
                     </div>
                     <div className="flex border-b border-black">
                       <div className="flex-1 p-1.5 border-r border-black">
-                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">RG / CPF:</span>
+                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">RG:</span>
                         <div className="min-h-[16px]">___________________________</div>
+                      </div>
+                      <div className="flex-[1.5] p-1.5 border-r border-black">
+                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">CPF:</span>
+                        <div className="min-h-[16px] font-mono text-[9px] flex items-center font-bold">____ . ____ . ____ - __</div>
                       </div>
                       <div className="flex-1 p-1.5">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Membro Batizado?</span>
-                        <div>[ ] Sim   [ ] Não   (Igreja: _____________________)</div>
+                        <div>[ ] Sim   [ ] Não</div>
                       </div>
                     </div>
                     <div className="p-1.5">
@@ -1989,12 +2042,16 @@ export function Formularios() {
                     </div>
                     <div className="flex border-b border-black">
                       <div className="flex-1 p-1.5 border-r border-black">
-                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">RG / CPF:</span>
+                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">RG:</span>
                         <div className="min-h-[16px]">___________________________</div>
+                      </div>
+                      <div className="flex-[1.5] p-1.5 border-r border-black">
+                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">CPF:</span>
+                        <div className="min-h-[16px] font-mono text-[9px] flex items-center font-bold">____ . ____ . ____ - __</div>
                       </div>
                       <div className="flex-1 p-1.5">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Membro Batizada?</span>
-                        <div>[ ] Sim   [ ] Não   (Igreja: _____________________)</div>
+                        <div>[ ] Sim   [ ] Não</div>
                       </div>
                     </div>
                     <div className="p-1.5">
@@ -2039,8 +2096,8 @@ export function Formularios() {
                   </div>
                   <div>
                     <div className="border-b border-black min-h-[16px] flex items-end justify-center pb-0.5">
-                      {churchData.pastorSignatureUrl && (
-                        <img src={churchData.pastorSignatureUrl} alt="" className="h-6 object-contain" />
+                      {(leadership.pastor.signatureUrl || churchData.pastorSignatureUrl) && (
+                        <img src={leadership.pastor.signatureUrl || churchData.pastorSignatureUrl} alt="" className="h-6 object-contain" />
                       )}
                     </div>
                     <span className="font-bold text-[8.5px] uppercase block mt-1">{pastorName}</span>
@@ -2281,8 +2338,8 @@ export function Formularios() {
                         </div>
                         <div>
                           <span className="font-bold uppercase block text-[7.5px] text-gray-700">Pastor Responsável / Ministro:</span>
-                          <div className="border-b border-black min-h-[14px]">
-                            {leadership.pastor.name}
+                          <div className="border-b border-black min-h-[14px] font-semibold text-[9px]">
+                            {isEmBranco ? "" : leadership.pastor.name}
                           </div>
                         </div>
                       </div>
@@ -2397,20 +2454,20 @@ export function Formularios() {
                     <div className="flex border-b border-black">
                       <div className="flex-[3] p-1 border-r border-black">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Nome Completo:</span>
-                        <div className="font-semibold text-[10px] min-h-[14px] flex items-center">
-                          {bNome || (isEmBranco ? "................................................................................................................................" : "Não informado")}
+                        <div className="font-semibold text-[10px] min-h-[18px] flex items-center">
+                          {bNome || ""}
                         </div>
                       </div>
-                      <div className="flex-1 p-1 border-r border-black">
+                      <div className="flex-[1.5] p-1 border-r border-black">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">CPF:</span>
-                        <div className="font-medium text-[9px] min-h-[14px] flex items-center">
-                          {bCpf || (isEmBranco ? "___.___.___-__" : "Não informado")}
+                        <div className="font-medium text-[9.5px] min-h-[18px] flex items-center font-mono font-semibold">
+                          {bCpf || (isEmBranco ? "____ . ____ . ____ - __" : "")}
                         </div>
                       </div>
                       <div className="flex-1 p-1">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">RG:</span>
-                        <div className="font-medium text-[9px] min-h-[14px] flex items-center">
-                          {bRg || (isEmBranco ? "......................" : "Não informado")}
+                        <div className="font-medium text-[9px] min-h-[18px] flex items-center">
+                          {bRg || ""}
                         </div>
                       </div>
                     </div>
@@ -2418,19 +2475,19 @@ export function Formularios() {
                     <div className="flex border-b border-black">
                       <div className="flex-1 p-1 border-r border-black">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Data de Nascimento:</span>
-                        <div className="font-medium text-[9px] min-h-[14px] flex items-center">
-                          {bDataNasc || (isEmBranco ? "____/____/________" : "Não informada")}
+                        <div className="font-medium text-[9px] min-h-[16px] flex items-center">
+                          {bDataNasc || (isEmBranco ? "____/____/________" : "")}
                         </div>
                       </div>
                       <div className="flex-1 p-1 border-r border-black">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Telefone / WhatsApp:</span>
-                        <div className="font-medium text-[9px] min-h-[14px] flex items-center">
-                          {bTel || (isEmBranco ? "(_____) _____________" : "Não informado")}
+                        <div className="font-medium text-[9px] min-h-[16px] flex items-center">
+                          {bTel || (isEmBranco ? "(_____) _____________" : "")}
                         </div>
                       </div>
                       <div className="flex-1 p-1">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Congregação Atendente:</span>
-                        <div className="font-medium text-[9px] min-h-[14px] flex items-center">
+                        <div className="font-medium text-[9px] min-h-[16px] flex items-center">
                           {activeBranchObj?.name || "Templo Sede"}
                         </div>
                       </div>
@@ -2439,20 +2496,20 @@ export function Formularios() {
                     <div className="flex border-b border-black">
                       <div className="flex-[3] p-1 border-r border-black">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Endereço Residencial:</span>
-                        <div className="font-medium text-[9px] min-h-[14px] flex items-center">
-                          {bEnd || (isEmBranco ? "................................................................................................................................" : "Não informado")}
+                        <div className="font-medium text-[9px] min-h-[18px] flex items-center">
+                          {bEnd || ""}
                         </div>
                       </div>
                       <div className="flex-[1.5] p-1 border-r border-black">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Bairro:</span>
-                        <div className="font-medium text-[9px] min-h-[14px] flex items-center">
-                          {bBairro || (isEmBranco ? "............................" : "Não informado")}
+                        <div className="font-medium text-[9px] min-h-[18px] flex items-center">
+                          {bBairro || ""}
                         </div>
                       </div>
                       <div className="flex-1 p-1">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Cidade / UF:</span>
-                        <div className="font-medium text-[9px] min-h-[14px] flex items-center">
-                          {bCidade || (isEmBranco ? "............................" : "Não informado")}
+                        <div className="font-medium text-[9px] min-h-[18px] flex items-center">
+                          {bCidade || ""}
                         </div>
                       </div>
                     </div>
@@ -2460,8 +2517,8 @@ export function Formularios() {
                     <div className="flex">
                       <div className="flex-[3] p-1 border-r border-black">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Ponto de Referência:</span>
-                        <div className="font-medium text-[9px] min-h-[14px] flex items-center">
-                          {bPontoRef || (isEmBranco ? "................................................................................................................................" : "Próximo à congregação")}
+                        <div className="font-medium text-[9px] min-h-[18px] flex items-center">
+                          {bPontoRef || ""}
                         </div>
                       </div>
                       <div className="flex-1 p-1">
@@ -2481,27 +2538,31 @@ export function Formularios() {
                   </div>
                   <div className="border border-black text-[9px]">
                     <div className="grid grid-cols-4 border-b border-black">
-                      <div className="p-1 border-r border-black">
-                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">Qtd. Membros na Casa:</span>
-                        <div className="font-semibold text-[9px] min-h-[14px] flex items-center">
-                          {bMembros ? `${bMembros} pessoa(s)` : (isEmBranco ? "____ pessoa(s)" : "1 pessoa")}
+                      <div className="p-1.5 border-r border-black">
+                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">Adultos na casa:</span>
+                        <div className="min-h-[26px] flex items-center pt-1">
+                          <div className="w-8 h-6 border-2 border-black flex items-center justify-center font-bold text-[11px] bg-white text-black">
+                            {bMembros || ""}
+                          </div>
                         </div>
                       </div>
-                      <div className="p-1 border-r border-black">
+                      <div className="p-1.5 border-r border-black">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Qtd. Crianças / Menores:</span>
-                        <div className="font-semibold text-[9px] min-h-[14px] flex items-center">
-                          {bCriancas ? `${bCriancas} criança(s)` : (isEmBranco ? "____ criança(s)" : "0")}
+                        <div className="min-h-[26px] flex items-center pt-1">
+                          <div className="w-8 h-6 border-2 border-black flex items-center justify-center font-bold text-[11px] bg-white text-black">
+                            {bCriancas || ""}
+                          </div>
                         </div>
                       </div>
-                      <div className="p-1 border-r border-black">
+                      <div className="p-1.5 border-r border-black">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Renda Familiar Mensal:</span>
-                        <div className="font-semibold text-[9px] min-h-[14px] flex items-center">
-                          {bRenda || (isEmBranco ? "R$ ...................." : "Sem renda fixa")}
+                        <div className="font-semibold text-[9px] min-h-[26px] flex items-center">
+                          {bRenda || (isEmBranco ? "R$ ____________" : "")}
                         </div>
                       </div>
-                      <div className="p-1">
+                      <div className="p-1.5">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Tipo de Moradia:</span>
-                        <div className="font-semibold text-[9px] min-h-[14px] flex items-center">
+                        <div className="font-semibold text-[9px] min-h-[26px] flex items-center">
                           {isEmBranco ? "[ ] Própria  [ ] Alugada  [ ] Cedida" : (bMoradia || "Alugada")}
                         </div>
                       </div>
@@ -2510,8 +2571,8 @@ export function Formularios() {
                     <div className="flex border-b border-black">
                       <div className="flex-1 p-1 border-r border-black">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Benefícios Sociais Recebidos:</span>
-                        <div className="font-medium text-[9px] min-h-[14px] flex items-center">
-                          {bBeneficios || (isEmBranco ? "[ ] Bolsa Família  [ ] BPC/LOAS  [ ] Auxílio Gás  [ ] Nenhum" : "Nenhum informado")}
+                        <div className="font-medium text-[8.5px] min-h-[14px] flex items-center">
+                          {bBeneficios || (isEmBranco ? "(  ) Bolsa Família   (  ) BPC/LOAS   (  ) Auxílio Gás   (  ) Aposentado   (  ) Nenhum" : "Nenhum informado")}
                         </div>
                       </div>
                       <div className="flex-1 p-1">
@@ -2524,8 +2585,8 @@ export function Formularios() {
 
                     <div className="p-1">
                       <span className="font-bold block text-[7.5px] uppercase text-gray-700">Diagnóstico Social / Necessidade Principal:</span>
-                      <div className="min-h-[14px] text-[8.5px] text-gray-800">
-                        {bMotivo || (isEmBranco ? "........................................................................................................................................................................................................" : "Suporte alimentar e pastoral à família.")}
+                      <div className="min-h-[18px] text-[8.5px] text-gray-800">
+                        {bMotivo || (isEmBranco ? "" : "Suporte alimentar e pastoral à família.")}
                       </div>
                     </div>
                   </div>
@@ -2557,12 +2618,12 @@ export function Formularios() {
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-center text-[8px]">
-                      <div>
-                        <span className="font-bold uppercase mr-1">Responsável pela Entrega / Diaconia: </span>
-                        <span className="font-medium">{cestaResponsavelEntrega || leadership.secretaria.name}</span>
+                    <div className="flex justify-between items-center text-[8px] gap-4">
+                      <div className="flex items-center gap-1.5 flex-1">
+                        <span className="font-bold uppercase shrink-0">Responsável pela Entrega / Diaconia: </span>
+                        <div className="border-b border-black flex-1 min-h-[16px] mb-0.5"></div>
                       </div>
-                      <div>
+                      <div className="shrink-0">
                         <span className="font-bold uppercase mr-1">Carência de Retorno: </span>
                         <span className="font-semibold text-gray-800">30 dias padrão</span>
                       </div>
@@ -2570,8 +2631,8 @@ export function Formularios() {
 
                     <div>
                       <span className="font-bold block text-[7.5px] uppercase text-gray-700">Parecer Social e Observações Pastorais:</span>
-                      <div className="min-h-[14px] text-[8.5px] text-gray-800">
-                        {cestaParecerSocial || (isEmBranco ? "........................................................................................................................................................................................................" : "Atendimento deferido em conformidade com as diretrizes sociais da igreja.")}
+                      <div className="min-h-[18px] text-[8.5px] text-gray-800">
+                        {cestaParecerSocial || (isEmBranco ? "" : "Atendimento deferido em conformidade com as diretrizes sociais da igreja.")}
                       </div>
                     </div>
                   </div>
@@ -2586,12 +2647,12 @@ export function Formularios() {
                     <thead>
                       <tr className="bg-gray-100 border-b border-black font-bold text-center">
                         <th className="border-r border-black p-0.5 w-[8mm]">Nº</th>
-                        <th className="border-r border-black p-0.5 w-[22mm]">Data Entrega</th>
-                        <th className="border-r border-black p-0.5 w-[38mm]">Tipo de Benefício</th>
-                        <th className="border-r border-black p-0.5 w-[14mm]">Qtd</th>
-                        <th className="border-r border-black p-0.5 w-[35mm]">Entregador(a) / Diaconia</th>
+                        <th className="border-r border-black p-0.5 w-[28mm]">Data Entrega</th>
+                        <th className="border-r border-black p-0.5 w-[34mm]">Tipo de Benefício</th>
+                        <th className="border-r border-black p-0.5 w-[13mm]">Qtd</th>
+                        <th className="border-r border-black p-0.5 w-[34mm]">Entregador(a) / Diaconia</th>
                         <th className="border-r border-black p-0.5">Assinatura do Recebedor</th>
-                        <th className="p-0.5 w-[18mm]">Visto Social</th>
+                        <th className="p-0.5 w-[17mm]">Visto Social</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2600,8 +2661,8 @@ export function Formularios() {
                         return (
                           <tr key={rowIdx} className="border-b border-black min-h-[18px]">
                             <td className="border-r border-black p-1 text-center font-bold">{rowIdx}</td>
-                            <td className="border-r border-black p-1 text-center">
-                              {isCurrentRow ? bData : (isEmBranco ? "____/____/____" : "____/____/____")}
+                            <td className="border-r border-black p-1 text-center font-mono font-medium tracking-tight text-[8px] whitespace-nowrap">
+                              {isCurrentRow ? bData : "_____/_____/_____"}
                             </td>
                             <td className="border-r border-black p-1">
                               {isCurrentRow ? (cestaTipoAuxilio === 'cesta_basica_padrao' ? 'Cesta Básica Padrão' : cestaTipoAuxilio === 'cesta_emergencial' ? 'Cesta Emergencial' : 'Kit Higiene') : ""}
@@ -2613,7 +2674,7 @@ export function Formularios() {
                               {isCurrentRow ? (cestaResponsavelEntrega || leadership.secretaria.name) : ""}
                             </td>
                             <td className="border-r border-black p-1">
-                              {isCurrentRow ? <div className="border-b border-dotted border-gray-400 min-h-[14px]"></div> : ""}
+                              {isCurrentRow ? <div className="border-b border-gray-400 min-h-[14px]"></div> : ""}
                             </td>
                             <td className="p-1 text-center">
                               {isCurrentRow ? "VISTO OK" : ""}
@@ -2649,22 +2710,20 @@ export function Formularios() {
                     <div className="grid grid-cols-3 gap-5 text-center">
                       {/* Assinatura do Beneficiário */}
                       <div className="flex flex-col justify-end">
-                        <div className="border-b border-black min-h-[20px]"></div>
+                        <div className="border-b border-black min-h-[22px]"></div>
                         <span className="font-bold text-[8.5px] uppercase block mt-1 truncate">
                           {bNome || "Assinatura do(a) Beneficiário(a)"}
                         </span>
                         <span className="text-[7px] text-gray-600 block">Responsável Familiar / Recebedor(a)</span>
                       </div>
 
-                      {/* Secretaria / Ação Social */}
+                      {/* Assinatura do Meio: Responsável pelo Serviço Social */}
                       <div className="flex flex-col justify-end">
-                        <div className="border-b border-black min-h-[20px] flex items-end justify-center pb-0.5">
-                          {leadership.secretaria.signatureUrl && (
-                            <img src={leadership.secretaria.signatureUrl} alt="" className="h-6 object-contain" />
-                          )}
-                        </div>
-                        <span className="font-bold text-[8.5px] uppercase block mt-1 truncate">{leadership.secretaria.name}</span>
-                        <span className="text-[7px] text-gray-600 block">Secretária / Assistência Social</span>
+                        <div className="border-b border-black min-h-[22px]"></div>
+                        <span className="font-bold text-[8.5px] uppercase block mt-1 truncate">
+                          Assistência Social / Missões
+                        </span>
+                        <span className="text-[7px] text-gray-600 block">Responsável Social</span>
                       </div>
 
                       {/* Pastor Dirigente / Presidente */}
@@ -2779,14 +2838,14 @@ export function Formularios() {
                     <div className="flex border-b border-black">
                       <div className="flex-[3] p-1.5 border-r border-black">
                         <span className="font-bold block text-[8px] uppercase text-gray-700">Nome Completo:</span>
-                        <div className="font-semibold text-[10.5px] min-h-[16px] flex items-center">
-                          {bNome || (isEmBranco ? "................................................................................................................................" : "Não informado")}
+                        <div className="font-semibold text-[10.5px] min-h-[18px] flex items-center">
+                          {bNome || ""}
                         </div>
                       </div>
-                      <div className="flex-1 p-1.5">
+                      <div className="flex-[1.6] p-1.5">
                         <span className="font-bold block text-[8px] uppercase text-gray-700">CPF:</span>
-                        <div className="font-medium text-[9.5px] min-h-[16px] flex items-center">
-                          {bCpf || (isEmBranco ? "___.___.___-__" : "Não informado")}
+                        <div className="font-medium text-[10px] min-h-[18px] flex items-center font-mono font-semibold">
+                          {bCpf || (isEmBranco ? "____ . ____ . ____ - __" : "")}
                         </div>
                       </div>
                     </div>
@@ -2795,13 +2854,13 @@ export function Formularios() {
                       <div className="flex-1 p-1.5 border-r border-black">
                         <span className="font-bold block text-[8px] uppercase text-gray-700">RG:</span>
                         <div className="font-medium text-[9.5px] min-h-[16px] flex items-center">
-                          {bRg || (isEmBranco ? "......................................" : "Não informado")}
+                          {bRg || ""}
                         </div>
                       </div>
                       <div className="flex-1 p-1.5 border-r border-black">
                         <span className="font-bold block text-[8px] uppercase text-gray-700">Telefone / WhatsApp:</span>
                         <div className="font-medium text-[9.5px] min-h-[16px] flex items-center">
-                          {bTel || (isEmBranco ? "(_____) _____________" : "Não informado")}
+                          {bTel || (isEmBranco ? "(_____) _____________" : "")}
                         </div>
                       </div>
                       <div className="flex-1 p-1.5">
@@ -2815,20 +2874,20 @@ export function Formularios() {
                     <div className="flex">
                       <div className="flex-[3] p-1.5 border-r border-black">
                         <span className="font-bold block text-[8px] uppercase text-gray-700">Endereço Residencial Completo:</span>
-                        <div className="font-medium text-[9.5px] min-h-[16px] flex items-center">
-                          {bEnd || (isEmBranco ? "................................................................................................................................" : "Não informado")}
+                        <div className="font-medium text-[9.5px] min-h-[18px] flex items-center">
+                          {bEnd || ""}
                         </div>
                       </div>
                       <div className="flex-[1.5] p-1.5 border-r border-black">
                         <span className="font-bold block text-[8px] uppercase text-gray-700">Bairro:</span>
-                        <div className="font-medium text-[9.5px] min-h-[16px] flex items-center">
-                          {bBairro || (isEmBranco ? "......................................" : "Não informado")}
+                        <div className="font-medium text-[9.5px] min-h-[18px] flex items-center">
+                          {bBairro || ""}
                         </div>
                       </div>
                       <div className="flex-1 p-1.5">
                         <span className="font-bold block text-[8px] uppercase text-gray-700">Cidade / UF:</span>
-                        <div className="font-medium text-[9.5px] min-h-[16px] flex items-center">
-                          {bCidade || (isEmBranco ? "......................................" : "Não informado")}
+                        <div className="font-medium text-[9.5px] min-h-[18px] flex items-center">
+                          {bCidade || ""}
                         </div>
                       </div>
                     </div>
@@ -2861,12 +2920,12 @@ export function Formularios() {
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <span className="font-bold uppercase text-[8px] mr-1.5">Responsável pela Entrega / Diaconia: </span>
-                        <span className="font-medium">{cestaResponsavelEntrega || leadership.secretaria.name}</span>
+                    <div className="flex justify-between items-center gap-4">
+                      <div className="flex items-center gap-1.5 flex-1">
+                        <span className="font-bold uppercase text-[8px] shrink-0">Responsável pela Entrega / Diaconia: </span>
+                        <div className="border-b border-black flex-1 min-h-[16px] mb-0.5"></div>
                       </div>
-                      <div>
+                      <div className="shrink-0">
                         <span className="font-bold uppercase text-[8px] mr-1.5">Carência de Retorno: </span>
                         <span className="text-[8px] font-semibold text-gray-700">30 dias padrão</span>
                       </div>
@@ -2912,15 +2971,13 @@ export function Formularios() {
                         <span className="text-[7.5px] text-gray-600 block">Beneficiário(a) / Responsável</span>
                       </div>
 
-                      {/* Secretaria / Ação Social */}
+                      {/* Assinatura do Meio: Responsável pelo Serviço Social */}
                       <div className="flex flex-col justify-end">
-                        <div className="border-b border-black min-h-[22px] flex items-end justify-center pb-0.5">
-                          {leadership.secretaria.signatureUrl && (
-                            <img src={leadership.secretaria.signatureUrl} alt="" className="h-7 object-contain" />
-                          )}
-                        </div>
-                        <span className="font-bold text-[9px] uppercase block mt-1.5 truncate">{leadership.secretaria.name}</span>
-                        <span className="text-[7.5px] text-gray-600 block">Secretária / Assistência Social</span>
+                        <div className="border-b border-black min-h-[22px]"></div>
+                        <span className="font-bold text-[9px] uppercase block mt-1.5 truncate">
+                          Assistência Social / Missões
+                        </span>
+                        <span className="text-[7.5px] text-gray-600 block">Responsável Social</span>
                       </div>
 
                       {/* Pastor Dirigente / Presidente */}
@@ -3460,13 +3517,16 @@ export function Formularios() {
                             />
                           </div>
 
-                          <div className="space-y-1">
-                            <Label className="text-xs font-medium">CPF do(a) Beneficiário(a)</Label>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                              <span>CPF do(a) Beneficiário(a)</span>
+                              <span className="text-[10px] text-muted-foreground font-normal">Formato livre ou com pontos</span>
+                            </Label>
                             <Input 
-                              placeholder="Ex: 000.000.000-00" 
+                              placeholder="000.000.000-00" 
                               value={reciboBeneficiarioCpf} 
                               onChange={(e) => setReciboBeneficiarioCpf(e.target.value)} 
-                              className="bg-white dark:bg-slate-900 h-9"
+                              className="bg-white dark:bg-slate-900 h-10 text-sm font-medium tracking-wider px-3"
                             />
                           </div>
                         </div>
@@ -3632,7 +3692,7 @@ export function Formularios() {
                     <div className="space-y-1">
                       <Label className="text-xs font-medium">Pastor Celebrante / Oficiante</Label>
                       <Input 
-                        placeholder={churchData?.pastorTitular || "Pr. Presidente"} 
+                        placeholder={leadership.pastor.name || "Pr. Presidente"} 
                         value={batismoPastor} 
                         onChange={(e) => setBatismoPastor(e.target.value)} 
                         className="h-9 text-xs"
@@ -4042,46 +4102,6 @@ export function Formularios() {
                 </div>
               )}
 
-              {/* Botões Principais de Ação de Impressão */}
-              <div className="mt-6 pt-5 border-t flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-muted/20 p-4 rounded-xl border">
-                <div>
-                  <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <Printer className="h-4 w-4 text-primary" /> Ações de Impressão Oficial
-                  </h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {formType === 'recibo' 
-                      ? (reciboModo === 'branco' ? 'Modo Bloco em Branco (Manual para o tesoureiro preencher)' : 'Modo Preenchido no Sistema com dados do beneficiário') 
-                      : 'Formulário configurado e pronto para emissão'}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button 
-                    type="button"
-                    onClick={confirmPrintStandard} 
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-9 text-xs sm:text-sm px-5 shadow-sm"
-                  >
-                    <Printer className="mr-2 h-4 w-4" /> Imprimir Formulário
-                  </Button>
-                  <Button 
-                    type="button"
-                    onClick={handleDownloadStandardPDF}
-                    variant="outline" 
-                    className="border-primary/40 text-primary hover:bg-primary/10 font-semibold h-9 text-xs sm:text-sm px-4 shadow-sm"
-                  >
-                    <Download className="mr-1.5 h-4 w-4" /> Baixar PDF Oficial
-                  </Button>
-                  <Button 
-                    type="button"
-                    onClick={handlePrintStandard} 
-                    variant="ghost" 
-                    size="sm"
-                    className="text-xs text-muted-foreground h-9"
-                  >
-                    <Eye className="mr-1 h-3.5 w-3.5" /> Prévia em Janela
-                  </Button>
-                </div>
-              </div>
 
               {/* Barra de Ajuste de Escala & Zoom na Tela (Alinhamento Perfeito) */}
               <div className="flex items-center justify-between bg-muted/40 p-3 rounded-xl border mt-6 flex-wrap gap-3">

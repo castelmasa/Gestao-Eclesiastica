@@ -14,7 +14,7 @@ async function startServer() {
 
   const hostArgIndex = process.argv.indexOf("--host");
   const hostArg = hostArgIndex !== -1 ? process.argv[hostArgIndex + 1] : undefined;
-  const HOST = hostArg || "0.0.0.0";
+  const HOST = hostArg || process.env.HOST || "0.0.0.0";
 
   app.use(express.json({ limit: '50mb' }));
 

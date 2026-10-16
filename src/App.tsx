@@ -88,7 +88,7 @@ function AppRoutes() {
         <Route path="financeiro" element={<Financeiro />} />
         <Route path="secretaria" element={<Secretaria />} />
         <Route path="servico-social" element={<ServicoSocial />} />
-        <Route path="formularios" element={<Formularios />} />
+        <Route path="formularios" element={<Navigate to="/secretaria?tab=formularios" replace />} />
         <Route path="pastor" element={<AreaPastoral />} />
         <Route path="area-pastoral" element={<AreaPastoral />} />
         <Route path="fornecedores" element={<Fornecedores />} />

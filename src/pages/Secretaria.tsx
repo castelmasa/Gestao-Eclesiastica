@@ -4501,7 +4501,10 @@ export function Secretaria() {
             Dizimistas & Ofertantes
           </TabsTrigger>
           <TabsTrigger value="mapa">Mapa de Membros</TabsTrigger>
-          <TabsTrigger value="formularios">Formulários</TabsTrigger>
+          <TabsTrigger value="formularios" className="flex items-center gap-1.5 font-semibold text-primary">
+            <Printer className="w-4 h-4" />
+            Formulários
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="arquivos" className="space-y-6">

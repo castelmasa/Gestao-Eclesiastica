@@ -23,12 +23,22 @@ export const printDocument = (
   try {
     let targetId = targetElementId || 'printable-standard';
     
-    // Find target element. If multiple elements share targetId (e.g. main page and modal), prefer the visible one inside a modal or the last one in DOM
+    // Find target element. Prioritize the one currently visible to the user
     let printableEl: HTMLElement | null = null;
     const elements = Array.from(document.querySelectorAll<HTMLElement>(`#${targetId}`));
+    
+    const isVisible = (el: HTMLElement) => {
+      try {
+        const style = window.getComputedStyle(el);
+        const rect = el.getBoundingClientRect();
+        return style.display !== 'none' && style.visibility !== 'hidden' && (rect.width > 0 || el.offsetWidth > 0);
+      } catch {
+        return false;
+      }
+    };
+
     if (elements.length > 0) {
-      // Find one that is visible or in dialog
-      printableEl = elements.find(el => el.closest('[role="dialog"]') !== null) || elements[elements.length - 1];
+      printableEl = elements.find(isVisible) || elements[elements.length - 1];
     }
 
     if (!printableEl) {
@@ -164,38 +174,97 @@ export const printDocument = (
     `;
 
     // Trigger print dialog
-    window.focus();
-    window.print();
+    let nativePrintOpened = false;
+    const markPrinted = () => { nativePrintOpened = true; };
+    window.addEventListener('beforeprint', markPrinted, { once: true });
 
-    // Cleanup print stage only after print dialog closes
-    const handleAfterPrint = () => {
-      setTimeout(() => {
-        const stage = document.getElementById(stageId);
-        if (stage) {
-          stage.innerHTML = '';
-        }
-      }, 500);
-      if (onAfterPrint) {
-        onAfterPrint();
+    // 1. Try dedicated print iframe (works in many environments where window.print is blocked)
+    try {
+      const iframeId = '__church_hidden_print_frame__';
+      let pIframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
+      if (!pIframe) {
+        pIframe = document.createElement('iframe');
+        pIframe.id = iframeId;
+        pIframe.setAttribute('style', 'position:fixed; top:-9999px; left:-9999px; width:210mm; height:297mm; border:0; opacity:0; pointer-events:none;');
+        document.body.appendChild(pIframe);
       }
-    };
+      
+      const headStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+        .map(el => el.outerHTML)
+        .join('\n');
 
-    window.addEventListener('afterprint', handleAfterPrint, { once: true });
-    
-    // Safety fallback: if afterprint doesn't fire, invoke onAfterPrint after a short delay
+      const iDoc = pIframe.contentDocument || pIframe.contentWindow?.document;
+      if (iDoc) {
+        iDoc.open();
+        iDoc.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <title>Impressão Oficial</title>
+              ${headStyles}
+              <style>
+                @page { size: A4 portrait; margin: 0mm !important; }
+                html, body {
+                  background: #ffffff !important;
+                  color: #000000 !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  width: 210mm !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
+                .recibo-page, .print-page, .dynamic-page {
+                  margin: 0 auto !important;
+                  box-shadow: none !important;
+                }
+              </style>
+            </head>
+            <body>
+              ${printableEl.outerHTML}
+            </body>
+          </html>
+        `);
+        iDoc.close();
+        pIframe.contentWindow?.focus();
+        pIframe.contentWindow?.print();
+      }
+    } catch (e) {
+      console.warn("Iframe print attempt warning:", e);
+    }
+
+    // 2. Also trigger main window print
+    try {
+      window.focus();
+      window.print();
+    } catch (printErr) {
+      console.warn("window.print bloqueado ou indisponível:", printErr);
+    }
+
+    // 3. Fallback: If inside an iframe sandbox or if beforeprint didn't trigger, guarantee user receives printable PDF
+    const isIframe = typeof window !== 'undefined' && window.self !== window.top;
     setTimeout(() => {
-      if (onAfterPrint) {
-        onAfterPrint();
+      window.removeEventListener('beforeprint', markPrinted);
+      if (!nativePrintOpened && isIframe) {
+        toast.info("Documento oficial preparado! Abrindo para sua impressora ou download...", { id: "print-toast-fallback" });
+        const targetElement = printableEl || document.getElementById(targetId);
+        if (targetElement) {
+          downloadElementAsPdf(targetElement, `formulario-${new Date().toISOString().slice(0, 10)}.pdf`);
+        }
       }
-    }, 1500);
+    }, 450);
+
+    if (onAfterPrint) {
+      window.addEventListener('afterprint', () => onAfterPrint(), { once: true });
+    }
 
     return true;
   } catch (err) {
     console.warn("Print call issue:", err);
     try {
-      window.focus();
-      window.print();
-      if (onAfterPrint) setTimeout(onAfterPrint, 500);
+      const targetId = targetElementId || 'printable-standard';
+      downloadElementAsPdf(targetId, `formulario-${new Date().toISOString().slice(0, 10)}.pdf`);
+      if (onAfterPrint) onAfterPrint();
       return true;
     } catch (fallbackErr) {
       console.error("Window print error:", fallbackErr);
@@ -207,12 +276,44 @@ export const printDocument = (
 
 /**
  * Export any HTML element directly to a clean A4 PDF file using html-to-image and jsPDF.
+ * Accepts either an element ID (string) or an HTMLElement directly.
  */
-export async function downloadElementAsPdf(elementId: string, fileName: string = 'documento.pdf'): Promise<boolean> {
-  const element = document.getElementById(elementId);
+export async function downloadElementAsPdf(
+  target: string | HTMLElement, 
+  fileName: string = 'documento.pdf'
+): Promise<boolean> {
+  let element: HTMLElement | null = null;
+
+  if (typeof target === 'string') {
+    const elements = Array.from(document.querySelectorAll<HTMLElement>(`#${target}`));
+    const isVisible = (el: HTMLElement) => {
+      try {
+        const style = window.getComputedStyle(el);
+        const rect = el.getBoundingClientRect();
+        return style.display !== 'none' && style.visibility !== 'hidden' && (rect.width > 0 || el.offsetWidth > 0);
+      } catch {
+        return false;
+      }
+    };
+
+    if (elements.length > 0) {
+      element = elements.find(isVisible) || elements[elements.length - 1];
+    }
+
+    if (!element) {
+      element = 
+        document.getElementById('printable-standard') ||
+        document.getElementById('printable-dynamic') ||
+        document.getElementById('printable-ficha-pastoral') ||
+        document.getElementById('church-active-print-stage');
+    }
+  } else {
+    element = target;
+  }
+
   if (!element) {
-    console.error(`Element #${elementId} not found for PDF export.`);
-    toast.error("Elemento de impressão não encontrado.");
+    console.error("Element not found for PDF export.");
+    toast.error("Elemento de impressão não encontrado na tela.");
     return false;
   }
 
