@@ -34,7 +34,7 @@ async function startServer() {
   const PORT = portArg || (process.env.PORT ? parseInt(process.env.PORT, 10) : 3e3);
   const hostArgIndex = process.argv.indexOf("--host");
   const hostArg = hostArgIndex !== -1 ? process.argv[hostArgIndex + 1] : void 0;
-  const HOST = hostArg || "0.0.0.0";
+  const HOST = hostArg || process.env.HOST || "0.0.0.0";
   app.use(import_express.default.json({ limit: "50mb" }));
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
