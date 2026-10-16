@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/table";
 import { useSearchParams } from "react-router-dom";
 import { DigitalSignatureField } from "@/components/common/DigitalSignatureField";
-import { useAuth, UserPermissions } from "@/contexts/AuthContext";
+import { useAuth, UserPermissions, ROLE_PRESET_PERMISSIONS } from "@/contexts/AuthContext";
 import { useBranch, Branch } from "@/contexts/BranchContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -81,7 +81,7 @@ import emailjs from "@emailjs/browser";
 import { CloudBackupAndExportModal } from "@/components/financeiro/CloudBackupAndExportModal";
 import { logAction } from "@/lib/audit";
 import { executeDbOperation } from "@/lib/firebaseHelper";
-import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc, query, where } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc, query, where, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { db, secondaryAuth } from "@/lib/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import jsPDF from "jspdf";
@@ -142,6 +142,83 @@ export function Configuracoes() {
   } | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Access Requests states (Solicitações de Acesso de Novos Usuários)
+  const [accessRequests, setAccessRequests] = useState<any[]>([]);
+  useEffect(() => {
+    let unsub = () => {};
+    try {
+      const q = query(collection(db, "access_requests"), orderBy("createdAt", "desc"), limit(30));
+      unsub = onSnapshot(q, (snap) => {
+        setAccessRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, (err) => {
+        console.warn("Aviso ao ler access_requests:", err);
+        try {
+          const local = JSON.parse(localStorage.getItem("church_access_requests") || "[]");
+          setAccessRequests(local);
+        } catch (e) {}
+      });
+    } catch (e) {
+      try {
+        const local = JSON.parse(localStorage.getItem("church_access_requests") || "[]");
+        setAccessRequests(local);
+      } catch (err) {}
+    }
+    return () => unsub();
+  }, []);
+
+  const handleApproveAccessRequest = async (request: any) => {
+    try {
+      const roleToSet = request.requestedRole || "Secretária";
+      const perms = ROLE_PRESET_PERMISSIONS[roleToSet] || ROLE_PRESET_PERMISSIONS["Secretária"];
+      
+      await updateDoc(doc(db, "users", request.userId), {
+        role: roleToSet,
+        status: "active",
+        permissions: perms,
+        updatedAt: new Date().toISOString()
+      });
+
+      try {
+        await updateDoc(doc(db, "access_requests", request.id), {
+          status: "approved",
+          approvedAt: new Date().toISOString(),
+          approvedBy: currentUser?.name || "Administrador"
+        });
+      } catch (err) {}
+
+      const local = JSON.parse(localStorage.getItem("church_access_requests") || "[]");
+      const updatedLocal = local.map((r: any) => r.id === request.id ? { ...r, status: "approved" } : r);
+      localStorage.setItem("church_access_requests", JSON.stringify(updatedLocal));
+      setAccessRequests(updatedLocal);
+
+      toast.success(`Acesso de ${request.userName} aprovado como "${roleToSet}" com sucesso!`);
+      loadUsers();
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao aprovar solicitação: " + err.message);
+    }
+  };
+
+  const handleRejectAccessRequest = async (request: any) => {
+    try {
+      try {
+        await updateDoc(doc(db, "access_requests", request.id), {
+          status: "rejected",
+          rejectedAt: new Date().toISOString()
+        });
+      } catch (err) {}
+
+      const local = JSON.parse(localStorage.getItem("church_access_requests") || "[]");
+      const updatedLocal = local.map((r: any) => r.id === request.id ? { ...r, status: "rejected" } : r);
+      localStorage.setItem("church_access_requests", JSON.stringify(updatedLocal));
+      setAccessRequests(updatedLocal);
+
+      toast.info(`Solicitação de ${request.userName} recusada.`);
+    } catch (err: any) {
+      toast.error("Erro ao recusar solicitação.");
+    }
+  };
 
   // EmailJS & UI preferences
   const [emailJsConfig, setEmailJsConfig] = useState(() => {
@@ -734,41 +811,11 @@ export function Configuracoes() {
     logAction("Configurações", "Preferências de notificação atualizadas.", currentUser?.name || "Desconhecido");
   };
 
-  // User Management
+  // User Management & Role Presets
   const handleRolePreset = (role: string) => {
     setUserModalRole(role);
-    if (role === "Administrador") {
-      setNewUserPermissions({
-        financeiro: { view: true, add: true, edit: true, delete: true },
-        secretaria: { view: true, add: true, edit: true, delete: true },
-        patrimonio: { view: true, add: true, edit: true, delete: true },
-        configuracoes: { view: true, add: true, edit: true, delete: true },
-        parametros: { view: true, add: true, edit: true, delete: true },
-      });
-    } else if (role === "Secretária") {
-      setNewUserPermissions({
-        financeiro: { view: true, add: false, edit: false, delete: false },
-        secretaria: { view: true, add: true, edit: true, delete: true },
-        patrimonio: { view: true, add: true, edit: true, delete: false },
-        configuracoes: { view: false, add: false, edit: false, delete: false },
-        parametros: { view: true, add: false, edit: false, delete: false },
-      });
-    } else if (role === "Tesoureiro") {
-      setNewUserPermissions({
-        financeiro: { view: true, add: true, edit: true, delete: true },
-        secretaria: { view: true, add: false, edit: false, delete: false },
-        patrimonio: { view: true, add: true, edit: true, delete: false },
-        configuracoes: { view: false, add: false, edit: false, delete: false },
-        parametros: { view: true, add: false, edit: false, delete: false },
-      });
-    } else if (role === "Membro") {
-      setNewUserPermissions({
-        financeiro: { view: true, add: true, edit: true, delete: false },
-        secretaria: { view: true, add: true, edit: true, delete: false },
-        patrimonio: { view: true, add: true, edit: true, delete: false },
-        parametros: { view: true, add: false, edit: false, delete: false },
-        configuracoes: { view: false, add: false, edit: false, delete: false },
-      });
+    if (ROLE_PRESET_PERMISSIONS[role]) {
+      setNewUserPermissions(JSON.parse(JSON.stringify(ROLE_PRESET_PERMISSIONS[role])));
     } else if (role === "Personalizado") {
       toast.info("Modo Personalizado ativado: as permissões específicas marcadas abaixo serão preservadas.");
     }
@@ -776,7 +823,7 @@ export function Configuracoes() {
 
   const handleSelectAllPermissions = (select: boolean) => {
     const updated: any = {};
-    ["financeiro", "secretaria", "patrimonio", "configuracoes", "parametros"].forEach((m) => {
+    ["financeiro", "secretaria", "social", "patrimonio", "configuracoes", "parametros", "pastoral"].forEach((m) => {
       updated[m] = { view: select, add: select, edit: select, delete: select };
     });
     setNewUserPermissions(updated);
@@ -795,19 +842,30 @@ export function Configuracoes() {
     setUserModalRole("Personalizado");
   };
 
+  const handleQuickApproveRole = async (targetUser: any, newRole: string) => {
+    try {
+      const perms = ROLE_PRESET_PERMISSIONS[newRole] || ROLE_PRESET_PERMISSIONS["Secretária"];
+      await updateDoc(doc(db, "users", targetUser.id), {
+        role: newRole,
+        status: "active",
+        permissions: perms,
+        updatedAt: new Date().toISOString()
+      });
+      toast.success(`Usuário ${targetUser.name} aprovado com o perfil "${newRole}" com sucesso!`);
+      loadUsers();
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao aprovar usuário: " + err.message);
+    }
+  };
+
   const handleOpenAddUser = () => {
     setEditingUser(null);
-    setUserModalRole("Membro");
+    setUserModalRole("Secretária");
     setInitialSavedUserPermissions(null);
     setUserModalSignatureUrl("");
     setUserModalSignatureFileName("");
-    setNewUserPermissions({
-      financeiro: { view: true, add: true, edit: true, delete: false },
-      secretaria: { view: true, add: true, edit: true, delete: false },
-      patrimonio: { view: true, add: true, edit: true, delete: false },
-      parametros: { view: true, add: false, edit: false, delete: false },
-      configuracoes: { view: false, add: false, edit: false, delete: false },
-    });
+    setNewUserPermissions(JSON.parse(JSON.stringify(ROLE_PRESET_PERMISSIONS["Secretária"])));
     setUserModalStatus("active");
     setUserModalTrialDays(defaultTrialDays || 30);
     setUserModalIsUnlimited(true);
@@ -825,6 +883,7 @@ export function Configuracoes() {
     const mergedPerms: UserPermissions = {
       financeiro: { view: false, add: false, edit: false, delete: false, ...user.permissions?.financeiro },
       secretaria: { view: false, add: false, edit: false, delete: false, ...user.permissions?.secretaria },
+      social: { view: false, add: false, edit: false, delete: false, ...user.permissions?.social },
       patrimonio: { view: false, add: false, edit: false, delete: false, ...user.permissions?.patrimonio },
       configuracoes: { view: false, add: false, edit: false, delete: false, ...user.permissions?.configuracoes },
       parametros: { view: false, add: false, edit: false, delete: false, ...user.permissions?.parametros },
@@ -1440,7 +1499,11 @@ export function Configuracoes() {
         (u.name && u.name.toLowerCase().includes(userSearchTerm.toLowerCase())) ||
         (u.email && u.email.toLowerCase().includes(userSearchTerm.toLowerCase()));
 
-      const matchRole = userRoleFilter === "all" || u.role === userRoleFilter;
+      const matchRole =
+        userRoleFilter === "all" ||
+        (userRoleFilter === "Novo Usuário"
+          ? (u.role || "").toLowerCase().includes("novo") || (u.role || "").toLowerCase().includes("visitante")
+          : u.role === userRoleFilter);
       return matchSearch && matchRole;
     });
   }, [users, userSearchTerm, userRoleFilter]);
@@ -1656,6 +1719,104 @@ export function Configuracoes() {
                 </div>
               </div>
 
+              {/* Solicitações de Acesso Pendentes enviadas por novos usuários */}
+              {(() => {
+                const pendingRequests = accessRequests.filter((r) => r.status === "pending");
+                if (pendingRequests.length === 0) return null;
+                return (
+                  <div className="p-4 rounded-2xl border border-blue-500/30 bg-blue-500/10 dark:bg-blue-950/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                          <UserCheck className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-foreground">
+                            {pendingRequests.length} Solicitação(ões) de Liberação de Acesso
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Novos membros ou obreiros solicitaram atribuição de perfil para atuar nos departamentos.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 pt-1">
+                      {pendingRequests.map((req) => (
+                        <div key={req.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border/70 text-xs">
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-foreground text-sm">{req.userName}</span>
+                              <span className="text-muted-foreground">({req.userEmail})</span>
+                              <Badge variant="outline" className="text-[10px] text-blue-600 border-blue-300 bg-blue-50 dark:bg-blue-950/50">
+                                Pretende: {req.requestedRole}
+                              </Badge>
+                            </div>
+                            {req.notes && (
+                              <p className="text-muted-foreground italic text-[11px]">
+                                "{req.notes}"
+                              </p>
+                            )}
+                            <p className="text-[10px] text-muted-foreground">
+                              Data: {new Date(req.createdAt).toLocaleString("pt-BR")}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                              size="sm"
+                              className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg"
+                              onClick={() => handleApproveAccessRequest(req)}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                              Aprovar como {req.requestedRole}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-2.5 text-xs text-muted-foreground hover:text-destructive rounded-lg"
+                              onClick={() => handleRejectAccessRequest(req)}
+                            >
+                              Recusar
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Banner Informativo sobre Novos Usuários com Acesso Inibido */}
+              {(() => {
+                const pendingCount = users.filter((u) => (u.role || "").toLowerCase().includes("novo") || (u.role || "").toLowerCase().includes("visitante")).length;
+                if (pendingCount === 0) return null;
+                return (
+                  <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-foreground">
+                          {pendingCount} novo(s) usuário(s) com acesso restrito aguardando definição de perfil
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Por segurança, a opção de <strong>Configurações no menu lateral</strong> e os módulos de finanças/membros estão inibidos para eles até sua aprovação.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20 whitespace-nowrap rounded-xl font-medium"
+                      onClick={() => setUserRoleFilter("Novo Usuário")}
+                    >
+                      Filtrar Novos Usuários
+                    </Button>
+                  </div>
+                );
+              })()}
+
               {/* Search & Filter Bar */}
               <div className="flex flex-col sm:flex-row items-center gap-3">
                 <div className="relative flex-1 w-full">
@@ -1670,15 +1831,18 @@ export function Configuracoes() {
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                   <Label className="text-xs text-muted-foreground shrink-0">Filtrar Perfil:</Label>
                   <Select value={userRoleFilter} onValueChange={setUserRoleFilter}>
-                    <SelectTrigger className="w-full sm:w-[170px] h-9">
+                    <SelectTrigger className="w-full sm:w-[190px] h-9">
                       <SelectValue placeholder="Todos os Perfis" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos os Perfis</SelectItem>
-                      <SelectItem value="Administrador">Administrador</SelectItem>
-                      <SelectItem value="Secretária">Secretária</SelectItem>
-                      <SelectItem value="Tesoureiro">Tesoureiro</SelectItem>
-                      <SelectItem value="Membro">Membro</SelectItem>
+                      <SelectItem value="Novo Usuário">🔒 Novo Usuário (Restrito)</SelectItem>
+                      <SelectItem value="Administrador">👑 Administrador</SelectItem>
+                      <SelectItem value="Pastor / Liderança">📖 Pastor / Liderança</SelectItem>
+                      <SelectItem value="Tesoureiro">💰 Tesoureiro</SelectItem>
+                      <SelectItem value="Secretária">📋 Secretária</SelectItem>
+                      <SelectItem value="Assistência Social / Diaconia">🤝 Assistência Social / Diaconia</SelectItem>
+                      <SelectItem value="Membro">👤 Membro</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button
@@ -1722,11 +1886,14 @@ export function Configuracoes() {
                         if (user.permissions) {
                           if (user.permissions.financeiro?.view || user.permissions.financeiro?.add) activePermissions.push("Financeiro");
                           if (user.permissions.secretaria?.view || user.permissions.secretaria?.add) activePermissions.push("Secretaria");
+                          if (user.permissions.social?.view || user.permissions.social?.add) activePermissions.push("Social");
                           if (user.permissions.patrimonio?.view || user.permissions.patrimonio?.add) activePermissions.push("Patrimônio");
                           if (user.permissions.configuracoes?.view || user.permissions.configuracoes?.add) activePermissions.push("Config.");
                           if (user.permissions.parametros?.view || user.permissions.parametros?.add) activePermissions.push("Parâmetros");
                           if (user.permissions.pastoral?.view || user.permissions.pastoral?.add) activePermissions.push("Pastoral");
                         }
+
+                        const isNovo = (user.role || "").toLowerCase().includes("novo") || (user.role || "").toLowerCase().includes("visitante");
 
                         return (
                           <tr key={user.id} className="hover:bg-muted/30 transition-colors">
@@ -1734,7 +1901,7 @@ export function Configuracoes() {
                               <div className="flex items-center gap-3">
                                 <div
                                   className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0 ${
-                                    user.name.charCodeAt(0) % 2 === 0 ? "bg-indigo-600" : "bg-emerald-600"
+                                    isNovo ? "bg-amber-600" : user.name.charCodeAt(0) % 2 === 0 ? "bg-indigo-600" : "bg-emerald-600"
                                   }`}
                                 >
                                   {user.name.charAt(0).toUpperCase()}
@@ -1750,9 +1917,15 @@ export function Configuracoes() {
                                   </div>
                                   <span className="text-xs text-muted-foreground truncate">{user.email}</span>
                                   <div className="flex items-center gap-1.5 mt-0.5">
-                                    <Badge variant="secondary" className="text-[10px] font-medium py-0 px-1.5">
-                                      {user.role}
-                                    </Badge>
+                                    {isNovo ? (
+                                      <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-[10px] font-bold py-0 px-1.5">
+                                        🔒 Novo Usuário (Restrito)
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="secondary" className="text-[10px] font-medium py-0 px-1.5">
+                                        {user.role}
+                                      </Badge>
+                                    )}
                                     {user.signatureUrl && (
                                       <Badge variant="outline" className="text-[10px] font-medium py-0 px-1.5 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40">
                                         ✍️ Assinatura Salva
@@ -1850,6 +2023,18 @@ export function Configuracoes() {
                             <td className="px-5 py-4 text-right whitespace-nowrap">
                               {isAdmin && (
                                 <div className="flex items-center justify-end gap-1.5">
+                                  {isNovo && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleOpenEditUser(user)}
+                                      className="h-8 px-2.5 text-xs bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg shadow-xs"
+                                      title="Definir perfil e liberar acessos para este novo usuário"
+                                    >
+                                      <UserCheck className="h-3.5 w-3.5 mr-1" />
+                                      Aprovar Acesso
+                                    </Button>
+                                  )}
+
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -3242,9 +3427,12 @@ export function Configuracoes() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Administrador">👑 Administrador (Acesso Total)</SelectItem>
-                      <SelectItem value="Secretária">📋 Secretária (Membros e Documentos)</SelectItem>
-                      <SelectItem value="Tesoureiro">💰 Tesoureiro (Caixa e Relatórios)</SelectItem>
-                      <SelectItem value="Membro">👤 Membro (Somente Consulta Básica)</SelectItem>
+                      <SelectItem value="Pastor / Liderança">📖 Pastor / Liderança (Área Pastoral, Secretaria)</SelectItem>
+                      <SelectItem value="Tesoureiro">💰 Tesoureiro (Caixa, Dízimos, Fornecedores)</SelectItem>
+                      <SelectItem value="Secretária">📋 Secretária (Membros, Atas, Documentos)</SelectItem>
+                      <SelectItem value="Assistência Social / Diaconia">🤝 Assistência Social / Diaconia (Cestas Básicas)</SelectItem>
+                      <SelectItem value="Membro">👤 Membro (Consulta Básica de Agenda)</SelectItem>
+                      <SelectItem value="Novo Usuário">🔒 Novo Usuário (Acesso Restrito / Inibido)</SelectItem>
                       <SelectItem value="Personalizado">⚙️ Personalizado (Permissões Manuais)</SelectItem>
                     </SelectContent>
                   </Select>
@@ -3482,7 +3670,7 @@ export function Configuracoes() {
                 </div>
 
                 <div className="space-y-3 bg-muted/20 p-3 rounded-xl border border-border/50">
-                  {["financeiro", "secretaria", "patrimonio", "pastoral", "parametros", "configuracoes"].map((module) => {
+                  {["financeiro", "secretaria", "social", "pastoral", "patrimonio", "parametros", "configuracoes"].map((module) => {
                     const moduleLabel =
                       module === "configuracoes"
                         ? "Configurações"
@@ -3492,6 +3680,8 @@ export function Configuracoes() {
                         ? "Patrimônio"
                         : module === "pastoral"
                         ? "Área Pastoral"
+                        : module === "social"
+                        ? "Serviço Social"
                         : module.charAt(0).toUpperCase() + module.slice(1);
 
                     const perms = (newUserPermissions as any)?.[module] || {

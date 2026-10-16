@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import React, { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Users, TrendingUp, TrendingDown, Target, Bell, Calendar, Wallet, Activity, Box, Loader2, Download, Maximize, Building2 } from "lucide-react"
+import { Users, TrendingUp, TrendingDown, Target, Bell, Calendar, Wallet, Activity, Box, Loader2, Download, Maximize, Building2, ShieldCheck, Send, CheckCircle2, Lock } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
@@ -13,7 +13,7 @@ import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import { useBranch } from "@/contexts/BranchContext"
 import { db } from "@/lib/firebase"
-import { collection, onSnapshot, query, where, getDocs } from "firebase/firestore"
+import { collection, onSnapshot, query, where, getDocs, addDoc } from "firebase/firestore"
 import { parseFirestoreDate } from "@/lib/dateUtils";
 import { matchesBranch, isSedeBranch } from "@/lib/branchUtils";
 import { SummaryCards } from "@/components/dashboard/SummaryCards";
@@ -23,6 +23,11 @@ import { BirthdaysCard } from "@/components/dashboard/BirthdaysCard";
 import { RevenueEvolutionChart } from "@/components/dashboard/RevenueEvolutionChart";
 import { MemberGrowthChart } from "@/components/dashboard/MemberGrowthChart";
 import { MonthlyFinancialComparisonChart } from "@/components/dashboard/MonthlyFinancialComparisonChart";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -33,6 +38,13 @@ export function Dashboard() {
   const [members, setMembers] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
+
+  // Modal de solicitação de acesso para novo usuário
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [requestedRole, setRequestedRole] = useState("Secretária");
+  const [requestNotes, setRequestNotes] = useState("");
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  const [hasRequested, setHasRequested] = useState(false);
   
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
@@ -196,6 +208,79 @@ export function Dashboard() {
     }
   };
 
+  const isAdmin = user?.role?.toLowerCase() === 'administrador';
+  const isDev = Boolean(
+    user?.isDeveloper ||
+    user?.role?.toLowerCase() === 'desenvolvedor' ||
+    user?.role?.toLowerCase() === 'developer'
+  );
+  const isNovoUsuario = Boolean(
+    !isAdmin && !isDev && (
+      (user?.role || '').toLowerCase().includes('novo') ||
+      (user?.role || '').toLowerCase().includes('visitante') ||
+      (user?.status === 'trial' && (!user?.permissions || Object.values(user.permissions).every((p: any) => !p?.view)))
+    )
+  );
+
+  const canViewFinanceiro = isAdmin || isDev || (user?.permissions?.financeiro?.view === true && !isNovoUsuario);
+  const canViewMembers = isAdmin || isDev || (user?.permissions?.secretaria?.view === true && !isNovoUsuario);
+
+  const handleSendAccessRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setIsSubmittingRequest(true);
+    try {
+      await addDoc(collection(db, 'access_requests'), {
+        userId: user.id,
+        userName: user.name || 'Usuário',
+        userEmail: user.email || '',
+        currentRole: user.role || 'Novo Usuário',
+        requestedRole,
+        notes: requestNotes.trim(),
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      });
+
+      const savedRequests = JSON.parse(localStorage.getItem('church_access_requests') || '[]');
+      savedRequests.unshift({
+        id: 'req_' + Date.now(),
+        userId: user.id,
+        userName: user.name || 'Usuário',
+        userEmail: user.email || '',
+        currentRole: user.role || 'Novo Usuário',
+        requestedRole,
+        notes: requestNotes.trim(),
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      });
+      localStorage.setItem('church_access_requests', JSON.stringify(savedRequests));
+
+      toast.success("Solicitação enviada com sucesso! Um administrador da igreja avaliará sua liberação.");
+      setHasRequested(true);
+      setIsRequestModalOpen(false);
+    } catch (err) {
+      console.warn("Erro ao salvar solicitação:", err);
+      const savedRequests = JSON.parse(localStorage.getItem('church_access_requests') || '[]');
+      savedRequests.unshift({
+        id: 'req_' + Date.now(),
+        userId: user.id,
+        userName: user.name || 'Usuário',
+        userEmail: user.email || '',
+        currentRole: user.role || 'Novo Usuário',
+        requestedRole,
+        notes: requestNotes.trim(),
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      });
+      localStorage.setItem('church_access_requests', JSON.stringify(savedRequests));
+      toast.success("Solicitação registrada com sucesso!");
+      setHasRequested(true);
+      setIsRequestModalOpen(false);
+    } finally {
+      setIsSubmittingRequest(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="h-full flex items-center justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
@@ -213,18 +298,16 @@ export function Dashboard() {
         description={
           <div className="space-y-1">
             <p className="text-white/80 text-sm">
-              Bem-vindo de volta, {user?.name || 'Administrador'}. Aqui está o resumo e alertas do sistema.
+              Bem-vindo de volta, {user?.name || 'Usuário'}. {isNovoUsuario ? 'Seu cadastro está ativo com perfil restrito.' : 'Aqui está o resumo e alertas do sistema.'}
             </p>
           </div>
         }
         action={
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex flex-col text-left sm:text-right bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-white/20">
-              <span className="text-[10px] text-white/70 uppercase tracking-wider font-semibold leading-none mb-0.5">Licença</span>
+              <span className="text-[10px] text-white/70 uppercase tracking-wider font-semibold leading-none mb-0.5">Perfil</span>
               <span className="text-xs sm:text-sm font-semibold text-white leading-tight">
-                {user?.status === 'exempt' ? 'Vitalícia' :
-                  user?.status === 'expired' || (user?.expirationDate && new Date(user.expirationDate) < new Date()) ? 'Expirada' : 
-                  user?.status === 'trial' ? 'Teste' : 'Ativa'}
+                {user?.role || 'Novo Usuário'}
               </span>
             </div>
             
@@ -239,13 +322,57 @@ export function Dashboard() {
             }} variant="outline" className="bg-white/10 text-white hover:bg-white/20 border-white/20 whitespace-nowrap h-10 rounded-xl px-3.5 font-medium text-xs sm:text-sm hidden md:inline-flex">
               <Maximize className="w-4 h-4 mr-1.5" /> Tela Cheia
             </Button>
-            <Button onClick={handleExportPDF} className="bg-white text-blue-600 hover:bg-slate-100 whitespace-nowrap h-10 rounded-xl px-4 font-semibold text-xs sm:text-sm shadow-xs">
-              <Download className="w-4 h-4 mr-1.5" /> Exportar Relatório
-            </Button>
+            {canViewFinanceiro && (
+              <Button onClick={handleExportPDF} className="bg-white text-blue-600 hover:bg-slate-100 whitespace-nowrap h-10 rounded-xl px-4 font-semibold text-xs sm:text-sm shadow-xs">
+                <Download className="w-4 h-4 mr-1.5" /> Exportar Relatório
+              </Button>
+            )}
           </div>
         }
       />
 
+      {/* BANNER INFORMATIVO PARA NOVO USUÁRIO */}
+      {isNovoUsuario && (
+        <Card className="border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-card shadow-sm rounded-2xl overflow-hidden">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                  <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  Perfil Inicial: Novo Usuário (Acesso Restrito Provisório)
+                </div>
+                <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                  Bem-vindo(a) à Plataforma da Igreja, {user?.name}!
+                </h2>
+                <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
+                  Para resguardar o sigilo eclesiástico, a movimentação financeira e os dados da congregação, novos usuários possuem o acesso inibido aos módulos administrativos e à <strong>opção de Configurações no menu lateral</strong>. Abaixo você tem acesso à agenda e aos eventos programados.
+                </p>
+                {hasRequested && (
+                  <div className="inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-800 font-medium">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Sua solicitação de acesso para "{requestedRole}" foi enviada com sucesso!
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto shrink-0">
+                <Button 
+                  onClick={() => setIsRequestModalOpen(true)}
+                  className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl shadow-xs font-semibold h-11 px-5"
+                >
+                  <Send className="w-4 h-4 mr-2" /> Solicitar Liberação de Perfil
+                </Button>
+                <Link to="/agenda">
+                  <Button variant="outline" className="rounded-xl w-full h-11 px-4">
+                    <Calendar className="w-4 h-4 mr-2" /> Agenda de Cultos
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* AVISOS DE EXPIRAÇÃO DE LICENÇA (SE APLICÁVEL) */}
       {(() => {
         if (!user || user.status === 'exempt' || user.status === 'blocked') return null;
         if (!user.expirationDate) return null;
@@ -260,7 +387,9 @@ export function Dashboard() {
                   <h3 className="text-red-800 dark:text-red-300 font-medium flex items-center gap-2"><Target className="w-5 h-5"/> Licença Expirada</h3>
                   <p className="text-red-600 dark:text-red-400 text-sm mt-1">Sua licença expirou. O acesso aos recursos foi limitado. Por favor, regularize sua assinatura.</p>
                 </div>
-                <Link to="/configuracoes"><Button variant="destructive" size="sm" className="whitespace-nowrap">Renovar Agora</Button></Link>
+                {!isNovoUsuario && (
+                  <Link to="/configuracoes"><Button variant="destructive" size="sm" className="whitespace-nowrap">Renovar Agora</Button></Link>
+                )}
              </div>
           );
         }
@@ -272,7 +401,9 @@ export function Dashboard() {
                   <h3 className="text-orange-800 dark:text-orange-300 font-medium flex items-center gap-2"><Activity className="w-5 h-5"/> Acesso Limitado em Breve</h3>
                   <p className="text-orange-700 dark:text-orange-400 text-sm mt-1">Sua licença expira em {daysRemaining} dia(s). Renove agora para evitar o bloqueio da conta.</p>
                 </div>
-                <Link to="/configuracoes"><Button variant="outline" className="text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-800 hover:bg-orange-100 whitespace-nowrap bg-white dark:bg-card" size="sm">Renovar Licença</Button></Link>
+                {!isNovoUsuario && (
+                  <Link to="/configuracoes"><Button variant="outline" className="text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-800 hover:bg-orange-100 whitespace-nowrap bg-white dark:bg-card" size="sm">Renovar Licença</Button></Link>
+                )}
              </div>
           );
         }
@@ -284,88 +415,102 @@ export function Dashboard() {
                   <h3 className="text-amber-800 dark:text-amber-300 font-medium flex items-center gap-2"><Bell className="w-5 h-5"/> Aviso de Renovação</h3>
                   <p className="text-amber-700 dark:text-amber-400 text-sm mt-1">Sua licença expira em {daysRemaining} dias. Programe-se para renovar sua assinatura.</p>
                 </div>
-                <Link to="/configuracoes"><Button variant="outline" className="text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800 hover:bg-amber-100 whitespace-nowrap bg-white dark:bg-card" size="sm">Ver Opções</Button></Link>
+                {!isNovoUsuario && (
+                  <Link to="/configuracoes"><Button variant="outline" className="text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800 hover:bg-amber-100 whitespace-nowrap bg-white dark:bg-card" size="sm">Ver Opções</Button></Link>
+                )}
              </div>
           );
         }
         return null;
       })()}
 
-      {/* 0. Summary Cards Executivo (Firestore Real-time: Membros, Receitas do Mês e Tarefas) */}
-      <SummaryCards activeBranch={activeBranch} />
+      {/* BLOCO FINANCEIRO E ADMINISTRATIVO (INIBIDO PARA NOVO USUÁRIO) */}
+      {canViewFinanceiro && (
+        <>
+          {/* 0. Summary Cards Executivo (Firestore Real-time: Membros, Receitas do Mês e Tarefas) */}
+          <SummaryCards activeBranch={activeBranch} />
 
-      {/* 1. Cards de Resumo Financeiro (Entradas vs Saídas, Balanço & Taxa de Comprometimento) */}
-      <FinancialSummaryCards transactions={filteredTransactions} activeBranch={activeBranch} />
+          {/* 1. Cards de Resumo Financeiro (Entradas vs Saídas, Balanço & Taxa de Comprometimento) */}
+          <FinancialSummaryCards transactions={filteredTransactions} activeBranch={activeBranch} />
 
-      {/* 2. Sistema de Alertas Visuais para Contas a Pagar e Receber Próximas ao Vencimento */}
-      <PendingBillsAlerts transactions={filteredTransactions} />
+          {/* 2. Sistema de Alertas Visuais para Contas a Pagar e Receber Próximas ao Vencimento */}
+          <PendingBillsAlerts transactions={filteredTransactions} />
 
-      {/* 2.1. Gráfico Visual Recharts: Resumo de Entradas e Saídas Financeiras do Mês Atual */}
-      <MonthlyFinancialComparisonChart transactions={filteredTransactions} activeBranch={activeBranch} />
+          {/* 2.1. Gráfico Visual Recharts: Resumo de Entradas e Saídas Financeiras do Mês Atual */}
+          <MonthlyFinancialComparisonChart transactions={filteredTransactions} activeBranch={activeBranch} />
 
-      {/* 3. Gráficos Principais: Evolução da Arrecadação Mensal e Crescimento de Novos Membros (Recharts) */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <RevenueEvolutionChart transactions={filteredTransactions} activeBranch={activeBranch} />
-        <MemberGrowthChart members={filteredMembers} activeBranch={activeBranch} />
-      </div>
+          {/* 3. Gráficos Principais: Evolução da Arrecadação Mensal e Crescimento de Novos Membros (Recharts) */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <RevenueEvolutionChart transactions={filteredTransactions} activeBranch={activeBranch} />
+            <MemberGrowthChart members={filteredMembers} activeBranch={activeBranch} />
+          </div>
+        </>
+      )}
 
       {/* 4. Grid: Aniversariantes do Mês & Distribuição de Despesas / Agenda */}
       <div className="grid gap-6 lg:grid-cols-12">
         
-        {/* Aniversariantes do Mês (Left: 5 cols on lg) */}
-        <div className="lg:col-span-5">
-          <BirthdaysCard members={filteredMembers} activeBranch={activeBranch} />
-        </div>
+        {/* Aniversariantes do Mês (Left: 5 cols on lg) - Visível para quem tem acesso a membros */}
+        {canViewMembers && (
+          <div className="lg:col-span-5">
+            <BirthdaysCard members={filteredMembers} activeBranch={activeBranch} />
+          </div>
+        )}
 
-        {/* Despesas Chart & Próximos Eventos (Right: 7 cols on lg) */}
-        <div className="lg:col-span-7 space-y-6">
-          {/* Despesas Chart */}
-          <Card className="shadow-sm border-border/80 dark:border-border/60">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-semibold flex items-center gap-2 text-foreground">
-                 <Activity className="w-5 h-5 text-primary" /> Distribuição de Despesas por Categoria
-              </CardTitle>
-              <CardDescription>Principais custos e desembolsos deste mês</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[260px]">
-                 {stats.pieData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={stats.pieData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={85}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {stats.pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                        <Legend verticalAlign="bottom" height={36}/>
-                      </PieChart>
-                    </ResponsiveContainer>
-                 ) : (
-                    <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-                      Nenhuma despesa registrada neste mês.
-                    </div>
-                 )}
-              </div>
-            </CardContent>
-          </Card>
+        {/* Despesas Chart & Próximos Eventos (Right: span changes based on canViewMembers) */}
+        <div className={canViewMembers ? "lg:col-span-7 space-y-6" : "lg:col-span-12 space-y-6"}>
+          {/* Despesas Chart (Somente visível com permissão financeira) */}
+          {canViewFinanceiro && (
+            <Card className="shadow-sm border-border/80 dark:border-border/60">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2 text-foreground">
+                   <Activity className="w-5 h-5 text-primary" /> Distribuição de Despesas por Categoria
+                </CardTitle>
+                <CardDescription>Principais custos e desembolsos deste mês</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[260px]">
+                   {stats.pieData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={stats.pieData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={55}
+                            outerRadius={85}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {stats.pieData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                          <Legend verticalAlign="bottom" height={36}/>
+                        </PieChart>
+                      </ResponsiveContainer>
+                   ) : (
+                      <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                        Nenhuma despesa registrada neste mês.
+                      </div>
+                   )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Agenda Widget */}
-          <Card className="shadow-sm border-border/80 dark:border-border/60">
+          {/* Agenda Widget - Sempre visível para todos os usuários (incluindo Novo Usuário) */}
+          <Card className="shadow-sm border-border/80 dark:border-border/60 rounded-2xl">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold flex items-center gap-2 text-foreground">
-                   <Calendar className="w-5 h-5 text-primary" /> Próximos Eventos da Igreja
-                </CardTitle>
-                <Link to="/agenda" className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground font-medium px-2.5 py-1.5 rounded-lg hover:bg-muted/50 transition-colors">
+                <div>
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2 text-foreground">
+                     <Calendar className="w-5 h-5 text-primary" /> Próximos Eventos & Cultos da Igreja
+                  </CardTitle>
+                  <CardDescription>Acompanhe a programação dos cultos e eventos oficiais</CardDescription>
+                </div>
+                <Link to="/agenda" className="inline-flex items-center text-xs font-semibold text-primary hover:text-primary/80 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors">
                   Ver Agenda Completa
                 </Link>
               </div>
@@ -377,10 +522,10 @@ export function Dashboard() {
                    const dateStr = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(d);
                    const timeStr = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(d);
                    return (
-                     <div key={idx} className="flex items-start gap-4 p-3 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors border border-border/60">
-                       <div className="bg-card border border-border shadow-xs rounded-lg p-2 text-center min-w-[58px]">
+                     <div key={idx} className="flex items-start gap-4 p-3.5 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors border border-border/60">
+                       <div className="bg-card border border-border shadow-xs rounded-xl p-2 text-center min-w-[62px]">
                          <div className="text-[11px] font-bold text-primary uppercase">{dateStr.split(' de ')[1]}</div>
-                         <div className="text-lg font-bold text-foreground">{dateStr.split(' ')[0]}</div>
+                         <div className="text-xl font-black text-foreground">{dateStr.split(' ')[0]}</div>
                        </div>
                        <div className="min-w-0 flex-1">
                          <h4 className="font-semibold text-sm text-foreground truncate">{evt.title}</h4>
@@ -389,8 +534,8 @@ export function Dashboard() {
                      </div>
                    )
                  }) : (
-                   <div className="text-center p-6 text-muted-foreground border border-dashed border-border rounded-xl text-sm">
-                      Não há eventos futuros programados na agenda.
+                   <div className="text-center p-8 text-muted-foreground border border-dashed border-border rounded-xl text-sm">
+                      Não há eventos futuros programados na agenda para este período.
                    </div>
                  )}
                </div>
@@ -399,6 +544,58 @@ export function Dashboard() {
         </div>
 
       </div>
+
+      {/* MODAL DE SOLICITAÇÃO DE PERFIL / ACESSO */}
+      <Dialog open={isRequestModalOpen} onOpenChange={setIsRequestModalOpen}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-amber-500" /> Solicitar Liberação de Acesso
+            </DialogTitle>
+            <DialogDescription>
+              Selecione o ministério ou área em que você atua para que a administração da igreja libere seu perfil.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSendAccessRequest} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Perfil Desejado</Label>
+              <Select value={requestedRole} onValueChange={setRequestedRole}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="Selecione a área" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Secretária">✍️ Secretária (Membros, Atas, Documentos)</SelectItem>
+                  <SelectItem value="Tesoureiro">💰 Tesouraria (Finanças, Dízimos, Ofertas)</SelectItem>
+                  <SelectItem value="Assistência Social / Diaconia">🤝 Assistência Social / Diaconia (Cestas Básicas)</SelectItem>
+                  <SelectItem value="Pastor / Liderança">📖 Pastor / Presbítero (Área Pastoral, Aconselhamentos)</SelectItem>
+                  <SelectItem value="Membro">👥 Membro da Igreja</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Mensagem / Congregação de Atuação</Label>
+              <Textarea 
+                placeholder="Ex: Sou da congregação Central e atuo no cadastro de membros da secretaria."
+                value={requestNotes}
+                onChange={(e) => setRequestNotes(e.target.value)}
+                rows={3}
+                className="rounded-xl text-sm resize-none"
+              />
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0 pt-2">
+              <Button type="button" variant="outline" onClick={() => setIsRequestModalOpen(false)} className="rounded-xl">
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmittingRequest} className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white">
+                {isSubmittingRequest ? "Enviando..." : "Enviar Solicitação"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
     </motion.div>
   );

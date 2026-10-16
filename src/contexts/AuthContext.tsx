@@ -23,12 +23,82 @@ export interface UserPermissions {
   pastoral?: { view: boolean; add: boolean; edit: boolean; delete: boolean };
 }
 
+// Permissões mínimas para novos cadastros (acesso restrito para segurança da congregação)
+export const NEW_USER_RESTRICTED_PERMISSIONS: UserPermissions = {
+  financeiro: { view: false, add: false, edit: false, delete: false },
+  secretaria: { view: false, add: false, edit: false, delete: false },
+  social: { view: false, add: false, edit: false, delete: false },
+  patrimonio: { view: false, add: false, edit: false, delete: false },
+  parametros: { view: false, add: false, edit: false, delete: false },
+  configuracoes: { view: false, add: false, edit: false, delete: false },
+  pastoral: { view: false, add: false, edit: false, delete: false },
+};
+
+// Matriz oficial de Níveis de Acesso (Perfis) da Igreja
+export const ROLE_PRESET_PERMISSIONS: Record<string, UserPermissions> = {
+  'Administrador': {
+    financeiro: { view: true, add: true, edit: true, delete: true },
+    secretaria: { view: true, add: true, edit: true, delete: true },
+    social: { view: true, add: true, edit: true, delete: true },
+    patrimonio: { view: true, add: true, edit: true, delete: true },
+    configuracoes: { view: true, add: true, edit: true, delete: true },
+    parametros: { view: true, add: true, edit: true, delete: true },
+    pastoral: { view: true, add: true, edit: true, delete: true },
+  },
+  'Pastor / Liderança': {
+    pastoral: { view: true, add: true, edit: true, delete: true },
+    secretaria: { view: true, add: true, edit: true, delete: false },
+    social: { view: true, add: true, edit: true, delete: false },
+    financeiro: { view: true, add: false, edit: false, delete: false },
+    patrimonio: { view: true, add: false, edit: false, delete: false },
+    parametros: { view: true, add: false, edit: false, delete: false },
+    configuracoes: { view: false, add: false, edit: false, delete: false },
+  },
+  'Tesoureiro': {
+    financeiro: { view: true, add: true, edit: true, delete: true },
+    patrimonio: { view: true, add: true, edit: true, delete: false },
+    secretaria: { view: true, add: false, edit: false, delete: false },
+    social: { view: true, add: false, edit: false, delete: false },
+    parametros: { view: true, add: false, edit: false, delete: false },
+    configuracoes: { view: false, add: false, edit: false, delete: false },
+    pastoral: { view: false, add: false, edit: false, delete: false },
+  },
+  'Secretária': {
+    secretaria: { view: true, add: true, edit: true, delete: true },
+    social: { view: true, add: true, edit: true, delete: false },
+    patrimonio: { view: true, add: true, edit: true, delete: false },
+    financeiro: { view: false, add: false, edit: false, delete: false },
+    parametros: { view: true, add: false, edit: false, delete: false },
+    configuracoes: { view: false, add: false, edit: false, delete: false },
+    pastoral: { view: false, add: false, edit: false, delete: false },
+  },
+  'Assistência Social / Diaconia': {
+    social: { view: true, add: true, edit: true, delete: true },
+    secretaria: { view: true, add: false, edit: false, delete: false },
+    patrimonio: { view: true, add: false, edit: false, delete: false },
+    financeiro: { view: false, add: false, edit: false, delete: false },
+    parametros: { view: false, add: false, edit: false, delete: false },
+    configuracoes: { view: false, add: false, edit: false, delete: false },
+    pastoral: { view: false, add: false, edit: false, delete: false },
+  },
+  'Membro': {
+    financeiro: { view: false, add: false, edit: false, delete: false },
+    secretaria: { view: false, add: false, edit: false, delete: false },
+    social: { view: false, add: false, edit: false, delete: false },
+    patrimonio: { view: false, add: false, edit: false, delete: false },
+    parametros: { view: false, add: false, edit: false, delete: false },
+    configuracoes: { view: false, add: false, edit: false, delete: false },
+    pastoral: { view: false, add: false, edit: false, delete: false },
+  },
+  'Novo Usuário': NEW_USER_RESTRICTED_PERMISSIONS,
+};
+
 export const DEFAULT_COMMON_PERMISSIONS: UserPermissions = {
-  financeiro: { view: true, add: true, edit: true, delete: false },
-  secretaria: { view: true, add: true, edit: true, delete: false },
-  social: { view: true, add: true, edit: true, delete: false },
-  patrimonio: { view: true, add: true, edit: true, delete: false },
-  parametros: { view: true, add: false, edit: false, delete: false },
+  financeiro: { view: false, add: false, edit: false, delete: false },
+  secretaria: { view: false, add: false, edit: false, delete: false },
+  social: { view: false, add: false, edit: false, delete: false },
+  patrimonio: { view: false, add: false, edit: false, delete: false },
+  parametros: { view: false, add: false, edit: false, delete: false },
   configuracoes: { view: false, add: false, edit: false, delete: false },
   pastoral: { view: false, add: false, edit: false, delete: false },
 };
@@ -203,15 +273,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             const isDev = isSuperAdmin || (data.role || '').toLowerCase() === 'desenvolvedor' || (data.role || '').toLowerCase() === 'developer' || data.isDeveloper === true;
+            const isNovo = (data.role || '').toLowerCase().includes('novo') || (data.role || '').toLowerCase().includes('visitante');
 
-            const basePerms = isSuperAdmin ? {
-              financeiro: { view: true, add: true, edit: true, delete: true },
-              secretaria: { view: true, add: true, edit: true, delete: true },
-              social: { view: true, add: true, edit: true, delete: true },
-              patrimonio: { view: true, add: true, edit: true, delete: true },
-              configuracoes: { view: true, add: true, edit: true, delete: true },
-              parametros: { view: true, add: true, edit: true, delete: true },
-            } : DEFAULT_COMMON_PERMISSIONS;
+            const basePerms = isSuperAdmin ? ROLE_PRESET_PERMISSIONS['Administrador'] :
+              isNovo ? ROLE_PRESET_PERMISSIONS['Novo Usuário'] :
+              (data.role && ROLE_PRESET_PERMISSIONS[data.role]) ? ROLE_PRESET_PERMISSIONS[data.role] : DEFAULT_COMMON_PERMISSIONS;
 
             const existingPerms = updates.permissions || data.permissions;
             const effectivePerms: UserPermissions = {
@@ -220,14 +286,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               social: { ...basePerms.social, ...(existingPerms?.social || {}) },
               patrimonio: { ...basePerms.patrimonio, ...(existingPerms?.patrimonio || {}) },
               parametros: { ...basePerms.parametros, ...(existingPerms?.parametros || {}) },
-              configuracoes: isSuperAdmin ? { view: true, add: true, edit: true, delete: true } : { ...basePerms.configuracoes, ...(existingPerms?.configuracoes || {}) },
+              configuracoes: isSuperAdmin ? { view: true, add: true, edit: true, delete: true } : (isNovo ? { view: false, add: false, edit: false, delete: false } : { ...basePerms.configuracoes, ...(existingPerms?.configuracoes || {}) }),
+              pastoral: isSuperAdmin ? { view: true, add: true, edit: true, delete: true } : (isNovo ? { view: false, add: false, edit: false, delete: false } : { ...basePerms.pastoral, ...(existingPerms?.pastoral || {}) }),
             };
 
             setUser({
               id: firebaseUser.uid,
               name: data.name || firebaseUser.displayName || 'Usuário',
               email: data.email || firebaseUser.email || '',
-              role: updates.role || data.role || 'Membro',
+              role: updates.role || data.role || 'Novo Usuário',
               isDeveloper: isDev,
               status: currentStatus,
               createdAt: data.createdAt,
@@ -244,17 +311,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const freshData = snapshot.data() as User;
                 const freshEmail = (freshData.email || firebaseUser.email || '').toLowerCase().trim();
                 const freshIsDev = SUPER_ADMINS.includes(freshEmail) || (freshData.role || '').toLowerCase() === 'desenvolvedor' || freshData.isDeveloper === true;
+                const freshIsNovo = (freshData.role || '').toLowerCase().includes('novo') || (freshData.role || '').toLowerCase().includes('visitante');
                 let freshStatus = freshData.status || 'active';
                 if (freshEmail === 'manancial7067@gmail.com') freshStatus = 'active';
 
-                const snapBase = freshIsDev ? {
-                  financeiro: { view: true, add: true, edit: true, delete: true },
-                  secretaria: { view: true, add: true, edit: true, delete: true },
-                  social: { view: true, add: true, edit: true, delete: true },
-                  patrimonio: { view: true, add: true, edit: true, delete: true },
-                  configuracoes: { view: true, add: true, edit: true, delete: true },
-                  parametros: { view: true, add: true, edit: true, delete: true },
-                } : DEFAULT_COMMON_PERMISSIONS;
+                const snapBase = freshIsDev ? ROLE_PRESET_PERMISSIONS['Administrador'] :
+                  freshIsNovo ? ROLE_PRESET_PERMISSIONS['Novo Usuário'] :
+                  (freshData.role && ROLE_PRESET_PERMISSIONS[freshData.role]) ? ROLE_PRESET_PERMISSIONS[freshData.role] : DEFAULT_COMMON_PERMISSIONS;
 
                 const freshPerms: UserPermissions = {
                   financeiro: { ...snapBase.financeiro, ...(freshData.permissions?.financeiro || {}) },
@@ -262,7 +325,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   social: { ...snapBase.social, ...(freshData.permissions?.social || {}) },
                   patrimonio: { ...snapBase.patrimonio, ...(freshData.permissions?.patrimonio || {}) },
                   parametros: { ...snapBase.parametros, ...(freshData.permissions?.parametros || {}) },
-                  configuracoes: freshIsDev ? { view: true, add: true, edit: true, delete: true } : { ...snapBase.configuracoes, ...(freshData.permissions?.configuracoes || {}) },
+                  configuracoes: freshIsDev ? { view: true, add: true, edit: true, delete: true } : (freshIsNovo ? { view: false, add: false, edit: false, delete: false } : { ...snapBase.configuracoes, ...(freshData.permissions?.configuracoes || {}) }),
+                  pastoral: freshIsDev ? { view: true, add: true, edit: true, delete: true } : (freshIsNovo ? { view: false, add: false, edit: false, delete: false } : { ...snapBase.pastoral, ...(freshData.permissions?.pastoral || {}) }),
                 };
 
                 setUser(prev => prev ? {
@@ -285,10 +349,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const defaultDays = 30;
             const trialEnd = new Date(now.getTime() + defaultDays * 24 * 60 * 60 * 1000);
             
+            const newUserRole = isSuperAdmin ? 'Desenvolvedor' : isManancialUser ? 'Administrador' : 'Novo Usuário';
             const newUser = {
-              name: firebaseUser.displayName || 'Usuário Google',
+              name: firebaseUser.displayName || 'Novo Usuário',
               email: userEmail,
-              role: isSuperAdmin ? 'Desenvolvedor' : isManancialUser ? 'Administrador' : 'Membro',
+              role: newUserRole,
               isDeveloper: isSuperAdmin,
               status: isSuperAdmin || isManancialUser ? 'active' : 'trial',
               createdAt: now.toISOString(),
@@ -296,14 +361,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               trialDays: defaultDays,
               accessCount: 1,
               branch: 'all',
-              permissions: isSuperAdmin ? {
-                financeiro: { view: true, add: true, edit: true, delete: true },
-                secretaria: { view: true, add: true, edit: true, delete: true },
-                social: { view: true, add: true, edit: true, delete: true },
-                patrimonio: { view: true, add: true, edit: true, delete: true },
-                configuracoes: { view: true, add: true, edit: true, delete: true },
-                parametros: { view: true, add: true, edit: true, delete: true },
-              } : DEFAULT_COMMON_PERMISSIONS
+              permissions: isSuperAdmin ? ROLE_PRESET_PERMISSIONS['Administrador'] : ROLE_PRESET_PERMISSIONS['Novo Usuário']
             };
             
             await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
@@ -322,9 +380,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             id: firebaseUser.uid,
             name: firebaseUser.displayName || 'Usuário',
             email: fbEmail,
-            role: isDevFall ? 'Desenvolvedor' : isManancialFall ? 'Administrador' : 'Membro',
+            role: isDevFall ? 'Desenvolvedor' : isManancialFall ? 'Administrador' : 'Novo Usuário',
             isDeveloper: isDevFall,
             status: isDevFall || isManancialFall ? 'active' : 'trial',
+            permissions: isDevFall ? ROLE_PRESET_PERMISSIONS['Administrador'] : ROLE_PRESET_PERMISSIONS['Novo Usuário'],
             accessCount: 1
           } as User);
         }
@@ -371,17 +430,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const finishLogin = (userDocData: any, docId: string) => {
         const isSuper = SUPER_ADMINS.includes(cleanEmail);
-        const resolvedRole = userDocData.role || (isSuper ? 'Desenvolvedor' : 'Membro');
+        const resolvedRole = userDocData.role || (isSuper ? 'Desenvolvedor' : 'Novo Usuário');
         const isDev = isSuper || (resolvedRole || '').toLowerCase() === 'desenvolvedor';
+        const isNovo = (resolvedRole || '').toLowerCase().includes('novo') || (resolvedRole || '').toLowerCase().includes('visitante');
 
-        const basePerms = isSuper ? {
-          financeiro: { view: true, add: true, edit: true, delete: true },
-          secretaria: { view: true, add: true, edit: true, delete: true },
-          social: { view: true, add: true, edit: true, delete: true },
-          patrimonio: { view: true, add: true, edit: true, delete: true },
-          configuracoes: { view: true, add: true, edit: true, delete: true },
-          parametros: { view: true, add: true, edit: true, delete: true },
-        } : DEFAULT_COMMON_PERMISSIONS;
+        const basePerms = isSuper ? ROLE_PRESET_PERMISSIONS['Administrador'] :
+          isNovo ? ROLE_PRESET_PERMISSIONS['Novo Usuário'] :
+          (resolvedRole && ROLE_PRESET_PERMISSIONS[resolvedRole]) ? ROLE_PRESET_PERMISSIONS[resolvedRole] : DEFAULT_COMMON_PERMISSIONS;
 
         const effectivePerms: UserPermissions = {
           financeiro: { ...basePerms.financeiro, ...(userDocData.permissions?.financeiro || {}) },
@@ -389,7 +444,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           social: { ...basePerms.social, ...(userDocData.permissions?.social || {}) },
           patrimonio: { ...basePerms.patrimonio, ...(userDocData.permissions?.patrimonio || {}) },
           parametros: { ...basePerms.parametros, ...(userDocData.permissions?.parametros || {}) },
-          configuracoes: isSuper ? { view: true, add: true, edit: true, delete: true } : { ...basePerms.configuracoes, ...(userDocData.permissions?.configuracoes || {}) },
+          configuracoes: isSuper ? { view: true, add: true, edit: true, delete: true } : (isNovo ? { view: false, add: false, edit: false, delete: false } : { ...basePerms.configuracoes, ...(userDocData.permissions?.configuracoes || {}) }),
+          pastoral: isSuper ? { view: true, add: true, edit: true, delete: true } : (isNovo ? { view: false, add: false, edit: false, delete: false } : { ...basePerms.pastoral, ...(userDocData.permissions?.pastoral || {}) }),
         };
 
         const activeUser: User = {

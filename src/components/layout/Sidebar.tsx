@@ -94,21 +94,38 @@ export function Sidebar() {
   const toggleTheme = () => setTheme(isDark ? "light" : "dark")
   const toggleHighContrast = () => setIsHighContrast(prev => !prev)
 
-  // Permissões: Todos os módulos comuns são acessíveis a todos os usuários
-  // Apenas Configurações, Auditoria e Automações são restritos à administração e segurança
+  const isNovoUsuario = Boolean(
+    !isAdmin && !isDev && (
+      (user?.role || '').toLowerCase().includes('novo') ||
+      (user?.role || '').toLowerCase().includes('visitante') ||
+      (user?.status === 'trial' && (!user?.permissions || Object.values(user.permissions).every((p: any) => !p?.view)))
+    )
+  );
+
+  // Permissões e níveis de acesso do menu lateral:
+  // 1. Configurações, Auditoria e Automações: NUNCA visíveis para Novo Usuário; restrito a Admin/Dev ou permissão explícita
+  // 2. Área Pastoral: Apenas Pastor, Presbítero, Administrador ou permissão explícita
+  // 3. Novo Usuário: Fica estritamente restrito à visualização pública (Dashboard com status, Agenda/Eventos, Paletas, Ajuda)
+  // 4. Usuários com outros perfis (Tesoureiro, Secretária, etc.): filtrados conforme permissões concedidas
   const navigation = allNavigation.filter(item => {
     if (item.module === 'configuracoes') {
+      if (isNovoUsuario) return false;
       return isAdmin || isDev || Boolean(user?.permissions?.configuracoes?.view);
     }
 
     if (item.module === 'pastoral') {
+      if (isNovoUsuario) return false;
       const roleLower = (user?.role || '').toLowerCase();
       const isPastor = roleLower.includes('pastor') || roleLower.includes('presbítero') || roleLower.includes('presbitero');
       return isAdmin || isDev || isPastor || Boolean(user?.permissions?.pastoral?.view);
     }
+
+    // Para Novo Usuário: inibir todos os acessos administrativos/financeiros/membros
+    if (isNovoUsuario) {
+      return item.module === 'public';
+    }
     
-    // Todos os itens comuns (Dashboard, Agenda, Secretaria, Financeiro, Patrimônio, Fornecedores, Paletas & Cores, Parâmetros, Ajuda)
-    // são liberados por padrão para qualquer usuário
+    // Verificação de permissão específica por módulo para os demais perfis
     if (user?.permissions) {
       const modulePerms = (user.permissions as any)[item.module];
       if (modulePerms && modulePerms.view === false) {
@@ -226,7 +243,14 @@ export function Sidebar() {
                 </div>
                 <div className="overflow-hidden">
                   <p className="text-sm font-semibold text-foreground truncate leading-tight">{user?.name || 'Usuário'}</p>
-                  <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">{user?.role || 'Administrador'}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="text-xs text-muted-foreground truncate leading-tight">{user?.role || 'Novo Usuário'}</p>
+                    {isNovoUsuario && (
+                      <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">
+                        Restrito
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-1">

@@ -25,6 +25,7 @@ import { Formularios } from "./pages/Formularios"
 import { AreaPastoral } from "./pages/AreaPastoral"
 import { AutoBackupRunner } from "./components/AutoBackupRunner"
 import { Button } from "./components/ui/button"
+import { AccessDeniedScreen } from "./components/common/AccessDeniedScreen"
 
 function LicenseExpiredScreen() {
   const { user, logout } = useAuth();
@@ -59,6 +60,53 @@ function LicenseExpiredScreen() {
   );
 }
 
+function RestrictedRoute({ 
+  children, 
+  module,
+  moduleName
+}: { 
+  children: React.ReactNode; 
+  module: 'configuracoes' | 'pastoral' | 'financeiro' | 'secretaria' | 'social' | 'patrimonio' | 'parametros';
+  moduleName: string;
+}) {
+  const { user } = useAuth();
+  const isAdmin = user?.role?.toLowerCase() === 'administrador';
+  const isDev = Boolean(
+    user?.isDeveloper ||
+    user?.role?.toLowerCase() === 'desenvolvedor' ||
+    user?.role?.toLowerCase() === 'developer'
+  );
+  const isNovoUsuario = Boolean(
+    !isAdmin && !isDev && (
+      (user?.role || '').toLowerCase().includes('novo') ||
+      (user?.role || '').toLowerCase().includes('visitante') ||
+      (user?.status === 'trial' && (!user?.permissions || Object.values(user.permissions).every((p: any) => !p?.view)))
+    )
+  );
+
+  let hasAccess = false;
+  if (isAdmin || isDev) {
+    hasAccess = true;
+  } else if (isNovoUsuario) {
+    hasAccess = false;
+  } else if (module === 'configuracoes') {
+    hasAccess = Boolean(user?.permissions?.configuracoes?.view);
+  } else if (module === 'pastoral') {
+    const roleLower = (user?.role || '').toLowerCase();
+    const isPastor = roleLower.includes('pastor') || roleLower.includes('presbítero') || roleLower.includes('presbitero');
+    hasAccess = isPastor || Boolean(user?.permissions?.pastoral?.view);
+  } else {
+    const perm = (user?.permissions as any)?.[module];
+    hasAccess = perm ? perm.view !== false : true;
+  }
+
+  if (!hasAccess) {
+    return <AccessDeniedScreen moduleName={moduleName} isNovoUsuario={isNovoUsuario} userRole={user?.role} />;
+  }
+
+  return <>{children}</>;
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   if (!user) {
@@ -85,20 +133,20 @@ function AppRoutes() {
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="agenda" element={<Agenda />} />
-        <Route path="financeiro" element={<Financeiro />} />
-        <Route path="secretaria" element={<Secretaria />} />
-        <Route path="servico-social" element={<ServicoSocial />} />
+        <Route path="financeiro" element={<RestrictedRoute module="financeiro" moduleName="Financeiro"><Financeiro /></RestrictedRoute>} />
+        <Route path="secretaria" element={<RestrictedRoute module="secretaria" moduleName="Secretaria"><Secretaria /></RestrictedRoute>} />
+        <Route path="servico-social" element={<RestrictedRoute module="social" moduleName="Serviço Social"><ServicoSocial /></RestrictedRoute>} />
         <Route path="formularios" element={<Navigate to="/secretaria?tab=formularios" replace />} />
-        <Route path="pastor" element={<AreaPastoral />} />
-        <Route path="area-pastoral" element={<AreaPastoral />} />
-        <Route path="fornecedores" element={<Fornecedores />} />
-        <Route path="patrimonio" element={<Patrimonio />} />
-              <Route path="paletas-cores" element={<PaletasCores />} />
+        <Route path="pastor" element={<RestrictedRoute module="pastoral" moduleName="Área Pastoral"><AreaPastoral /></RestrictedRoute>} />
+        <Route path="area-pastoral" element={<RestrictedRoute module="pastoral" moduleName="Área Pastoral"><AreaPastoral /></RestrictedRoute>} />
+        <Route path="fornecedores" element={<RestrictedRoute module="financeiro" moduleName="Fornecedores"><Fornecedores /></RestrictedRoute>} />
+        <Route path="patrimonio" element={<RestrictedRoute module="patrimonio" moduleName="Patrimônio"><Patrimonio /></RestrictedRoute>} />
+        <Route path="paletas-cores" element={<PaletasCores />} />
         <Route path="ajuda" element={<Ajuda />} />
-        <Route path="parametros" element={<Parametros />} />
-        <Route path="configuracoes" element={<Configuracoes />} />
-        <Route path="auditoria" element={<Auditoria />} />
-          <Route path="automacoes" element={<Automacoes />} />
+        <Route path="parametros" element={<RestrictedRoute module="parametros" moduleName="Parâmetros"><Parametros /></RestrictedRoute>} />
+        <Route path="configuracoes" element={<RestrictedRoute module="configuracoes" moduleName="Configurações"><Configuracoes /></RestrictedRoute>} />
+        <Route path="auditoria" element={<RestrictedRoute module="configuracoes" moduleName="Auditoria"><Auditoria /></RestrictedRoute>} />
+        <Route path="automacoes" element={<RestrictedRoute module="configuracoes" moduleName="Automações"><Automacoes /></RestrictedRoute>} />
       </Route>
     </Routes>
   );

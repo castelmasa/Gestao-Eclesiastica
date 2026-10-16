@@ -6,16 +6,38 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Search, FileText, Eye, Download, Bug } from "lucide-react";
+import { Search, FileText, Eye, Download, Bug, ShieldAlert, UserCheck, CheckCircle2, Clock } from "lucide-react";
 import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ErrorLogsViewer } from "@/components/admin/ErrorLogsViewer";
 
 export function Auditoria() {
   const [logs, setLogs] = useState<any[]>([]);
-
   const [loginLogs, setLoginLogs] = useState<any[]>([]);
+  const [accessRequests, setAccessRequests] = useState<any[]>([]);
+
+  useEffect(() => {
+    let unsub = () => {};
+    try {
+      const q = query(collection(db, "access_requests"), orderBy("createdAt", "desc"), limit(50));
+      unsub = onSnapshot(q, (snap) => {
+        setAccessRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, (err) => {
+        try {
+          const local = JSON.parse(localStorage.getItem("church_access_requests") || "[]");
+          setAccessRequests(local);
+        } catch (e) {}
+      });
+    } catch (e) {
+      try {
+        const local = JSON.parse(localStorage.getItem("church_access_requests") || "[]");
+        setAccessRequests(local);
+      } catch (err) {}
+    }
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     const fetchLoginLogs = () => {
@@ -116,16 +138,20 @@ export function Auditoria() {
       </div>
 
       
-      <div className="flex space-x-4 mb-4 border-b border-border">
-         <button className={`pb-2 px-1 font-medium text-sm ${activeTab === 'acoes' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`} onClick={() => setActiveTab('acoes')}>
+      <div className="flex space-x-4 mb-4 border-b border-border overflow-x-auto pb-1">
+         <button className={`pb-2 px-1 font-medium text-sm whitespace-nowrap ${activeTab === 'acoes' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`} onClick={() => setActiveTab('acoes')}>
            Ações do Sistema
          </button>
-         <button className={`pb-2 px-1 font-medium text-sm ${activeTab === 'logins' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`} onClick={() => setActiveTab('logins')}>
+         <button className={`pb-2 px-1 font-medium text-sm whitespace-nowrap ${activeTab === 'logins' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`} onClick={() => setActiveTab('logins')}>
            Registros de Acesso (Logins)
          </button>
-         <button className={`pb-2 px-1 font-medium text-sm flex items-center gap-1.5 ${activeTab === 'erros' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`} onClick={() => setActiveTab('erros')}>
+         <button className={`pb-2 px-1 font-medium text-sm whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'solicitacoes' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`} onClick={() => setActiveTab('solicitacoes')}>
+           <ShieldAlert className="w-4 h-4 text-amber-500" />
+           Solicitações de Acesso ({accessRequests.length})
+         </button>
+         <button className={`pb-2 px-1 font-medium text-sm whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'erros' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`} onClick={() => setActiveTab('erros')}>
            <Bug className="w-4 h-4 text-destructive" />
-           Logs de Erros e Falhas (Firestore)
+           Logs de Erros (Firestore)
          </button>
       </div>
 
@@ -256,6 +282,80 @@ export function Auditoria() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === 'solicitacoes' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-amber-500" /> Histórico de Pedidos de Liberação de Acesso
+            </CardTitle>
+            <CardDescription>
+              Registro de todas as solicitações enviadas por novos usuários e colaboradores que tentaram acessar recursos restritos.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-xl border border-border/70 overflow-hidden">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-bold tracking-wider">
+                  <tr>
+                    <th className="px-4 py-3">Data / Hora</th>
+                    <th className="px-4 py-3">Usuário Solicitante</th>
+                    <th className="px-4 py-3">Perfil Pretendido</th>
+                    <th className="px-4 py-3">Módulo / Observação</th>
+                    <th className="px-4 py-3 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {accessRequests.map((req) => (
+                    <tr key={req.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap text-xs">
+                        {req.createdAt ? new Date(req.createdAt).toLocaleString('pt-BR') : 'N/A'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-semibold text-foreground">{req.userName}</div>
+                        <div className="text-xs text-muted-foreground">{req.userEmail}</div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <Badge variant="outline" className="text-xs text-blue-600 border-blue-300 bg-blue-50 dark:bg-blue-950/40">
+                          {req.requestedRole || 'Não informado'}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground max-w-xs">
+                        {req.moduleAttempted && <span className="font-medium text-foreground mr-1.5">[{req.moduleAttempted}]</span>}
+                        {req.notes || 'Sem observações adicionais'}
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        {req.status === 'approved' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            Aprovado
+                          </span>
+                        ) : req.status === 'rejected' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300">
+                            Recusado
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                            Pendente
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {accessRequests.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                        Nenhuma solicitação de acesso registrada até o momento.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
