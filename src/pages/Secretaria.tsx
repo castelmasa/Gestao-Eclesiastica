@@ -17,7 +17,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Search, Printer, Mail, FileText, Edit, Trash2, MessageCircle, Download, Contact, Info, Sparkles, Camera, Folder, Bell, Award, Building2, QrCode, FolderClock, CheckCircle2, Image as ImageIcon, FilePlus2, Layers, Eye, RefreshCw, Check, User, Droplet, HeartHandshake, CalendarDays } from "lucide-react"
+import { Plus, Search, Printer, Mail, FileText, Edit, Trash2, MessageCircle, Download, Contact, Info, Sparkles, Camera, Folder, Bell, Award, Building2, QrCode, FolderClock, CheckCircle2, Image as ImageIcon, FilePlus2, Layers, Eye, RefreshCw, Check, User, Droplet, HeartHandshake, CalendarDays, Baby } from "lucide-react"
+import { CheckinKidsModal } from "@/components/secretaria/CheckinKidsModal"
+import { RelatorioSemanalCelulaModal } from "@/components/secretaria/RelatorioSemanalCelulaModal"
+import { DeclaracaoContribuicaoIrpfModal } from "@/components/secretaria/DeclaracaoContribuicaoIrpfModal"
 import { RelatorioDizimistasOfertantes } from "@/components/secretaria/RelatorioDizimistasOfertantes"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { logCriticalError } from "@/lib/errorLogger"
@@ -124,6 +127,10 @@ export function Secretaria() {
   });
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isVCardQrModalOpen, setIsVCardQrModalOpen] = useState(false);
+  const [isKidsModalOpen, setIsKidsModalOpen] = useState(false);
+  const [isCelulaModalOpen, setIsCelulaModalOpen] = useState(false);
+  const [isIrpfModalOpen, setIsIrpfModalOpen] = useState(false);
+  const [selectedIrpfMember, setSelectedIrpfMember] = useState<any>(null);
 
   useEffect(() => {
     const isSede = isSedeBranch(activeBranch, branches);
@@ -3415,6 +3422,15 @@ export function Secretaria() {
                 >
                   Carteirinhas
                 </button>
+                <button 
+                  className={`pb-2 text-sm font-medium ${printTab === 'irpf' ? 'border-b-2 border-slate-900 text-slate-900 dark:border-white dark:text-white' : 'text-slate-500'}`}
+                  onClick={() => {
+                    setIsPrintModalOpen(false);
+                    setIsIrpfModalOpen(true);
+                  }}
+                >
+                  Declaração IRPF
+                </button>
               </div>
 
               
@@ -4491,6 +4507,14 @@ export function Secretaria() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-4 flex-wrap">
           <TabsTrigger value="membros">Membros</TabsTrigger>
+          <TabsTrigger value="kids" className="flex items-center gap-1.5 font-medium text-pink-600 dark:text-pink-400" onClick={() => setIsKidsModalOpen(true)}>
+            <Baby className="w-4 h-4" />
+            Check-in Kids
+          </TabsTrigger>
+          <TabsTrigger value="celulas" className="flex items-center gap-1.5 font-medium text-indigo-600 dark:text-indigo-400" onClick={() => setIsCelulaModalOpen(true)}>
+            <HeartHandshake className="w-4 h-4" />
+            Células & Relatórios
+          </TabsTrigger>
           <TabsTrigger value="arquivos" className="flex items-center gap-1.5">
             <Folder className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             Pasta de Arquivos
@@ -5024,7 +5048,35 @@ export function Secretaria() {
         onClose={() => setIsMemberWhatsAppModalOpen(false)}
         member={whatsAppMemberTarget}
         defaultTemplate={whatsAppDefaultTemplate}
-        churchName="Igreja O Brasil para Cristo - 2ª Congregação"
+        churchName={localStorage.getItem("church_name") || "Igreja Evangélica Manancial"}
+      />
+
+      {/* Check-in Seguro de Crianças • Ministério Kids */}
+      <CheckinKidsModal
+        isOpen={isKidsModalOpen}
+        onClose={() => setIsKidsModalOpen(false)}
+        churchName={localStorage.getItem("church_name") || "Igreja Evangélica Manancial"}
+        activeBranchName={activeBranchName}
+      />
+
+      {/* Gestão de Células & Relatórios Semanais */}
+      <RelatorioSemanalCelulaModal
+        isOpen={isCelulaModalOpen}
+        onClose={() => setIsCelulaModalOpen(false)}
+        churchName={localStorage.getItem("church_name") || "Igreja Evangélica Manancial"}
+        activeBranchName={activeBranchName}
+      />
+
+      {/* Declaração Anual de Contribuição para IRPF */}
+      <DeclaracaoContribuicaoIrpfModal
+        isOpen={isIrpfModalOpen}
+        onClose={() => {
+          setIsIrpfModalOpen(false);
+          setSelectedIrpfMember(null);
+        }}
+        members={branchMembers}
+        selectedMember={selectedIrpfMember}
+        churchName={localStorage.getItem("church_name") || "Igreja Evangélica Manancial"}
       />
 
       {/* Central de Comunicados, Avisos à Comunidade e Mala Direta */}

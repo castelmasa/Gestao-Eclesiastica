@@ -7,26 +7,43 @@ import { toast } from 'sonner';
  * for the target document element without downloading a PDF file.
  * Must run synchronously inside the user's click gesture to prevent browser blockers.
  */
+export interface PrintOptions {
+  elementId?: string;
+  targetElementId?: string;
+  onBeforePrint?: () => void;
+  onAfterPrint?: () => void;
+  title?: string;
+  orientation?: 'portrait' | 'landscape';
+}
+
 export const printDocument = (
-  onBeforePrint?: () => void,
+  arg1?: (() => void) | PrintOptions | string,
   onAfterPrint?: () => void,
   targetElementId?: string
 ): boolean => {
-  if (onBeforePrint) {
+  let beforeCb: (() => void) | undefined;
+  let afterCb: (() => void) | undefined = onAfterPrint;
+  let explicitTargetId: string | undefined = targetElementId;
+
+  if (typeof arg1 === 'object' && arg1 !== null) {
+    explicitTargetId = arg1.elementId || arg1.targetElementId;
+    beforeCb = arg1.onBeforePrint;
+    if (arg1.onAfterPrint) afterCb = arg1.onAfterPrint;
+  } else if (typeof arg1 === 'string') {
+    explicitTargetId = arg1;
+  } else if (typeof arg1 === 'function') {
+    beforeCb = arg1;
+  }
+
+  if (beforeCb) {
     try {
-      onBeforePrint();
+      beforeCb();
     } catch (e) {
       console.warn("onBeforePrint error:", e);
     }
   }
 
   try {
-    let targetId = targetElementId || 'printable-standard';
-    
-    // Find target element. Prioritize the one currently visible to the user
-    let printableEl: HTMLElement | null = null;
-    const elements = Array.from(document.querySelectorAll<HTMLElement>(`#${targetId}`));
-    
     const isVisible = (el: HTMLElement) => {
       try {
         const style = window.getComputedStyle(el);
@@ -37,11 +54,18 @@ export const printDocument = (
       }
     };
 
-    if (elements.length > 0) {
-      printableEl = elements.find(isVisible) || elements[elements.length - 1];
+    let printableEl: HTMLElement | null = null;
+
+    if (explicitTargetId) {
+      printableEl = document.getElementById(explicitTargetId);
+      if (!printableEl) {
+        const elements = Array.from(document.querySelectorAll<HTMLElement>(`#${explicitTargetId}`));
+        printableEl = elements.find(isVisible) || elements[elements.length - 1] || null;
+      }
     }
 
-    if (!printableEl) {
+    // Only fallback if no explicit target was requested
+    if (!printableEl && !explicitTargetId) {
       printableEl = 
         document.getElementById('printable-standard') ||
         document.getElementById('printable-dynamic') ||

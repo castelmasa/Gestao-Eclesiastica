@@ -35,6 +35,7 @@ import { FinancialEcoPrintModal } from "@/components/financeiro/FinancialEcoPrin
 import { FinancialRechartsPanel } from "@/components/financeiro/FinancialRechartsPanel"
 import { FinancialD3Panel } from "@/components/financeiro/FinancialD3Panel"
 import { CloudBackupAndExportModal } from "@/components/financeiro/CloudBackupAndExportModal"
+import { BalanceteMensalModal } from "@/components/financeiro/BalanceteMensalModal"
 import { useAuth } from "@/contexts/AuthContext"
 import { db } from "@/lib/firebase"
 import { TablePagination } from "@/components/ui/table-pagination"
@@ -141,6 +142,7 @@ export function Financeiro() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isEcoPrintOpen, setIsEcoPrintOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [isBalanceteModalOpen, setIsBalanceteModalOpen] = useState(false);
   const [showPrintDebugger, setShowPrintDebugger] = useState(false);
   const [fornecedores, setFornecedores] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -1504,6 +1506,12 @@ export function Financeiro() {
         </div>
         <div className="flex gap-2 print:hidden flex-wrap">
           <Button 
+            onClick={() => setIsBalanceteModalOpen(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
+          >
+            <FileSpreadsheet className="mr-2 h-4 w-4" /> Balancete para Assembleia
+          </Button>
+          <Button 
             onClick={() => setIsEcoPrintOpen(true)}
             className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-xs"
           >
@@ -2438,6 +2446,10 @@ export function Financeiro() {
       <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full space-y-6">
         <TabsList className="print:hidden">
           <TabsTrigger value="transacoes">Transações Recentes</TabsTrigger>
+          <TabsTrigger value="balancete" className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-semibold" onClick={() => setIsBalanceteModalOpen(true)}>
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            Balancete para Assembleia
+          </TabsTrigger>
           <TabsTrigger value="d3-painel" className="flex items-center gap-1.5">
             <BarChart2 className="w-3.5 h-3.5 text-primary" />
             Painel Visual D3
@@ -2868,6 +2880,14 @@ export function Financeiro() {
         isOpen={isBackupModalOpen}
         onClose={() => setIsBackupModalOpen(false)}
         currentUser={user}
+      />
+
+      <BalanceteMensalModal
+        isOpen={isBalanceteModalOpen}
+        onClose={() => setIsBalanceteModalOpen(false)}
+        transactions={branchTransactions}
+        churchName={churchData?.nome || "Igreja Evangélica Manancial"}
+        activeBranchName={activeBranchName}
       />
 
       <div className="hidden print:block mt-8 pt-4 border-t text-center text-sm text-slate-500">

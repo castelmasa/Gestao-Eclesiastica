@@ -152,9 +152,9 @@ export function BirthdaysCard({ members, activeBranch: propActiveBranch }: Birth
     }
 
     const cleanPhone = member.phone.replace(/\D/g, '');
-    const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+    const churchName = localStorage.getItem("church_name") || "Igreja Evangélica Manancial";
     const text = encodeURIComponent(
-      `A paz do Senhor, querido(a) ${member.name}! 🎉🎂\n\nEm nome da Igreja O Brasil para Cristo (2ª Congregação), queremos lhe desejar um abençoado Feliz Aniversário! Que o Senhor Deus derrame ricas bênçãos sobre sua vida, renovando suas forças com muita saúde, sabedoria, paz e alegria. Parabéns pelo seu dia!\n\n"O Senhor te abençoe e te guarde; o Senhor faça resplandecer o seu rosto sobre ti e te dê a paz." (Números 6:24-26)`
+      `A paz do Senhor, querido(a) ${member.name}! 🎉🎂\n\nEm nome da ${churchName}, queremos lhe desejar um abençoado Feliz Aniversário! Que o Senhor Deus derrame ricas bênçãos sobre sua vida, renovando suas forças com muita saúde, sabedoria, paz e alegria. Parabéns pelo seu dia!\n\n"O Senhor te abençoe e te guarde; o Senhor faça resplandecer o seu rosto sobre ti e te dê a paz." (Números 6:24-26)`
     );
 
     const pref = localStorage.getItem("whatsappPreferredMode") || "app";
@@ -170,7 +170,8 @@ export function BirthdaysCard({ members, activeBranch: propActiveBranch }: Birth
   };
 
   const handleCopyMessage = (member: typeof birthdaysList[0]) => {
-    const text = `A paz do Senhor, querido(a) ${member.name}! 🎉🎂\n\nEm nome da Igreja O Brasil para Cristo (2ª Congregação), queremos lhe desejar um abençoado Feliz Aniversário! Que o Senhor Deus derrame ricas bênçãos sobre sua vida, renovando suas forças com muita saúde, sabedoria, paz e alegria. Parabéns pelo seu dia!\n\n"O Senhor te abençoe e te guarde; o Senhor faça resplandecer o seu rosto sobre ti e te dê a paz." (Números 6:24-26)`;
+    const churchName = localStorage.getItem("church_name") || "Igreja Evangélica Manancial";
+    const text = `A paz do Senhor, querido(a) ${member.name}! 🎉🎂\n\nEm nome da ${churchName}, queremos lhe desejar um abençoado Feliz Aniversário! Que o Senhor Deus derrame ricas bênçãos sobre sua vida, renovando suas forças com muita saúde, sabedoria, paz e alegria. Parabéns pelo seu dia!\n\n"O Senhor te abençoe e te guarde; o Senhor faça resplandecer o seu rosto sobre ti e te dê a paz." (Números 6:24-26)`;
     navigator.clipboard.writeText(text);
     toast.success(`Mensagem de aniversário para ${member.name} copiada!`);
   };

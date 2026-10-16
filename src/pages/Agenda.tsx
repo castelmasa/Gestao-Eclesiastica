@@ -36,11 +36,15 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
+import { GestaoEscalasModal } from "@/components/agenda/GestaoEscalasModal";
+
 export function Agenda() {
   const { user } = useAuth();
   const { activeBranch, branches, activeBranchName } = useBranch();
   const [events, setEvents] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEscalasOpen, setIsEscalasOpen] = useState(false);
+  const [members, setMembers] = useState<any[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [view, setView] = useState<View>(Views.MONTH);
   const [date, setDate] = useState(new Date());
@@ -81,7 +85,19 @@ export function Agenda() {
       setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    const membersUnsub = onSnapshot(collection(db, 'members'), (snapshot) => {
+      setMembers(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, () => {
+      const saved = localStorage.getItem('churchMembers');
+      if (saved) {
+        try { setMembers(JSON.parse(saved)); } catch (e) {}
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      membersUnsub();
+    };
   }, []);
 
   const filteredEvents = useMemo(() => {
@@ -232,9 +248,18 @@ export function Agenda() {
         } 
         description="Gestão de programações e eventos da congregação."
         action={
-          <Button onClick={() => { handleSelectSlot({ start: new Date(), end: new Date() }); }} className="bg-white text-blue-600 hover:bg-slate-100 font-semibold px-6 shadow-md">
-            <Plus className="mr-2 h-4 w-4" /> Novo Evento
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              onClick={() => setIsEscalasOpen(true)} 
+              variant="outline" 
+              className="bg-white/10 text-white hover:bg-white/20 border-white/30 font-semibold px-4 shadow-xs"
+            >
+              <Users className="mr-2 h-4 w-4" /> Escalas de Voluntários
+            </Button>
+            <Button onClick={() => { handleSelectSlot({ start: new Date(), end: new Date() }); }} className="bg-white text-blue-600 hover:bg-slate-100 font-semibold px-5 shadow-md">
+              <Plus className="mr-2 h-4 w-4" /> Novo Evento
+            </Button>
+          </div>
         }
       />
 
@@ -378,6 +403,13 @@ export function Agenda() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <GestaoEscalasModal
+        isOpen={isEscalasOpen}
+        onClose={() => setIsEscalasOpen(false)}
+        members={members}
+        activeBranchName={activeBranchName}
+      />
     </motion.div>
   );
 }
