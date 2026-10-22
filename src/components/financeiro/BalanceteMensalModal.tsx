@@ -679,38 +679,73 @@ export function BalanceteMensalModal({
               </p>
             </div>
 
-            {/* 5. Linhas Oficiais de Assinatura (Pastor, Tesoureiro e Conselho Fiscal) */}
+            {/* 5. Linhas Oficiais de Assinatura (Pastor, Tesoureiro e Conselho Fiscal) Ampliadas */}
             {showSignatures && (
-              <div className="pt-2">
-                <div className="grid grid-cols-2 gap-6 text-center text-[8.5px] mb-4">
-                  <div className="flex flex-col items-center">
-                    <div className="w-56 border-b border-black mb-1"></div>
-                    <span className="font-bold uppercase">{pastorName}</span>
-                    <span className="text-gray-600 text-[8px]">Pastor Titular / Presidente</span>
+              <div className="pt-3">
+                <div className="grid grid-cols-2 gap-6 text-center text-[9px] mb-4">
+                  <div className="flex flex-col items-center justify-end min-h-[64px]">
+                    {churchConfig?.pastorTitularSignatureUrl && (
+                      <img 
+                        src={churchConfig.pastorTitularSignatureUrl} 
+                        alt="Assinatura Pastor" 
+                        className="h-14 sm:h-16 w-auto max-w-[220px] object-contain mb-0.5 filter contrast-125" 
+                      />
+                    )}
+                    <div className="w-60 border-b-2 border-black mb-1"></div>
+                    <span className="font-bold uppercase text-[9.5px]">{pastorName}</span>
+                    <span className="text-gray-600 text-[8.5px]">Pastor Titular / Presidente</span>
                   </div>
-                  <div className="flex flex-col items-center">
-                    <div className="w-56 border-b border-black mb-1"></div>
-                    <span className="font-bold uppercase">{tesoureiroName}</span>
-                    <span className="text-gray-600 text-[8px]">1º Tesoureiro Geral</span>
+                  <div className="flex flex-col items-center justify-end min-h-[64px]">
+                    {churchConfig?.tesoureiroSignatureUrl && (
+                      <img 
+                        src={churchConfig.tesoureiroSignatureUrl} 
+                        alt="Assinatura Tesoureiro" 
+                        className="h-14 sm:h-16 w-auto max-w-[220px] object-contain mb-0.5 filter contrast-125" 
+                      />
+                    )}
+                    <div className="w-60 border-b-2 border-black mb-1"></div>
+                    <span className="font-bold uppercase text-[9.5px]">{tesoureiroName}</span>
+                    <span className="text-gray-600 text-[8.5px]">1º Tesoureiro Geral</span>
                   </div>
                 </div>
 
-                <div className="text-center text-[8px] font-bold text-gray-600 uppercase tracking-wider mb-2">
+                <div className="text-center text-[8.5px] font-bold text-gray-700 uppercase tracking-wider mb-2">
                   COMISSÃO DE EXAME DE CONTAS / CONSELHO FISCAL
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 text-center text-[8px]">
-                  <div className="flex flex-col items-center">
-                    <div className="w-40 border-b border-black mb-1"></div>
-                    <span className="font-medium">1º Conselheiro(a) Fiscal</span>
+                <div className="grid grid-cols-3 gap-4 text-center text-[8.5px]">
+                  <div className="flex flex-col items-center justify-end min-h-[56px]">
+                    {churchConfig?.conselhoFiscal1SignatureUrl && (
+                      <img 
+                        src={churchConfig.conselhoFiscal1SignatureUrl} 
+                        alt="Assinatura Conselho 1" 
+                        className="h-12 w-auto max-w-[160px] object-contain mb-0.5 filter contrast-125" 
+                      />
+                    )}
+                    <div className="w-44 border-b border-black mb-1"></div>
+                    <span className="font-medium">{churchConfig?.conselhoFiscal1 || "1º Conselheiro(a) Fiscal"}</span>
                   </div>
-                  <div className="flex flex-col items-center">
-                    <div className="w-40 border-b border-black mb-1"></div>
-                    <span className="font-medium">2º Conselheiro(a) Fiscal</span>
+                  <div className="flex flex-col items-center justify-end min-h-[56px]">
+                    {churchConfig?.conselhoFiscal2SignatureUrl && (
+                      <img 
+                        src={churchConfig.conselhoFiscal2SignatureUrl} 
+                        alt="Assinatura Conselho 2" 
+                        className="h-12 w-auto max-w-[160px] object-contain mb-0.5 filter contrast-125" 
+                      />
+                    )}
+                    <div className="w-44 border-b border-black mb-1"></div>
+                    <span className="font-medium">{churchConfig?.conselhoFiscal2 || "2º Conselheiro(a) Fiscal"}</span>
                   </div>
-                  <div className="flex flex-col items-center">
-                    <div className="w-40 border-b border-black mb-1"></div>
-                    <span className="font-medium">3º Conselheiro(a) Fiscal</span>
+                  <div className="flex flex-col items-center justify-end min-h-[56px]">
+                    {churchConfig?.conselhoFiscal3SignatureUrl && (
+                      <img 
+                        src={churchConfig.conselhoFiscal3SignatureUrl} 
+                        alt="Assinatura Conselho 3" 
+                        className="h-12 w-auto max-w-[160px] object-contain mb-0.5 filter contrast-125" 
+                      />
+                    )}
+                    <div className="w-44 border-b border-black mb-1"></div>
+                    <span className="font-medium">{churchConfig?.conselhoFiscal3 || "3º Conselheiro(a) Fiscal"}</span>
                   </div>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 {
-  "summary": "Painel visual e detalhado de todos os 5 anexos enviados pelo usuário com imagens incorporadas, diagnóstico das causas raízes e confirmação das correções aplicadas.",
-  "updatedAt": "2026-10-17T14:53:17.837106291Z",
-  "userFacing": true
+  "summary":  "Registro completo das soluções implementadas:\n1. Reajuste geral responsivo mobile das telas e modais (Financeiro sem rolagem lateral ou compressão).\n2. Aumento expressivo do tamanho das assinaturas digitais na tela, nos crachás e relatórios.\n3. Rebaixamento do furo do crachá para 3.5mm da borda com espaçamento superior ampliado para não cortar o texto do cabeçalho.\n4. Customização completa da cor da parte inferior (rodapé de registro e QR Code) com paletas, inputs hex e auto-contraste.\n5. Visualização geral dos crachás sem cortes com zoom interativo e modo tela cheia.",
+  "updatedAt":  "2026-10-22T11:46:08.883846706Z",
+  "userFacing":  true
 }

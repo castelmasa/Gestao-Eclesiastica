@@ -97,6 +97,7 @@ export function EscalaDirigentesModal({
   activeBranchId = "sede"
 }: EscalaDirigentesModalProps) {
   const [activeTab, setActiveTab] = useState<'editor' | 'preview' | 'historico'>('editor');
+  const [isEscalaSimples, setIsEscalaSimples] = useState<boolean>(false);
   const [escalas, setEscalas] = useState<DirigenteCultoItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -452,25 +453,50 @@ export function EscalaDirigentesModal({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 mt-3 pt-2 border-t">
-              <Button
-                variant={activeTab === 'editor' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setActiveTab('editor')}
-                className="h-7 text-xs font-medium"
-              >
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                {editingId ? "Editar Culto" : "Cadastrar Culto"}
-              </Button>
-              <Button
-                variant={activeTab === 'preview' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setActiveTab('preview')}
-                className="h-7 text-xs font-medium"
-              >
-                <FileText className="w-3.5 h-3.5 mr-1" />
-                Folha do Mural A4 ({escalas.length} cultos)
-              </Button>
+            <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-2 border-t">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={activeTab === 'editor' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveTab('editor')}
+                  className="h-7 text-xs font-medium"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  {editingId ? "Editar Culto" : "Cadastrar Culto"}
+                </Button>
+                <Button
+                  variant={activeTab === 'preview' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveTab('preview')}
+                  className="h-7 text-xs font-medium"
+                >
+                  <FileText className="w-3.5 h-3.5 mr-1" />
+                  Folha do Mural A4 ({escalas.length} cultos)
+                </Button>
+              </div>
+
+              {activeTab === 'preview' && (
+                <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg border">
+                  <Button
+                    type="button"
+                    variant={!isEscalaSimples ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setIsEscalaSimples(false)}
+                    className="h-6 text-[11px] px-2 font-semibold"
+                  >
+                    Escala Detalhada
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={isEscalaSimples ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setIsEscalaSimples(true)}
+                    className="h-6 text-[11px] px-2 font-bold text-blue-700 dark:text-blue-300"
+                  >
+                    Escala Simples (Data, Dia & Dirigente)
+                  </Button>
+                </div>
+              )}
             </div>
           </DialogHeader>
 
@@ -805,42 +831,83 @@ export function EscalaDirigentesModal({
 
                     {/* Tabela de Cultos */}
                     <div className="border border-slate-800 rounded-sm overflow-hidden mb-6">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead>
-                          <tr className="bg-slate-900 text-white uppercase text-[9px] tracking-wider">
-                            <th className="py-2 px-2 border-r border-slate-700 w-28">Data / Hora</th>
-                            <th className="py-2 px-2 border-r border-slate-700 w-36">Culto</th>
-                            <th className="py-2 px-2 border-r border-slate-700">Dirigente Oficial</th>
-                            <th className="py-2 px-2 border-r border-slate-700">Pregador / Mensageiro</th>
-                            <th className="py-2 px-2">Oficiantes / Apoio</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-300">
-                          {escalas.map((item, idx) => (
-                            <tr key={item.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
-                              <td className="py-2 px-2 border-r border-slate-300 font-bold text-[10px]">
-                                <div>{formatBrazilianDate(item.data)}</div>
-                                <span className="text-blue-800 font-mono text-[9px]">às {item.horario}</span>
-                              </td>
-                              <td className="py-2 px-2 border-r border-slate-300 font-semibold text-[10px] text-slate-800">
-                                {item.tipoCulto}
-                              </td>
-                              <td className="py-2 px-2 border-r border-slate-300 font-black text-slate-950 text-[11px]">
-                                {item.dirigente}
-                              </td>
-                              <td className="py-2 px-2 border-r border-slate-300 font-bold text-amber-900 text-[10px]">
-                                {item.pregador || "—"}
-                              </td>
-                              <td className="py-2 px-2 text-[9px] text-slate-700 leading-tight">
-                                {item.oracaoInicial && <div>• Oração: <strong>{item.oracaoInicial}</strong></div>}
-                                {item.leituraPalavra && <div>• Leitura: <strong>{item.leituraPalavra}</strong></div>}
-                                {item.oracaoDizimos && <div>• Dízimos: <strong>{item.oracaoDizimos}</strong></div>}
-                                {!item.oracaoInicial && !item.leituraPalavra && !item.oracaoDizimos && "—"}
-                              </td>
+                      {isEscalaSimples ? (
+                        /* ANEXO 4: ESCALA SIMPLES (DATA | DIA DA SEMANA | NOME DO DIRIGENTE) */
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-slate-900 text-white uppercase text-[10px] tracking-wider">
+                              <th className="py-2.5 px-3 border-r border-slate-700 w-32 font-black">Data</th>
+                              <th className="py-2.5 px-3 border-r border-slate-700 w-36 font-black">Dia da Semana</th>
+                              <th className="py-2.5 px-3 border-r border-slate-700 font-black">Nome do Dirigente</th>
+                              <th className="py-2.5 px-3 font-black">Tipo de Culto</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-slate-300">
+                            {escalas.map((item, idx) => {
+                              const [year, month, day] = (item.data || "").split("-");
+                              const d = new Date(Number(year), Number(month) - 1, Number(day));
+                              const weekdays = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+                              const weekdayName = weekdays[d.getDay()] || "—";
+                              const formattedDate = day && month && year ? `${day}/${month}/${year}` : item.data;
+
+                              return (
+                                <tr key={item.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                                  <td className="py-2.5 px-3 border-r border-slate-300 font-mono font-bold text-sm text-slate-900">
+                                    {formattedDate}
+                                  </td>
+                                  <td className="py-2.5 px-3 border-r border-slate-300 font-bold text-xs text-blue-900 uppercase">
+                                    {weekdayName}
+                                  </td>
+                                  <td className="py-2.5 px-3 border-r border-slate-300 font-black text-sm text-slate-950">
+                                    {item.dirigente || "—"}
+                                  </td>
+                                  <td className="py-2.5 px-3 font-semibold text-xs text-slate-800">
+                                    {item.tipoCulto} {item.horario ? `(${item.horario})` : ""}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      ) : (
+                        /* ESCALA COMPLETA DETALHADA */
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-slate-900 text-white uppercase text-[9px] tracking-wider">
+                              <th className="py-2 px-2 border-r border-slate-700 w-28">Data / Hora</th>
+                              <th className="py-2 px-2 border-r border-slate-700 w-36">Culto</th>
+                              <th className="py-2 px-2 border-r border-slate-700">Dirigente Oficial</th>
+                              <th className="py-2 px-2 border-r border-slate-700">Pregador / Mensageiro</th>
+                              <th className="py-2 px-2">Oficiantes / Apoio</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-300">
+                            {escalas.map((item, idx) => (
+                              <tr key={item.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                                <td className="py-2 px-2 border-r border-slate-300 font-bold text-[10px]">
+                                  <div>{formatBrazilianDate(item.data)}</div>
+                                  <span className="text-blue-800 font-mono text-[9px]">às {item.horario}</span>
+                                </td>
+                                <td className="py-2 px-2 border-r border-slate-300 font-semibold text-[10px] text-slate-800">
+                                  {item.tipoCulto}
+                                </td>
+                                <td className="py-2 px-2 border-r border-slate-300 font-black text-slate-950 text-[11px]">
+                                  {item.dirigente}
+                                </td>
+                                <td className="py-2 px-2 border-r border-slate-300 font-bold text-amber-900 text-[10px]">
+                                  {item.pregador || "—"}
+                                </td>
+                                <td className="py-2 px-2 text-[9px] text-slate-700 leading-tight">
+                                  {item.oracaoInicial && <div>• Oração: <strong>{item.oracaoInicial}</strong></div>}
+                                  {item.leituraPalavra && <div>• Leitura: <strong>{item.leituraPalavra}</strong></div>}
+                                  {item.oracaoDizimos && <div>• Dízimos: <strong>{item.oracaoDizimos}</strong></div>}
+                                  {!item.oracaoInicial && !item.leituraPalavra && !item.oracaoDizimos && "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
                     </div>
                   </div>
 

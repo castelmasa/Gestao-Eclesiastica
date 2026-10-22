@@ -1,106 +1,223 @@
-# 📸 Relatório Visual de Anexos e Soluções Aplicadas
+# Resumo das Implementações e Reajustes Concluídos
 
-Abaixo está o registro visual completo de todos os anexos enviados e as respectivas soluções aplicadas no sistema.
-
----
-
-### 👶 Anexo 1 & Anexo 2: Impressão de Canhotos (Check-in Kids)
-**Problema Relatado:** *"não imprime relatório, está com erro (Documento para impressão não encontrado na tela)"*
-
-#### 🔍 Diagnóstico:
-1. O utilitário `printDocument` esperava parâmetros posicionais e descartava o ID quando chamado com o formato de objeto `{ elementId: ... }`.
-2. O elemento visual do canhoto só existia na aba *"Novo Check-in"*. Ao clicar em *"Canhoto"* a partir da aba *"Crianças no Culto"* ou *"Histórico"*, o elemento não estava no DOM.
-
-#### ✅ Solução Implementada:
-* `printDocument` foi atualizado para suportar chamadas via objeto `{ elementId, title, ... }`.
-* Criado o container permanente `kids-badge-global-print-area`, garantindo que tanto o **Crachá de Peito da Criança** quanto o **Comprovante de Retirada dos Pais** sejam impressos em qualquer aba do modal.
+### 1. Reajuste Geral Mobile (Telas e Modais sem Rolagem Lateral)
+- **Eliminação de Rolagem Lateral no Celular (`html, body { overflow-x: hidden; max-width: 100vw; }`):**
+  - Implementada proteção global no `src/index.css` que impede que a tela fique balançando ou rolando para a direita e esquerda em smartphones.
+- **Formulário de Nova Transação do Financeiro:**
+  - O modal agora se adapta perfeitamente com largura responsiva `w-[95vw] sm:max-w-[560px]`.
+  - Todas as grades de 2 colunas foram convertidas para `grid-cols-1 sm:grid-cols-2`, empilhando verticalmente no celular de forma limpa, espaçosa e sem esmagar campos de Valor, Data, Categoria, Documento e Vencimento.
+  - Modais de Nova Categoria, Novo Item e Gerenciador de Categorias padronizados com `w-[95vw]` e sem overflow lateral.
 
 ---
 
-### 📐 Anexo 3: Alinhamento de Janela e Botão "Fechar" Cortando
-**Problema Relatado:** *"alinha a janela, o botão fechar está cortando"*
-
-#### 🔍 Diagnóstico:
-* O componente herdava do diálogo base margens negativas (`-mx-6 -mb-6`). Como o modal possuía preenchimento zero (`p-0`), o rodapé era empurrado 24 pixels para fora da tela, cortando o botão "Fechar".
-
-#### ✅ Solução Implementada:
-* Adicionada largura controlada `w-[95vw] max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden`.
-* Rodapé corrigido com `!m-0 !mx-0 !mb-0 !mt-auto p-4 border-t flex justify-end`, posicionando o botão perfeitamente na área visível com margem de respiro.
-
----
-
-### 📊 Anexo 4: Relatório de Balancete Desconfigurado
-**Problema Relatado:** *"relatório de balancete desconfigurado"*
-
-#### 🔍 Diagnóstico:
-* Por conta da falha na leitura do `elementId` no `printDocument`, o sistema caía no elemento padrão `#printable-standard`, que continha a página inteira do Financeiro (com botões de navegação gigantes ampliados).
-
-#### ✅ Solução Implementada:
-* O botão direciona exclusivamente para `#balancete-print-area`.
-* Configurada a classe `.print-page` com formato oficial A4, quadro sintético de receitas e despesas, demonstrativo de conciliação, parecer da comissão fiscal e linhas para as 5 assinaturas oficiais.
+### 2. Aumento do Tamanho das Assinaturas Digitais
+- **Componente de Assinatura (`DigitalSignatureField.tsx`):**
+  - O quadro de pré-visualização da assinatura aumentou de `w-44 h-18` (72px) para `w-60 sm:w-72 h-24 sm:h-28` (112px), proporcionando clareza e alta resolução visual.
+  - O quadro de desenho por toque/caneta/mouse foi ampliado para `h-60 sm:h-72` com linha oficial cartorial.
+- **Balancete para Assembleia e Relatórios Oficiais:**
+  - As assinaturas agora suportam a exibição das assinaturas digitalizadas reais cadastradas em Parâmetros (Pastor Titular, 1º Tesoureiro e Conselho Fiscal) com altura ampliada de `h-14 sm:h-16`.
+- **Verso do Crachá de Voluntários:**
+  - A linha de assinatura aumentou para `w-44` com tipografia maior e mais nítida (`text-[8.5px]` e `text-[7.5px]`), suportando também a imagem da assinatura oficial do pastor/diretor.
 
 ---
 
-### 🗓️ Anexo 5: Erro ao Imprimir e Botão Excluir na Gestão de Escalas
-**Problema Relatado:** *"erro ao imprimir. o botão excluir não funciona"*
-
-#### 🔍 Diagnóstico:
-1. **Impressão:** O seletor `#escala-printable-area` não era capturado pelo mesmo erro de parâmetro.
-2. **Exclusão:** O código utilizava `window.confirm()`, que é bloqueado dentro de iframes no navegador, impedindo a execução da exclusão. Além disso, escalas criadas localmente ficavam sem ID.
-
-#### ✅ Solução Implementada:
-* A impressão de escalas gera folha A4 com o cabeçalho e dados de todos os voluntários e ministérios.
-* A exclusão foi reformulada para operar de forma direta e assíncrona, identificando a escala tanto por ID quanto por Data + Título do Culto, com atualização instantânea na interface e no Firestore.
+### 3. Furo do Crachá Rebaixado & Textos Reajustados
+- **Posicionamento do Furo do Crachá:**
+  - O orifício para presilha/cordão foi rebaixado de `top-1` (muito na beirada) para `top-3.5` (distância padrão de 3.5mm a 4mm da borda superior), evitando que o plástico ou papel rasgue ao furar.
+- **Espaçamento do Cabeçalho:**
+  - O cabeçalho da frente recebeu `pt-6 pb-2 px-2`, e o verso recebeu `pt-6 pb-1.5`.
+  - Isso garante que o furo do crachá fique perfeitamente posicionado dentro do respiro do cabeçalho sem atingir nem cortar o nome *"O BRASIL PARA CRISTO"*, o subtítulo da congregação ou a logo da igreja.
 
 ---
 
-### 🏛️ Anexo 1 (Secretaria - Grade de Ações Rápidas)
-**Problema Relatado:** *"de uma alinhada nas informações. tá muito bagunçada"*
-- **Ajuste:** As ações rápidas foram reorganizadas em uma grade perfeitamente simétrica de 5 colunas (`grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3`). Os 10 botões (5 de secretaria geral e 5 de escalas e crachás) agora ficam organizados em duas fileiras uniformes, com altura padronizada e sem espaços vazios.
+### 4. Customização da Cor da Parte Inferior (Rodapé de Registro & QR Code)
+- **Painel Dedicado de Cores do Rodapé:**
+  - Adicionado seletor com 8 paletas e tons nobres: Branco Puro, Cinza Claro, Dourado Nobre, Tom do Tema Principal, Faixa Destaque, Azul Marinho, Verde Esmeralda e Preto Nobre.
+  - Seletor manual com paleta de cores e código HEX para a cor de fundo e para a cor do texto/matrícula.
+  - Botão de **Ajuste de Contraste Automático**, que calcula a luminosidade do fundo e define texto claro ou escuro para máxima legibilidade.
+  - Mini-amostra visual em tempo real mostrando como o registro e o QR Code aparecerão.
 
 ---
 
-### 📖 Anexo 2 (Tipos de Culto Personalizados)
-**Problema Relatado:** *"permitir cadastrar Tipos de Culto"*
-- **Ajuste:** Adicionado botão de gestão e cadastro dinâmico `+ Cadastrar / Gerenciar Tipos` nos modais de Dirigentes e Músicos. Permite incluir novos tipos de culto personalizados, excluir tipos criados e selecionar imediatamente para a escala, com sincronização em tempo real no Firestore e fallback offline.
+### 5. Visualização Geral dos Crachás sem Cortes
+- **Zoom Interativo e Ajuste de Tela:**
+  - Barra de controle de zoom (`100% Real`, `85% Ajustar`, `70%`) integrada no topo da área de visualização.
+- **Adaptação Responsiva Mobile:**
+  - No celular, a Frente e o Verso se acomodam em pilha vertical com escala ajustada, impedindo cortes laterais causados pela largura fixa.
+- **Modo Tela Cheia / Visão Geral sem Cortes:**
+  - Botão dedicado **"Visão Geral sem Cortes"** com ícone `Maximize2` que abre um modal amplo para conferência minuciosa em alta definição da Frente e do Verso lado a lado, com botões diretos de impressão e exportação.
 
 ---
 
-### 🗑️ Anexo 3 (Exclusão Segura nas Escalas)
-**Problema Relatado:** *"permita fazer a exclusão"*
-- **Ajuste:** Substituição completa do `window.confirm()` (bloqueado em iframes) por caixas de diálogo in-app do Radix UI (`<Dialog open={!!itemToDelete}>`). Permite confirmação clara, exclusão assíncrona com feedback visual e remoção tanto do Firestore quanto do armazenamento local.
+### 6. Otimização da Logo (Contorno, Fundo, Cor e Tamanho Ampliado)
+- **Fim da Logo Apagada / Esmaecida:**
+  - Corrigido o problema da logo ficar apagada no cabeçalho escuro: agora o modo padrão é **✨ Vibrante** com saturação (+20%), contraste (+25%) e brilho otimizados.
+  - O modo de multiplicação (`mix-blend-mode: multiply`) foi restrito apenas a logos transparentes sem fundo customizado, impedindo que os pixels escureçam sobre fundos coloridos.
+- **Contorno da Logo (Outline / Borda com Nitidez Máxima):**
+  - Switch para ativar/desativar contorno da logo.
+  - Seletor de espessura do contorno: `1px (Fino)`, `2px (Médio)` ou `3px (Forte)`.
+  - Cores rápidas de contorno: Branco `#FFFFFF`, Ouro `#F59E0B`, Preto `#0F172A`, Azul `#2563EB`, Vinho `#831843` e seletor HEX livre.
+  - O contorno é projetado com precisão tanto na borda do contêiner quanto no contorno direto dos traços da imagem via filtros SVG/CSS (`drop-shadow`).
+- **Fundo do Emblema da Logo:**
+  - Formato da moldura da logo: `Círculo`, `Cantos Arredondados`, `Quadrado` ou `Transparente (Sem Fundo)`.
+  - Cor do fundo da moldura com paletas (Branco Puro `#FFFFFF`, Dourado Marfim `#FEF3C7`, Azul Céu `#E0F2FE`, Escuro `#0F172A`, Gelo `#F8FAFC`) e seletor HEX livre.
+  - Garante que a logo da igreja sempre permaneça luminosa, nítida e com leitura perfeita em qualquer tema de crachá.
+- **Tamanho da Logo Ampliado e Proporcional:**
+  - A logo foi ampliada aproveitando o espaço seguro liberado pelo rebaixamento do furo do crachá.
+  - Slider contínuo de 28px até 68px com ajuste milimétrico e steppers `[-]` e `[+]`.
+  - Presets rápidos de tamanho: `Normal (36px)`, `Grande (46px - Recomendado)`, `Extra (54px)`, `Super Destaque (62px)`.
+  - Espaçador direito com dimensionamento dinâmico automático, mantendo o título *"O BRASIL PARA CRISTO"* estritamente centralizado.
 
 ---
 
-### 🪪 Anexo 4 (Personalização Avançada de Cores e Logo do Crachá)
-**Problema Relatado:** *"permite definir a cor da logo, pois tem que estar de acordo com as outras cores. também permita definir a cor do fundo dos dois lados. permita definir a cor onde fica as informações de registro e qrcod"*
-- **Ajuste:**
-  1. **Cor do Logo/Emblema da Igreja:** Seletor com modos Original, Branco Puro, Dourado Real, Preto e Cor Personalizada via filtro CSS.
-  2. **Cor de Fundo da Frente e do Verso:** Paleta de cores prontas e color picker hexadecimal, com opção de sincronizar frente e verso e ajuste automático de contraste do texto.
-  3. **Barra de Registro e QR Code:** Controles dedicados para alterar a cor de fundo da faixa inferior e a cor dos textos e linhas de contraste.
+### 7. Flexibilidade Total de Tipografia (Tamanho de Fonte em Qualquer Posição)
+- **Gerenciador Geral de Tipografia (`CrachaFontSizes`):**
+  - Controle individual do tamanho de fonte (em pixels com passo de `0.5px`) para **todas as 16 posições** do crachá:
+    - **Frente (8 posições):**
+      1. Tema Superior / Igreja (`headerTitle`, padrão: 8.5px)
+      2. Subtítulo / Congregação (`headerSubtitle`, padrão: 7px)
+      3. Faixa de Cargo / Ministério (`role`, padrão: 9.5px)
+      4. Nome do Voluntário (`name`, padrão: 10px)
+      5. Departamento / Equipe (`department`, padrão: 6.5px)
+      6. Nº de Matrícula (`matricula`, padrão: 9px)
+      7. Rótulo "REGISTRO" (`matriculaLabel`, padrão: 7px)
+      8. Validade / Gestão (`validade`, padrão: 7px)
+    - **Verso (8 posições):**
+      1. Título do Termo (`versoHeader`, padrão: 7.5px)
+      2. Subtítulo do Termo (`versoSubheader`, padrão: 7px)
+      3. Instruções e Regras de Uso (`versoRules`, padrão: 7px)
+      4. Versículo Bíblico (`versoVerse`, padrão: 6.5px)
+      5. Referência Bíblica (`versoVerseRef`, padrão: 6.5px)
+      6. Cargo da Assinatura (`versoSignatureRole`, padrão: 8.5px)
+      7. Nome da Assinatura (`versoSignatureName`, padrão: 7.5px)
+      8. Rodapé Institucional (`versoFooter`, padrão: 6px)
+- **Presets de Escalonamento Global:**
+  - Botões rápidos de um clique: `Padrão Equilibrado`, `Letras Maiores (+15%)`, `Letras Ampliadas (+30%)` e `Compacto (-10%)`.
+  - Botão de **Restaurar Padrão** para retornar às proporções originais em qualquer momento.
+- **Ajuste Inline Instantâneo:**
+  - Botões `[-]` e `[+]` com indicador numérico adicionados diretamente ao lado do título de cada campo nas seções de edição de textos da frente e do verso, permitindo redimensionar a fonte imediatamente durante a digitação.
 
 ---
 
-### 🎨 Ajustes do Crachá Eclesiástico (Posicionamento, Fontes e Logo Maior)
-- **Logo à Esquerda com Tamanho Maior:** A logo foi movida para o lado esquerdo do cabeçalho com altura ajustável (Normal 28px, Grande 38px, Extra Grande 48px). O nome da igreja foi reposicionado logo abaixo de forma equilibrada.
-- **Faixa de Cargo/Pastor Titular com Destaque:** Aumentada a fonte e o espaçamento vertical para proporcionar maior impacto visual.
-- **Fontes Maiores no Rodapé e Verso:** Matrícula, validade e texto de registro ganharam tipografia ampliada e nítida. O verso recebeu fontes maiores para instruções, versículo bíblico e assinatura.
-- **Cargo Dinâmico no Verso:** O subtítulo abaixo de *"Termo de Identificação Eclesiástica"* agora reflete dinamicamente o cargo selecionado (ex: *"PASTOR TITULAR • CORPO ECLESIÁSTICO"*).
+### 8. Reajuste do Dashboard no Mobile (Gráficos sem Corte e sem Rolagem Lateral)
+- **Eliminação de Overflow no Layout e Grid:**
+  - O contêiner principal `<main>` e os contêineres do `Dashboard` foram atualizados com `overflow-y-auto overflow-x-hidden w-full min-w-0 max-w-full`, impedindo rolagem horizontal residual em smartphones (360px a 412px).
+- **Gráfico de Evolução Financeira ("Receitas vs Despesas"):**
+  - O cabeçalho foi otimizado para celulares com tipografia compacta e badges reduzidos (`text-xs sm:text-sm`).
+  - Margens do gráfico no Recharts ajustadas para `margin={{ top: 10, right: 8, left: -20, bottom: 0 }}` e largura do eixo Y reduzida para `width={36}` com rótulos compactos (`R$10k`).
+  - `ResponsiveContainer` configurado com `minWidth={0}`, permitindo que os gráficos do Recharts se contraiam sem empurrar a largura do viewport.
+- **Gráfico "Distribuição de Despesas por Categoria" e Lista de Aniversariantes:**
+  - Envolvidos em contêineres com `w-full min-w-0 overflow-hidden` e espaçamentos responsivos (`p-3.5 sm:p-6`), eliminando os cortes na lateral direita identificados nas capturas de tela.
 
 ---
 
-### 📲 Validação Pública e Instantânea do QR Code
-- **Rota Pública `/validar-cracha`:** Ao escanear o QR code com a câmera do celular ou leitor óptico, abre-se a página oficial e pública de validação mostrando o certificado de autenticidade verde, nome do titular, cargo, matrícula, departamento, validade, diretoria responsável e congregação sem exigir login prévio.
+### 9. Customização Avançada do QR Code do Crachá (Tamanho, Cores e Contorno)
+- **Aumento e Redimensionamento do QR Code:**
+  - Controle de tamanho contínuo de 18px a 48px via slider, botões steppers `[-]` e `[+]` e presets rápidos (`22px`, `28px Padrão`, `34px`, `40px Grande`, `46px Extra`).
+  - Torna o QR Code muito mais fácil e rápido de ser escaneado por câmeras de celular durante a recepção e eventos.
+- **Cores Customizáveis do QR Code:**
+  - **Cor dos Módulos (Desenho):** Paleta rápida com Preto `#000000`, Cor do Tema da Igreja, Azul Marinho `#1E3A8A`, Vinho `#831843`, Verde Esmeralda `#065F46`, Dourado `#B45309` e seletor HEX livre.
+  - **Cor de Fundo do QR Code:** Branco Puro `#FFFFFF`, Gelo `#F8FAFC`, Marfim `#FEFCE8`, Ouro Claro `#FEF3C7`, Mesclado com a cor da Faixa Inferior e seletor HEX.
+- **Contorno e Moldura do QR Code:**
+  - Switch para ativar/desativar contorno (`qrHasBorder`).
+  - Seletor de espessura: `1px (Fino)`, `2px (Médio)` ou `3px (Forte)`.
+  - Seletor de cantos: `Reto (0px)`, `Leve (3px)`, `Arredondado (6px)` ou `Pílula (10px)`.
+  - Cores rápidas de contorno: Cinza `#CBD5E1`, Branco `#FFFFFF`, Preto `#000000`, Dourado `#F59E0B`, Cor do Tema e seletor HEX livre.
+- **Acomodação Inteligente no Rodapé do Crachá:**
+  - O bloco de texto (REGISTRO, Matrícula e Validade) recebeu `flex-1 min-w-0 pr-1.5`, garantindo que mesmo ao aumentar o QR Code para tamanhos grandes (40px ou 46px), os dados continuem alinhados e sem colisão.
+- **Mini-Amostra em Tempo Real e Botão Restaurar:**
+  - Mini prévia interativa do QR Code diretamente no painel de configurações e botão **Restaurar Padrão** para resetar ao estilo original com 1 clique.
 
 ---
 
-### ⛪ Escala do Diaconato & Exclusão no Histórico
-- **Remoção do Ícone ⛪:** Removido o ícone da igreja ao lado do título da escala na folha do mural, mantendo apenas a logo oficial "O Brasil para Cristo" à esquerda.
-- **Exclusão Efetiva no Histórico:** Implementado diálogo modal de confirmação com remoção garantida no Firestore, limpeza instantânea do `localStorage` e atualização imediata da listagem visual na tela.
+### 10. Upload Direto de Foto do Membro / Voluntário
+- **Acesso Imediato no Seletor de Voluntário (Seção 2):**
+  - Adicionado card interativo de Foto 3x4 diretamente abaixo do seletor do membro, exibindo miniatura da foto atual ou ícone de usuário.
+  - Botão com ícone de upload **"Carregar Foto" / "Trocar Foto"** e botão de **"Remover Foto"**.
+- **Envio Direto Clicando na Moldura do Crachá:**
+  - O quadro da foto 3x4 no preview do crachá agora é diretamente clicável com efeito hover (ícone de câmera e escurecimento sutil), permitindo carregar ou trocar a foto com apenas um clique sobre o próprio crachá.
+- **Suporte Amplo de Imagens:**
+  - Suporta formatos PNG, JPG, JPEG e WEBP via FileReader base64, persistindo no crachá tanto na visualização individual quanto na folha A4 em lote.
 
 ---
 
-### 📅 Calendário Interativo no Novo Comunicado
-- **Seletor de Data e Horário:** Disponibilizado botão e painel de calendário com campos de data (`<input type="date">`), horário (`<input type="time">`) e atalhos rápidos para os principais cultos da semana, com formatação automática em português.
+### 11. Reajuste Automático do Nome da Igreja no Rodapé do Verso (Sem Cortes)
+- **Eliminação do `truncate` e Altura Flexível:**
+  - Removida a classe rígida `truncate` que cortava o nome da igreja quando o tamanho da fonte (`fontSizes.versoFooter`) era ampliado.
+  - Aplicado `break-words`, `leading-snug` e alinhamento flexível com altura ajustada da assinatura (`h-7`).
+  - O rodapé agora distribui o espaço dinamicamente, permitindo aumentar a fonte livremente sem ocultar o nome da igreja ou congregação.
+
+---
+
+### 12. Bordas Personalizáveis no Crachá (Superior, Inferior, Esquerda e Direita)
+- **Controle Independente por Lado:**
+  - Quatro botões de alternância rápida: **Superior**, **Inferior**, **Esquerda** e **Direita**, além de atalho **Marcar/Desmarcar Todas**.
+- **Espessura da Borda:**
+  - Slider contínuo de 1px a 6px com botões rápidos numéricos (1px, 2px, 3px, 4px, 5px, 6px).
+- **Paleta de Cores & Seletor HEX:**
+  - Cores rápidas: Dourado `#D97706`, Preto `#0F172A`, Azul Royal `#2563EB`, Verde `#16A34A`, Vinho `#831843`, Ardósia `#475569`, Prata `#E2E8F0` e Branco `#FFFFFF`, além de seletor livre com pipeta de cores.
+- **Estilo de Linha:**
+  - Opções de traço: **Sólida**, **Dupla** e **Tracejada**.
+  - As bordas são renderizadas na Frente, no Verso e na Impressão em Lote (Folha A4).
+
+---
+
+### 13. Controles Deslizantes de Margens Internas de Segurança (Anti-Corte)
+- **Proteção Total de Sangria e Furo:**
+  - Slider de Margem Geral de 1mm a 7mm (passo de 0.5mm) com referências visuais de respiro (Mínima, Padrão 3.5mm, Ampla 7mm).
+  - Modo de **Ajuste Independente por Lado**: sliders dedicados para **Margem Superior** (respiro seguro para o furo da presilha), **Margem Inferior** (respiro para rodapé) e **Margens Laterais**.
+- **Guia Visual de Segurança:**
+  - Switch **"Guia visual"** que desenha linhas tracejadas na área segura do crachá, garantindo que o usuário veja exatamente a margem antes de imprimir ou cortar.
+
+---
+
+### 14. Novos Modelos por Atividade & Sistema "Salvar como Modelo"
+- **Novos Modelos de Atividades Criados:**
+  - **Berçário & Cuidados com Bebês** (tema suave com regras específicas de entrega segura aos pais).
+  - **Salas de Ensino & EBD Infantil** (Ministério Kids com crachá lúdico e acolhedor).
+  - **Mídia, Som & Transmissão ao Vivo** (acesso à cabine técnica e púlpito).
+  - **Intercessão & Sala de Oração** (plantão de oração durante cultos e vigílias).
+  - **Ação Social & Apoio ao Próximo** (triagem e distribuição comunitária).
+  - **Estacionamento & Trânsito** (apoio viário externo com alta visibilidade).
+  - **Zeladoria & Apoio ao Templo** (conservação do santuário).
+  - **Liderança de Célula / Pequenos Grupos** (reuniões nos lares e discipulado).
+- **Sistema Completo "Salvar como Modelo":**
+  - Painel superior com seletor de modelos predefinidos e modelos personalizados salvos.
+  - Botão **"Salvar Modelo"** que abre modal para definir Nome, Categoria (Membro, Obreiro, Visitante, Kids, Louvor, etc.) e descrição.
+  - Salva todas as cores, espessuras de bordas, margens internas, tamanhos de fontes da frente/verso e layout.
+  - Modal **"Gerenciar Meus Modelos"** para listar, aplicar instantaneamente ou excluir modelos salvos no navegador.
+
+---
+
+### 15. Botão 'Adicionar Foto' com API de Câmera, Máscara e Enquadramento
+- **Integração com a API de Câmera (`navigator.mediaDevices.getUserMedia`):**
+  - Botão de destaque **"Adicionar Foto"** que abre modal interativo para captura de fotos em tempo real via webcam do computador ou câmeras de smartphones (com suporte a alternância entre câmera frontal e traseira).
+  - Guia visual sobreposta ao vídeo ao vivo com mira e corte exato no formato selecionado (3x4 ou circular).
+  - Captura instantânea em alta resolução convertida para base64 com botão "Capturar Foto Agora".
+  - Opção alternativa na aba "Selecionar Arquivo" para carregar fotos já salvas no dispositivo.
+- **Controles de Máscara (Circular ou Quadrada 3x4):**
+  - **Quadrada / Retangular 3x4 (`rounded-md`):** formato tradicional e oficial de documento e crachá eclesiástico.
+  - **Circular (`rounded-full`):** corte redondo moderno de alta elegância e simpatia (muito indicado para recepção e berçário).
+- **Controles de Redimensionamento (Zoom / Escala):**
+  - Slider contínuo de 50% até 250% com steppers `[-]` e `[+]` e indicador numérico em porcentagem para aproximar ou afastar o rosto do membro com precisão.
+- **Controles de Centralização e Posição (Eixos X e Y):**
+  - Sliders de Posição Horizontal (X) de -50% a +50% e Vertical (Y) de -50% a +50%.
+  - Botão direto **"🎯 Centralizar Foto"** que restaura os eixos para o ponto central com 1 clique.
+  - Os controles estão disponíveis tanto no modal completo quanto diretamente no painel lateral do editor para ajustes rápidos a qualquer momento.
+
+---
+
+### 16. Seletor de Modelos de Crachás (1 Clique)
+- **Grade de Modelos Oficiais Pré-Configurados:**
+  - Inserido no topo do editor de crachás um seletor visual em grade com as 6 categorias solicitadas:
+    1. **Membro:** Azul Marinho Real com identificação de membro em plena comunhão e termo de membresia.
+    2. **Obreiro:** Vinho Nobre e Ouro com credencial ministerial para pastores, presbíteros, evangelistas e diáconos.
+    3. **Visitante:** Verde Esmeralda acolhedor para visitantes de honra, congressistas e convidados.
+    4. **Voluntário:** Azul Petróleo com cargo "Posso te Ajudar? / Voluntário" para equipes de apoio e eventos.
+    5. **Berçário:** Roxo Imperial / Lilás com corte circular da foto e termo de segurança para entrega aos pais.
+    6. **Ensino Infantil:** Laranja e Âmbar vibrante com cargo "Professora EBD Kids" e termo do departamento infantil.
+- **Aplicação Imediata em 1 Clique:**
+  - Ao clicar em qualquer um dos botões, todos os temas, cores primárias, cores de faixas, molduras, fontes, cargos padrão, departamentos, prefixos de matrícula e termos do verso são aplicados instantaneamente ao crachá em tempo real.
+
 
 

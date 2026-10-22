@@ -195,21 +195,21 @@ export function DigitalSignatureField({
       />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        {/* Preview Box */}
-        <div className="relative w-44 h-18 bg-white dark:bg-slate-950 rounded-xl border border-border/80 flex items-center justify-center overflow-hidden p-2 shadow-2xs group">
+        {/* Preview Box Ampliado para Alta Legibilidade */}
+        <div className="relative w-60 sm:w-72 h-24 sm:h-28 bg-white dark:bg-slate-950 rounded-xl border-2 border-border/80 flex items-center justify-center overflow-hidden p-2.5 shadow-xs group">
           {value ? (
             <>
               <img
                 src={value}
                 alt={label}
-                className="max-h-full max-w-full object-contain filter contrast-125 dark:brightness-110"
+                className="max-h-full max-w-full object-contain filter contrast-125 dark:brightness-110 drop-shadow-xs"
               />
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 backdrop-blur-2xs">
                 <Button
                   type="button"
                   size="sm"
                   variant="secondary"
-                  className="h-7 text-[11px] px-2"
+                  className="h-7 text-[11px] px-2 font-medium"
                   onClick={openDrawModal}
                   disabled={disabled}
                 >
@@ -219,7 +219,7 @@ export function DigitalSignatureField({
                   type="button"
                   size="sm"
                   variant="destructive"
-                  className="h-7 text-[11px] px-2"
+                  className="h-7 text-[11px] px-2 font-medium"
                   onClick={() => {
                     onChange("", "")
                     toast.info("Assinatura removida.")
@@ -286,14 +286,14 @@ export function DigitalSignatureField({
 
       {/* Modal Interativo para Desenhar Assinatura com Dedo / Mouse / Caneta Touch */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[95vw] sm:max-w-xl p-4 sm:p-6 overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-bold">
               <PenTool className="h-4 w-4 text-primary" />
               Desenhar Assinatura Digital: {label}
             </DialogTitle>
             <p className="text-xs text-muted-foreground">
-              Utilize o mouse, touchpad ou o dedo em telas touch para assinar dentro do quadro abaixo.
+              Utilize o mouse, touchpad ou o dedo em telas touch para assinar dentro do quadro abaixo com bastante espaço.
             </p>
           </DialogHeader>
 
@@ -331,11 +331,11 @@ export function DigitalSignatureField({
               </div>
             </div>
 
-            {/* Canvas Interativo */}
+            {/* Canvas Interativo Ampliado */}
             <div className="relative border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-950 overflow-hidden shadow-inner">
               <canvas
                 ref={canvasRef}
-                className="w-full h-44 cursor-crosshair touch-none block"
+                className="w-full h-60 sm:h-72 cursor-crosshair touch-none block"
                 onMouseDown={startDrawing}
                 onMouseMove={draw}
                 onMouseUp={stopDrawing}
@@ -344,9 +344,9 @@ export function DigitalSignatureField({
                 onTouchMove={draw}
                 onTouchEnd={stopDrawing}
               />
-              <div className="absolute bottom-2 left-4 right-4 border-b border-slate-300 dark:border-slate-700 pointer-events-none text-center">
+              <div className="absolute bottom-3 left-6 right-6 border-b border-slate-300 dark:border-slate-700 pointer-events-none text-center">
                 <span className="text-[10px] uppercase tracking-widest text-slate-400 font-semibold select-none">
-                  Linha de Assinatura
+                  Linha de Assinatura Oficial
                 </span>
               </div>
             </div>

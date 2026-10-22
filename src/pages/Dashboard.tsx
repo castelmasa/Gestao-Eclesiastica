@@ -290,7 +290,7 @@ export function Dashboard() {
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="space-y-6 max-w-7xl mx-auto"
+      className="space-y-4 sm:space-y-6 max-w-7xl mx-auto w-full min-w-0 overflow-x-hidden"
     >
       
       <PageHeader 
@@ -440,45 +440,50 @@ export function Dashboard() {
           <MonthlyFinancialComparisonChart transactions={filteredTransactions} activeBranch={activeBranch} />
 
           {/* 3. Gráficos Principais: Evolução da Arrecadação Mensal e Crescimento de Novos Membros (Recharts) */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <RevenueEvolutionChart transactions={filteredTransactions} activeBranch={activeBranch} />
-            <MemberGrowthChart members={filteredMembers} activeBranch={activeBranch} />
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 w-full min-w-0">
+            <div className="w-full min-w-0">
+              <RevenueEvolutionChart transactions={filteredTransactions} activeBranch={activeBranch} />
+            </div>
+            <div className="w-full min-w-0">
+              <MemberGrowthChart members={filteredMembers} activeBranch={activeBranch} />
+            </div>
           </div>
         </>
       )}
 
       {/* 4. Grid: Aniversariantes do Mês & Distribuição de Despesas / Agenda */}
-      <div className="grid gap-6 lg:grid-cols-12">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-12 w-full min-w-0">
         
         {/* Aniversariantes do Mês (Left: 5 cols on lg) - Visível para quem tem acesso a membros */}
         {canViewMembers && (
-          <div className="lg:col-span-5">
+          <div className="lg:col-span-5 w-full min-w-0">
             <BirthdaysCard members={filteredMembers} activeBranch={activeBranch} />
           </div>
         )}
 
         {/* Despesas Chart & Próximos Eventos (Right: span changes based on canViewMembers) */}
-        <div className={canViewMembers ? "lg:col-span-7 space-y-6" : "lg:col-span-12 space-y-6"}>
+        <div className={canViewMembers ? "lg:col-span-7 space-y-4 sm:space-y-6 w-full min-w-0" : "lg:col-span-12 space-y-4 sm:space-y-6 w-full min-w-0"}>
           {/* Despesas Chart (Somente visível com permissão financeira) */}
           {canViewFinanceiro && (
-            <Card className="shadow-sm border-border/80 dark:border-border/60">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-semibold flex items-center gap-2 text-foreground">
-                   <Activity className="w-5 h-5 text-primary" /> Distribuição de Despesas por Categoria
+            <Card className="shadow-sm border-border/80 dark:border-border/60 w-full min-w-0 overflow-hidden">
+              <CardHeader className="p-3.5 sm:p-6 pb-2">
+                <CardTitle className="text-base sm:text-lg font-semibold flex items-center gap-2 text-foreground truncate">
+                   <Activity className="w-5 h-5 text-primary shrink-0" /> 
+                   <span className="truncate">Distribuição de Despesas por Categoria</span>
                 </CardTitle>
-                <CardDescription>Principais custos e desembolsos deste mês</CardDescription>
+                <CardDescription className="text-xs">Principais custos e desembolsos deste mês</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="h-[260px]">
+              <CardContent className="p-3.5 sm:p-6 pt-0">
+                <div className="h-[240px] sm:h-[260px] w-full min-w-0 overflow-hidden">
                    {stats.pieData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                         <PieChart>
                           <Pie
                             data={stats.pieData}
                             cx="50%"
                             cy="50%"
-                            innerRadius={55}
-                            outerRadius={85}
+                            innerRadius={50}
+                            outerRadius={80}
                             paddingAngle={5}
                             dataKey="value"
                           >
@@ -487,7 +492,7 @@ export function Dashboard() {
                             ))}
                           </Pie>
                           <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                          <Legend verticalAlign="bottom" height={36}/>
+                          <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: "11px" }} />
                         </PieChart>
                       </ResponsiveContainer>
                    ) : (

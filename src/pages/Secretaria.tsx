@@ -58,6 +58,7 @@ import { EscalaDirigentesModal } from "@/components/secretaria/EscalaDirigentesM
 import { EscalaLimpezaModal } from "@/components/secretaria/EscalaLimpezaModal"
 import { EscalaMusicosModal } from "@/components/secretaria/EscalaMusicosModal"
 import { CrachaVoluntariosModal } from "@/components/secretaria/CrachaVoluntariosModal"
+import { FormulariosFinanceirosSecretariaModal } from "@/components/secretaria/FormulariosFinanceirosSecretariaModal"
 import { DigitalSignatureField } from "@/components/common/DigitalSignatureField"
 import { printDocument, downloadElementAsPdf } from "@/lib/printUtils"
 import { getRegisteredChurchLogo, drawChurchLogoInPdf, drawSafeChurchReportHeader } from "@/lib/churchLogoHelper"
@@ -138,6 +139,7 @@ export function Secretaria() {
   const [isKidsModalOpen, setIsKidsModalOpen] = useState(false);
   const [isCelulaModalOpen, setIsCelulaModalOpen] = useState(false);
   const [isIrpfModalOpen, setIsIrpfModalOpen] = useState(false);
+  const [isFormulariosFinanceirosModalOpen, setIsFormulariosFinanceirosModalOpen] = useState(false);
   const [selectedIrpfMember, setSelectedIrpfMember] = useState<any>(null);
 
   useEffect(() => {
@@ -4201,7 +4203,7 @@ export function Secretaria() {
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 w-full">
               {/* 1. Escala do Mural */}
               <Button 
                 variant="outline" 
@@ -4274,6 +4276,21 @@ export function Secretaria() {
                 <div>
                   <div className="font-semibold text-sm">Crachás Oficiais</div>
                   <div className="text-xs text-muted-foreground font-normal">Diaconato, Kids & Eventos</div>
+                </div>
+              </Button>
+
+              {/* 6. Formulários Financeiros da Secretaria (Entradas, Saídas, Dizimista, Fechamento) */}
+              <Button 
+                variant="outline" 
+                onClick={() => setIsFormulariosFinanceirosModalOpen(true)} 
+                className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all text-left w-full shadow-sm"
+              >
+                <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-lg text-emerald-700 dark:text-emerald-400">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-semibold text-sm">Formulários Financeiros</div>
+                  <div className="text-xs text-muted-foreground font-normal">Entradas, Saídas, Dizimista & Fechamento</div>
                 </div>
               </Button>
             </div>
@@ -5666,6 +5683,15 @@ export function Secretaria() {
         isOpen={isEscalaMusicosModalOpen}
         onClose={() => setIsEscalaMusicosModalOpen(false)}
         members={members}
+        churchData={churchData}
+        activeBranchName={activeBranchName}
+        activeBranchId={activeBranch}
+      />
+
+      {/* Modal de Formulários Financeiros da Secretaria (Entradas, Saídas, Dizimista, Fechamento) */}
+      <FormulariosFinanceirosSecretariaModal
+        isOpen={isFormulariosFinanceirosModalOpen}
+        onClose={() => setIsFormulariosFinanceirosModalOpen(false)}
         churchData={churchData}
         activeBranchName={activeBranchName}
         activeBranchId={activeBranch}

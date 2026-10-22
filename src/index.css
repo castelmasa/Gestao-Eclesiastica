@@ -472,4 +472,10 @@ body {
   pointer-events: auto !important;
 }
 
+/* Previne rolagem horizontal em celulares e telas pequenas */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 

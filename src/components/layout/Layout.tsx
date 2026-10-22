@@ -805,8 +805,8 @@ export function Layout() {
           </Popover>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 via-slate-50/80 to-slate-100/40 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 relative">
-          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-slate-50 via-slate-50/80 to-slate-100/40 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 relative w-full min-w-0">
+          <div className="mx-auto max-w-7xl px-2.5 sm:px-6 py-4 sm:py-8 w-full min-w-0 max-w-full">
             <Breadcrumbs />
             <Outlet />
           </div>

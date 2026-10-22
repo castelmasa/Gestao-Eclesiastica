@@ -1522,7 +1522,7 @@ export function Financeiro() {
             <DialogTrigger asChild>
               <Button variant="outline"><FileText className="mr-2 h-4 w-4" /> Relatórios</Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[460px] max-h-[88vh] overflow-y-auto p-5">
+            <DialogContent className="w-[95vw] sm:max-w-[480px] max-h-[88vh] overflow-y-auto p-4 sm:p-5 overflow-x-hidden">
               <DialogHeader>
                 <DialogTitle>Opções de Relatório</DialogTitle>
                 <DialogDescription>
@@ -1530,7 +1530,7 @@ export function Financeiro() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="grid grid-cols-2 gap-3 py-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-2">
                  <div className="grid gap-1.5">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="reportStartMonth" className="text-xs font-semibold">Mês Inicial</Label>
@@ -1770,15 +1770,15 @@ export function Financeiro() {
             <DialogTrigger asChild>
               {canAddTransaction && <Button onClick={handleOpenAddModal}><Plus className="mr-2 h-4 w-4" /> Nova Transação</Button>}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[560px]">
+            <DialogContent className="w-[95vw] sm:max-w-[560px] max-h-[92vh] flex flex-col p-3.5 sm:p-6 overflow-x-hidden">
               <DialogHeader>
                 <DialogTitle>{editingTransaction ? "Editar Transação" : "Nova Transação"}</DialogTitle>
-                <DialogDescription>
+                <DialogDescription className="text-xs sm:text-sm">
                   {editingTransaction ? "Altere os dados da movimentação financeira." : "Adicione uma nova entrada ou saída ao caixa da igreja."}
                 </DialogDescription>
               </DialogHeader>
-              <form id="transactionForm" onSubmit={handleSaveTransaction}>
-                <div className="grid gap-4 py-3 max-h-[68vh] overflow-y-auto px-1">
+              <form id="transactionForm" onSubmit={handleSaveTransaction} className="flex flex-col flex-1 overflow-hidden">
+                <div className="grid gap-3.5 py-2 max-h-[68vh] overflow-y-auto px-0.5">
                   
                   {/* Item pré-cadastrado e Descrição */}
                   <div className="space-y-2 bg-muted/20 p-2.5 rounded-lg border border-border/60">
@@ -1842,7 +1842,7 @@ export function Financeiro() {
                   </div>
 
                   {/* Valor e Data */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="grid gap-1.5">
                       <Label htmlFor="amount">Valor (R$)</Label>
                       <Input 
@@ -1941,7 +1941,7 @@ export function Financeiro() {
                   </div>
 
                   {/* Tipo e Categoria com Nova Categoria */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="grid gap-1.5">
                       <Label htmlFor="type">Tipo</Label>
                       <Select name="type" value={transactionType} onValueChange={(val) => setTransactionType(val as "entrada" | "saida")} >
@@ -2003,7 +2003,7 @@ export function Financeiro() {
                   {/* Campos condicionais de Entrada */}
                   {transactionType === 'entrada' && (
                     <>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="grid gap-1.5">
                           <Label htmlFor="documentNumber" className="flex items-center gap-1">
                             Nº Documento / Recibo
@@ -2061,7 +2061,7 @@ export function Financeiro() {
                   {/* Campos condicionais de Saída */}
                   {transactionType === 'saida' && (
                     <>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="grid gap-1.5">
                           <Label htmlFor="supplierId">Fornecedor / Beneficiário</Label>
                           <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
@@ -2093,7 +2093,7 @@ export function Financeiro() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="grid gap-1.5">
                           <Label htmlFor="costCenter">Centro de Custo</Label>
                           <Select value={selectedCostCenter} onValueChange={setSelectedCostCenter}>
@@ -2185,7 +2185,7 @@ export function Financeiro() {
                   )}
 
                   {/* Status e Vencimento */}
-                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/60">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border/60">
                     <div className="grid gap-1.5">
                       <Label htmlFor="status">Status da Liquidação</Label>
                       <Select value={selectedStatus} onValueChange={(val: any) => setSelectedStatus(val)}>
@@ -2231,7 +2231,7 @@ export function Financeiro() {
                     </div>
                   </div>
                 </div>
-                <DialogFooter className="mt-2 pt-2 border-t">
+                <DialogFooter className="mt-2 pt-2 border-t flex flex-row justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsTransactionModalOpen(false)}>Cancelar</Button>
                   <Button 
                     type="submit"
@@ -2245,7 +2245,7 @@ export function Financeiro() {
 
           {/* Modal Rápido: Cadastrar Nova Categoria */}
           <Dialog open={isQuickCategoryOpen} onOpenChange={setIsQuickCategoryOpen}>
-            <DialogContent className="sm:max-w-[420px]">
+            <DialogContent className="w-[95vw] sm:max-w-[420px] p-4 sm:p-6 overflow-x-hidden">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Plus className="h-5 w-5 text-primary" />
@@ -2282,7 +2282,7 @@ export function Financeiro() {
 
           {/* Modal Rápido: Cadastrar Novo Item */}
           <Dialog open={isQuickItemOpen} onOpenChange={setIsQuickItemOpen}>
-            <DialogContent className="sm:max-w-[440px]">
+            <DialogContent className="w-[95vw] sm:max-w-[440px] p-4 sm:p-6 overflow-x-hidden">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Plus className="h-5 w-5 text-primary" />
@@ -2328,7 +2328,7 @@ export function Financeiro() {
           </Dialog>
 
           <Dialog open={isCategoryManagerOpen} onOpenChange={setIsCategoryManagerOpen}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="w-[95vw] sm:max-w-[440px] p-4 sm:p-6 overflow-x-hidden">
               <DialogHeader>
                 <DialogTitle>Gerenciar Categorias</DialogTitle>
                 <DialogDescription>

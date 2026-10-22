@@ -116,6 +116,58 @@ export function EscalaLimpezaModal({
     return churchData?.pastorTitular || churchData?.pastor || "Diretoria de Patrimônio & Zeladoria";
   });
 
+  // Cadastrar / Gerenciar Equipes (Anexo 3)
+  const [customTeams, setCustomTeams] = useState<Array<{ id: string; name: string; leader?: string; members?: string }>>(() => {
+    try {
+      const saved = localStorage.getItem("church_limpeza_custom_teams");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  const [newTeamName, setNewTeamName] = useState("");
+  const [newTeamLeader, setNewTeamLeader] = useState("");
+  const [newTeamMembers, setNewTeamMembers] = useState("");
+
+  const handleSaveNewTeam = () => {
+    if (!newTeamName.trim()) {
+      toast.error("Por favor, digite o nome da equipe.");
+      return;
+    }
+    const newTeam = {
+      id: `team_${Date.now()}`,
+      name: newTeamName.trim(),
+      leader: newTeamLeader.trim(),
+      members: newTeamMembers.trim()
+    };
+    const updated = [...customTeams, newTeam];
+    setCustomTeams(updated);
+    localStorage.setItem("church_limpeza_custom_teams", JSON.stringify(updated));
+    
+    setFormData(prev => ({
+      ...prev,
+      equipe: newTeam.name,
+      coordenador: newTeam.leader || prev.coordenador,
+      voluntarios: newTeam.members || prev.voluntarios
+    }));
+
+    setNewTeamName("");
+    setNewTeamLeader("");
+    setNewTeamMembers("");
+    setIsTeamModalOpen(false);
+    toast.success(`Equipe "${newTeam.name}" cadastrada e selecionada com sucesso!`);
+  };
+
+  const handleDeleteCustomTeam = (teamId: string) => {
+    const updated = customTeams.filter(t => t.id !== teamId);
+    setCustomTeams(updated);
+    localStorage.setItem("church_limpeza_custom_teams", JSON.stringify(updated));
+    toast.info("Equipe removida.");
+  };
+
   const churchLogo = getRegisteredChurchLogo(activeBranchId) || churchData?.logoDataUrl || null;
   const churchName = churchData?.nome || `Igreja Evang. Pentecostal O Brasil para Cristo - ${activeBranchName}`;
 
@@ -424,20 +476,54 @@ export function EscalaLimpezaModal({
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold">Equipe / Ministério Responsável</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">Equipe / Ministério Responsável</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsTeamModalOpen(true)}
+                      className="h-6 text-[11px] font-bold text-primary hover:bg-primary/10 px-2"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Cadastrar Equipe
+                    </Button>
+                  </div>
                   <Select
                     value={formData.equipe}
-                    onValueChange={(val) => setFormData(p => ({ ...p, equipe: val }))}
+                    onValueChange={(val) => {
+                      setFormData(p => ({ ...p, equipe: val }));
+                      const found = customTeams.find(t => t.name === val);
+                      if (found) {
+                        if (found.leader) setFormData(p => ({ ...p, coordenador: found.leader || p.coordenador }));
+                        if (found.members) setFormData(p => ({ ...p, voluntarios: found.members || p.voluntarios }));
+                      }
+                    }}
                   >
                     <SelectTrigger className="h-8 text-xs bg-background">
                       <SelectValue placeholder="Selecione a equipe" />
                     </SelectTrigger>
                     <SelectContent>
+                      <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase">
+                        Equipes Sugeridas
+                      </div>
                       {EQUIPES_SUGERIDAS.map((eq) => (
                         <SelectItem key={eq} value={eq} className="text-xs">
                           {eq}
                         </SelectItem>
                       ))}
+                      {customTeams.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 mt-1 border-t text-[10px] font-bold text-primary uppercase">
+                            Minhas Equipes Cadastradas
+                          </div>
+                          {customTeams.map((ct) => (
+                            <SelectItem key={ct.id} value={ct.name} className="text-xs font-bold text-primary">
+                              ★ {ct.name} {ct.leader ? `(Líder: ${ct.leader})` : ""}
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                   <Input
@@ -760,6 +846,96 @@ export function EscalaLimpezaModal({
             className="bg-red-600 hover:bg-red-700 text-white font-bold"
           >
             {isDeleting ? "Excluindo..." : "Sim, Excluir"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    {/* MODAL DE CADASTRO / GERENCIAMENTO DE EQUIPE (Anexo 3) */}
+    <Dialog open={isTeamModalOpen} onOpenChange={setIsTeamModalOpen}>
+      <DialogContent className="max-w-md p-6">
+        <DialogHeader className="border-b pb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600">
+              <Users className="w-5 h-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
+                Cadastrar Equipe de Limpeza
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Crie um grupo permanente de voluntários e líderes para escalas da igreja.
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-3 py-2 text-xs">
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold">Nome da Equipe *</Label>
+            <Input
+              placeholder="Ex: Equipe 6 - Berçário & Louvor"
+              value={newTeamName}
+              onChange={(e) => setNewTeamName(e.target.value)}
+              className="h-8 text-xs font-bold"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold">Líder / Coordenador(a)</Label>
+            <Input
+              placeholder="Ex: Irmã Maria Francinete"
+              value={newTeamLeader}
+              onChange={(e) => setNewTeamLeader(e.target.value)}
+              className="h-8 text-xs"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold">Voluntários Padrão</Label>
+            <Input
+              placeholder="Ex: Ana, Carla, Juliana, Patrícia..."
+              value={newTeamMembers}
+              onChange={(e) => setNewTeamMembers(e.target.value)}
+              className="h-8 text-xs"
+            />
+          </div>
+
+          {customTeams.length > 0 && (
+            <div className="pt-2 border-t mt-2">
+              <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                Equipes Já Cadastradas ({customTeams.length}):
+              </Label>
+              <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
+                {customTeams.map((ct) => (
+                  <div key={ct.id} className="flex items-center justify-between p-2 rounded bg-muted/40 border text-xs">
+                    <div>
+                      <p className="font-bold text-slate-900 dark:text-slate-100">{ct.name}</p>
+                      {ct.leader && <p className="text-[10px] text-muted-foreground">Líder: {ct.leader}</p>}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteCustomTeam(ct.id)}
+                      className="h-6 w-6 p-0 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                      title="Excluir equipe"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="border-t pt-3 flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={() => setIsTeamModalOpen(false)}>
+            Cancelar
+          </Button>
+          <Button size="sm" onClick={handleSaveNewTeam} className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Save className="w-3.5 h-3.5 mr-1" />
+            Cadastrar Equipe
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -195,42 +195,42 @@ export function RevenueEvolutionChart({
   const StatusIconComponent = stats.statusIcon
 
   return (
-    <Card className="border-border/80 shadow-xs flex flex-col justify-between">
-      <CardHeader className="pb-3 space-y-2.5">
+    <Card className="border-border/80 shadow-xs flex flex-col justify-between w-full min-w-0 overflow-hidden">
+      <CardHeader className="p-3.5 sm:p-5 pb-2.5 sm:pb-3 space-y-2">
         {/* Linha 1: Título e Identificação da Igreja */}
-        <div className="flex items-center justify-between gap-2 min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <TrendingUp className="w-4 h-4" />
+        <div className="flex items-center justify-between gap-1.5 min-w-0 w-full">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
-            <CardTitle className="text-base font-bold text-foreground truncate">
+            <CardTitle className="text-sm sm:text-base font-bold text-foreground truncate">
               Receitas vs Despesas
             </CardTitle>
           </div>
           
           <Badge 
             variant="outline" 
-            className="text-[11px] font-medium whitespace-nowrap shrink-0 gap-1.5 items-center px-2.5 py-0.5 border-border/80 bg-muted/30"
+            className="text-[10px] sm:text-[11px] font-medium whitespace-nowrap shrink-0 gap-1 items-center px-2 py-0.5 border-border/80 bg-muted/30 max-w-[120px] sm:max-w-[170px]"
           >
-            <Building2 className="w-3 h-3 text-primary shrink-0" />
-            <span className="truncate max-w-[130px]">{activeBranchName}</span>
+            <Building2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary shrink-0" />
+            <span className="truncate">{activeBranchName}</span>
           </Badge>
         </div>
 
         {/* Linha 2: Subtítulo e Controles alinhados responsivamente */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-border/40">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-border/40 w-full min-w-0">
           <CardDescription className="text-xs text-muted-foreground truncate">
             Evolução mensal e demonstrativo financeiro
           </CardDescription>
 
-          <div className="flex items-center gap-1.5 flex-wrap self-start sm:self-auto">
+          <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto justify-between sm:justify-start">
             {/* Seletor de Período */}
-            <div className="inline-flex bg-muted/80 p-0.5 rounded-lg text-xs font-medium">
+            <div className="inline-flex bg-muted/80 p-0.5 rounded-lg text-xs font-medium shrink-0">
               <button
                 type="button"
                 onClick={() => setPeriodMonths(6)}
                 className={cn(
-                  "px-2 py-0.5 rounded-md transition-all text-xs font-semibold whitespace-nowrap",
+                  "px-2 py-0.5 rounded-md transition-all text-[11px] sm:text-xs font-semibold whitespace-nowrap",
                   periodMonths === 6 
                     ? "bg-card text-foreground shadow-2xs font-bold" 
                     : "text-muted-foreground hover:text-foreground"
@@ -242,7 +242,7 @@ export function RevenueEvolutionChart({
                 type="button"
                 onClick={() => setPeriodMonths(12)}
                 className={cn(
-                  "px-2 py-0.5 rounded-md transition-all text-xs font-semibold whitespace-nowrap",
+                  "px-2 py-0.5 rounded-md transition-all text-[11px] sm:text-xs font-semibold whitespace-nowrap",
                   periodMonths === 12 
                     ? "bg-card text-foreground shadow-2xs font-bold" 
                     : "text-muted-foreground hover:text-foreground"
@@ -253,12 +253,12 @@ export function RevenueEvolutionChart({
             </div>
 
             {/* Seletor de Tipo de Gráfico */}
-            <div className="inline-flex bg-muted/80 p-0.5 rounded-lg text-xs font-medium">
+            <div className="inline-flex bg-muted/80 p-0.5 rounded-lg text-xs font-medium shrink-0">
               <button
                 type="button"
                 onClick={() => setChartMode("composed")}
                 className={cn(
-                  "px-2 py-0.5 rounded-md transition-all text-xs font-semibold whitespace-nowrap",
+                  "px-2 py-0.5 rounded-md transition-all text-[11px] sm:text-xs font-semibold whitespace-nowrap",
                   chartMode === "composed" 
                     ? "bg-card text-foreground shadow-2xs font-bold" 
                     : "text-muted-foreground hover:text-foreground"
@@ -271,7 +271,7 @@ export function RevenueEvolutionChart({
                 type="button"
                 onClick={() => setChartMode("area")}
                 className={cn(
-                  "px-2 py-0.5 rounded-md transition-all text-xs font-semibold whitespace-nowrap",
+                  "px-2 py-0.5 rounded-md transition-all text-[11px] sm:text-xs font-semibold whitespace-nowrap",
                   chartMode === "area" 
                     ? "bg-card text-foreground shadow-2xs font-bold" 
                     : "text-muted-foreground hover:text-foreground"
@@ -284,7 +284,7 @@ export function RevenueEvolutionChart({
                 type="button"
                 onClick={() => setChartMode("bar")}
                 className={cn(
-                  "px-2 py-0.5 rounded-md transition-all text-xs font-semibold whitespace-nowrap",
+                  "px-2 py-0.5 rounded-md transition-all text-[11px] sm:text-xs font-semibold whitespace-nowrap",
                   chartMode === "bar" 
                     ? "bg-card text-foreground shadow-2xs font-bold" 
                     : "text-muted-foreground hover:text-foreground"
@@ -298,54 +298,54 @@ export function RevenueEvolutionChart({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="p-3.5 sm:p-5 pt-0 space-y-3 sm:space-y-4 w-full min-w-0">
         {/* Painel de Saúde Financeira & KPIs: 2 colunas perfeitamente equilibradas */}
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-2 sm:gap-2.5 w-full min-w-0">
           {/* Card 1: Receitas */}
-          <div className="p-2.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-900/50 flex flex-col justify-between min-w-0">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-900/50 flex flex-col justify-between min-w-0 overflow-hidden">
             <span className="text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-400 tracking-wider truncate">
               Receitas ({periodMonths}m)
             </span>
-            <div className="text-base sm:text-lg font-black text-emerald-900 dark:text-emerald-200 my-0.5 whitespace-nowrap truncate">
+            <div className="text-sm sm:text-lg font-black text-emerald-900 dark:text-emerald-200 my-0.5 whitespace-nowrap truncate">
               {formatCurrency(stats.totalReceitas)}
             </div>
-            <span className="text-[11px] text-muted-foreground truncate">
+            <span className="text-[10px] sm:text-[11px] text-muted-foreground truncate">
               Média: {formatCurrency(stats.mediaMensalReceitas)}/mês
             </span>
           </div>
 
           {/* Card 2: Despesas */}
-          <div className="p-2.5 rounded-xl bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200/70 dark:border-rose-900/50 flex flex-col justify-between min-w-0">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200/70 dark:border-rose-900/50 flex flex-col justify-between min-w-0 overflow-hidden">
             <span className="text-[10px] font-bold uppercase text-rose-700 dark:text-rose-400 tracking-wider truncate">
               Despesas ({periodMonths}m)
             </span>
-            <div className="text-base sm:text-lg font-black text-rose-900 dark:text-rose-200 my-0.5 whitespace-nowrap truncate">
+            <div className="text-sm sm:text-lg font-black text-rose-900 dark:text-rose-200 my-0.5 whitespace-nowrap truncate">
               {formatCurrency(stats.totalDespesas)}
             </div>
-            <span className="text-[11px] text-muted-foreground truncate">
+            <span className="text-[10px] sm:text-[11px] text-muted-foreground truncate">
               Comprometimento: {stats.taxaComprometimento.toFixed(0)}%
             </span>
           </div>
 
           {/* Card 3: Saldo Líquido */}
-          <div className="p-2.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/70 dark:border-blue-900/50 flex flex-col justify-between min-w-0">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/70 dark:border-blue-900/50 flex flex-col justify-between min-w-0 overflow-hidden">
             <span className="text-[10px] font-bold uppercase text-blue-700 dark:text-blue-400 tracking-wider truncate">
               Saldo Líquido
             </span>
             <div className={cn(
-              "text-base sm:text-lg font-black my-0.5 whitespace-nowrap truncate",
+              "text-sm sm:text-lg font-black my-0.5 whitespace-nowrap truncate",
               stats.saldoLiquido >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"
             )}>
               {formatCurrency(stats.saldoLiquido)}
             </div>
-            <span className="text-[11px] text-muted-foreground truncate">
+            <span className="text-[10px] sm:text-[11px] text-muted-foreground truncate">
               Margem: {stats.margemLiquida.toFixed(1)}%
             </span>
           </div>
 
           {/* Card 4: Termômetro de Saúde Financeira */}
           <div className={cn(
-            "p-2.5 rounded-xl border flex flex-col justify-between min-w-0",
+            "p-2 sm:p-2.5 rounded-xl border flex flex-col justify-between min-w-0 overflow-hidden",
             stats.statusColor
           )}>
             <div className="flex items-center justify-between gap-1">
@@ -354,27 +354,28 @@ export function RevenueEvolutionChart({
               </span>
               <StatusIconComponent className="w-3.5 h-3.5 shrink-0" />
             </div>
-            <div className="text-sm font-black my-0.5 truncate">
+            <div className="text-xs sm:text-sm font-black my-0.5 truncate">
               {stats.statusLabel}
             </div>
-            <p className="text-[10px] opacity-90 truncate leading-tight">
+            <p className="text-[9px] sm:text-[10px] opacity-90 truncate leading-tight">
               {stats.statusDesc}
             </p>
           </div>
         </div>
 
         {/* Recharts Visualizer */}
-        <div className="h-[270px] w-full pt-1">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-[240px] sm:h-[270px] w-full min-w-0 overflow-hidden pt-1">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             {chartMode === "composed" ? (
-              <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+              <ComposedChart data={chartData} margin={{ top: 10, right: 8, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.1} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
                 <YAxis 
                   tickLine={false} 
                   axisLine={false} 
-                  tickFormatter={val => `R$${Math.abs(val) >= 1000 ? (val/1000).toFixed(0) + 'k' : val}`} 
-                  tick={{ fontSize: 11 }} 
+                  width={36}
+                  tickFormatter={val => val === 0 ? "0" : `R$${Math.abs(val) >= 1000 ? (val/1000).toFixed(0) + 'k' : val}`} 
+                  tick={{ fontSize: 10 }} 
                 />
                 <Tooltip 
                   formatter={(val: number, name: string) => [
@@ -386,26 +387,26 @@ export function RevenueEvolutionChart({
                     borderColor: "rgba(255,255,255,0.15)", 
                     borderRadius: "10px", 
                     color: "#fff", 
-                    fontSize: "12px",
+                    fontSize: "11px",
                     boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3)"
                   }}
                 />
-                <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: "12px" }} />
+                <Legend verticalAlign="top" height={26} iconType="circle" wrapperStyle={{ fontSize: "11px" }} />
                 <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="2 2" />
-                <Bar name="Receitas" dataKey="receitas" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                <Bar name="Despesas" dataKey="despesas" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                <Bar name="Receitas" dataKey="receitas" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar name="Despesas" dataKey="despesas" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={28} />
                 <Line 
                   type="monotone" 
                   name="Saldo Líquido" 
                   dataKey="saldo" 
                   stroke="#3b82f6" 
                   strokeWidth={2.5} 
-                  dot={{ r: 3.5, fill: "#3b82f6", strokeWidth: 2, stroke: "#fff" }} 
-                  activeDot={{ r: 5 }} 
+                  dot={{ r: 3, fill: "#3b82f6", strokeWidth: 1.5, stroke: "#fff" }} 
+                  activeDot={{ r: 4.5 }} 
                 />
               </ComposedChart>
             ) : chartMode === "area" ? (
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 10, right: 8, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorReceitas" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
@@ -421,12 +422,13 @@ export function RevenueEvolutionChart({
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.1} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
                 <YAxis 
                   tickLine={false} 
                   axisLine={false} 
-                  tickFormatter={val => `R$${Math.abs(val) >= 1000 ? (val/1000).toFixed(0) + 'k' : val}`} 
-                  tick={{ fontSize: 11 }} 
+                  width={36}
+                  tickFormatter={val => val === 0 ? "0" : `R$${Math.abs(val) >= 1000 ? (val/1000).toFixed(0) + 'k' : val}`} 
+                  tick={{ fontSize: 10 }} 
                 />
                 <Tooltip 
                   formatter={(val: number, name: string) => [
@@ -438,24 +440,25 @@ export function RevenueEvolutionChart({
                     borderColor: "rgba(255,255,255,0.15)", 
                     borderRadius: "10px", 
                     color: "#fff", 
-                    fontSize: "12px" 
+                    fontSize: "11px" 
                   }}
                 />
-                <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: "12px" }} />
+                <Legend verticalAlign="top" height={26} iconType="circle" wrapperStyle={{ fontSize: "11px" }} />
                 <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="2 2" />
                 <Area type="monotone" name="Receitas" dataKey="receitas" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorReceitas)" />
                 <Area type="monotone" name="Despesas" dataKey="despesas" stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#colorDespesas)" />
                 <Area type="monotone" name="Saldo Líquido" dataKey="saldo" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorSaldo)" />
               </AreaChart>
             ) : (
-              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+              <BarChart data={chartData} margin={{ top: 10, right: 8, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.1} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
                 <YAxis 
                   tickLine={false} 
                   axisLine={false} 
-                  tickFormatter={val => `R$${Math.abs(val) >= 1000 ? (val/1000).toFixed(0) + 'k' : val}`} 
-                  tick={{ fontSize: 11 }} 
+                  width={36}
+                  tickFormatter={val => val === 0 ? "0" : `R$${Math.abs(val) >= 1000 ? (val/1000).toFixed(0) + 'k' : val}`} 
+                  tick={{ fontSize: 10 }} 
                 />
                 <Tooltip 
                   formatter={(val: number, name: string) => [
@@ -467,13 +470,13 @@ export function RevenueEvolutionChart({
                     borderColor: "rgba(255,255,255,0.15)", 
                     borderRadius: "10px", 
                     color: "#fff", 
-                    fontSize: "12px" 
+                    fontSize: "11px" 
                   }}
                 />
-                <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: "12px" }} />
+                <Legend verticalAlign="top" height={26} iconType="circle" wrapperStyle={{ fontSize: "11px" }} />
                 <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="2 2" />
-                <Bar name="Receitas" dataKey="receitas" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                <Bar name="Despesas" dataKey="despesas" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                <Bar name="Receitas" dataKey="receitas" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar name="Despesas" dataKey="despesas" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={28} />
               </BarChart>
             )}
           </ResponsiveContainer>
