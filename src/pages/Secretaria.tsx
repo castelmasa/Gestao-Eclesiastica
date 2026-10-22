@@ -17,7 +17,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Search, Printer, Mail, FileText, Edit, Trash2, MessageCircle, Download, Contact, Info, Sparkles, Camera, Folder, Bell, Award, Building2, QrCode, FolderClock, CheckCircle2, Image as ImageIcon, FilePlus2, Layers, Eye, RefreshCw, Check, User, Droplet, HeartHandshake, CalendarDays, Baby } from "lucide-react"
+import { Plus, Search, Printer, Mail, FileText, Edit, Trash2, MessageCircle, Download, Contact, Info, Sparkles, Camera, Folder, Bell, Award, Building2, QrCode, FolderClock, CheckCircle2, Image as ImageIcon, FilePlus2, Layers, Eye, RefreshCw, Check, User, Droplet, HeartHandshake, CalendarDays, Baby, Barcode, ClipboardList, Users, IdCard, Mic, Brush, Music } from "lucide-react"
+import { BarcodeGenerator, generateBarcodeDataUrl } from "@/components/common/BarcodeGenerator"
+import { QRCodeSVG } from "qrcode.react"
+import QRCode from "qrcode"
 import { CheckinKidsModal } from "@/components/secretaria/CheckinKidsModal"
 import { RelatorioSemanalCelulaModal } from "@/components/secretaria/RelatorioSemanalCelulaModal"
 import { DeclaracaoContribuicaoIrpfModal } from "@/components/secretaria/DeclaracaoContribuicaoIrpfModal"
@@ -49,7 +52,12 @@ import { MemberWhatsAppMessageModal, MessageTemplateType } from "@/components/se
 import { ComunicadosModal } from "@/components/secretaria/ComunicadosModal"
 import { FichaMembroPrintable, FichaMembroData } from "@/components/secretaria/FichaMembroPrintable"
 import { SecretariaPdfExportModal } from "@/components/secretaria/SecretariaPdfExportModal"
-import { FichaCandidatoBatismoModal } from "@/components/secretaria/FichaCandidatoBatismoModal"
+import { FichaVisitasAcompanhamentoModal } from "@/components/secretaria/FichaVisitasAcompanhamentoModal"
+import { EscalaMuralDiaconatoModal } from "@/components/secretaria/EscalaMuralDiaconatoModal"
+import { EscalaDirigentesModal } from "@/components/secretaria/EscalaDirigentesModal"
+import { EscalaLimpezaModal } from "@/components/secretaria/EscalaLimpezaModal"
+import { EscalaMusicosModal } from "@/components/secretaria/EscalaMusicosModal"
+import { CrachaVoluntariosModal } from "@/components/secretaria/CrachaVoluntariosModal"
 import { DigitalSignatureField } from "@/components/common/DigitalSignatureField"
 import { printDocument, downloadElementAsPdf } from "@/lib/printUtils"
 import { getRegisteredChurchLogo, drawChurchLogoInPdf, drawSafeChurchReportHeader } from "@/lib/churchLogoHelper"
@@ -263,10 +271,32 @@ export function Secretaria() {
   const [fichaMemberTarget, setFichaMemberTarget] = useState<any>(null)
   const [customFichaSeq, setCustomFichaSeq] = useState("")
   const [isPdfExportModalOpen, setIsPdfExportModalOpen] = useState(false)
-  const [isBatismoModalOpen, setIsBatismoModalOpen] = useState(false)
-  const [batismoMemberTarget, setBatismoMemberTarget] = useState<any>(null)
+  const [isVisitasModalOpen, setIsVisitasModalOpen] = useState(false)
+  const [visitasMemberTarget, setVisitasMemberTarget] = useState<any>(null)
+  const [isEscalaMuralModalOpen, setIsEscalaMuralModalOpen] = useState(false)
+  const [isEscalaDirigentesModalOpen, setIsEscalaDirigentesModalOpen] = useState(false)
+  const [isEscalaLimpezaModalOpen, setIsEscalaLimpezaModalOpen] = useState(false)
+  const [isEscalaMusicosModalOpen, setIsEscalaMusicosModalOpen] = useState(false)
+  const [isCrachaVoluntariosModalOpen, setIsCrachaVoluntariosModalOpen] = useState(false)
   const [memberSignatureUrl, setMemberSignatureUrl] = useState("")
   const [memberSignatureFileName, setMemberSignatureFileName] = useState("")
+
+  // Lista de Voluntários para Emissão de Crachás
+  const secretariaVolunteersList = useMemo(() => {
+    try {
+      const saved = localStorage.getItem("church_escala_voluntarios");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return (members || []).map((m: any, idx: number) => ({
+      id: m.id || `m_${idx}`,
+      name: m.name || m.nome || "Voluntário",
+      role: m.role || m.cargo || "Diaconato",
+      phone: m.phone || ""
+    }));
+  }, [members]);
 
   // Estados para Registro e Histórico Pastoral de Visitas e Contatos
   const [memberCommunications, setMemberCommunications] = useState<any[]>([])
@@ -510,7 +540,7 @@ export function Secretaria() {
   const [logoToDelete, setLogoToDelete] = useState<any>(null)
   const [editingTemplate, setEditingTemplate] = useState<any>(null)
   const [templateToDelete, setTemplateToDelete] = useState<any>(null)
-  const [printTab, setPrintTab] = useState<'cards' | 'list'>('cards')
+  const [printTab, setPrintTab] = useState<'cards' | 'list' | 'irpf'>('cards')
   const [reportType, setReportType] = useState('ativos')
   const [reportMonth, setReportMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'))
   const [reportRole, setReportRole] = useState('all')
@@ -523,6 +553,41 @@ export function Secretaria() {
   const [cardColorBack, setCardColorBack] = useState<string>("#ffffff")
   const [cardTextColorFront, setCardTextColorFront] = useState<string>("#0f172a")
   const [cardTextColorBack, setCardTextColorBack] = useState<string>("#0f172a")
+  const [showBarcodeOnCard, setShowBarcodeOnCard] = useState<boolean>(true)
+  const [cardCodeType, setCardCodeType] = useState<'qrcode' | 'barcode'>('qrcode')
+  const [barcodeCardPosition, setBarcodeCardPosition] = useState<'back' | 'front' | 'both'>('back')
+  const [barcodeFormat, setBarcodeFormat] = useState<'cpf' | 'matricula'>('cpf')
+
+  const getMemberBarcodeValue = (m: any) => {
+    if (!m) return "00000000000";
+    if (barcodeFormat === 'cpf' && m.cpf) {
+      const clean = String(m.cpf).replace(/\D/g, "");
+      if (clean.length > 0) return clean;
+    }
+    const rawId = m.id || m.numeroFicha || "1";
+    const numOnly = String(rawId).replace(/\D/g, "") || "1";
+    return `MEM${numOnly.padStart(6, "0")}`;
+  };
+
+  const getMemberBarcodeDisplayText = (m: any) => {
+    if (!m) return "000.000.000-00";
+    if (barcodeFormat === 'cpf' && m.cpf) {
+      return `CPF ${m.cpf}`;
+    }
+    const rawId = m.id || m.numeroFicha || "1";
+    const numOnly = String(rawId).replace(/\D/g, "") || "1";
+    return `MAT: ${numOnly.padStart(6, "0")}`;
+  };
+
+  const getMemberQrPayload = (m: any) => {
+    if (!m) return "OBPC-MEMBRO-0001";
+    const name = m.name || m.nome || "Membro";
+    const role = m.role || m.cargo || "Membro";
+    const cpf = m.cpf || "N/A";
+    const id = m.id || m.numeroFicha || "1";
+    const church = churchData?.nome || activeBranchName || "OBPC";
+    return `OBPC-MEMBRO|ID:${id}|NOME:${name}|CARGO:${role}|CPF:${cpf}|CONGREGACAO:${church}|STATUS:ATIVO`;
+  };
   
   // Event Presence List Modal State
   const [isEventPresenceModalOpen, setIsEventPresenceModalOpen] = useState(false)
@@ -1201,6 +1266,26 @@ export function Secretaria() {
 
         drawRoundedBox(doc, fieldX, fieldY, 61, 6, "Cidade", `${member.cidade || ""} - ${member.naturalidade?.split('/')[1] || "SP"}`, cardColorFront)
 
+        if (showBarcodeOnCard && (barcodeCardPosition === 'front' || barcodeCardPosition === 'both')) {
+          try {
+            const bVal = getMemberBarcodeValue(member);
+            const bText = getMemberBarcodeDisplayText(member);
+            const bDataUrl = generateBarcodeDataUrl(bVal, {
+              width: 1.0,
+              height: 14,
+              fontSize: 6,
+              displayValue: true,
+              text: bText
+            });
+            if (bDataUrl) {
+              doc.setFillColor(255, 255, 255);
+              doc.setDrawColor(210);
+              doc.setLineWidth(0.1);
+              doc.roundedRect(fieldX, currentY + 50.5, 61, 6.5, 1, 1, 'FD');
+              doc.addImage(bDataUrl, 'PNG', fieldX + 3, currentY + 50.8, 55, 5.9, undefined, 'FAST');
+            }
+          } catch (e) {}
+        }
 
         // --- BACK ---
         let xBack = startX + cardW;
@@ -1232,51 +1317,103 @@ export function Secretaria() {
         drawRoundedBox(doc, bX, bY, 36, 5.5, "Nº CPF", member.cpf || "", cardColorBack)
         drawRoundedBox(doc, bX + 39, bY, 39, 5.5, "Nº RG", member.rg || "", cardColorBack)
 
-        // Signatures
+        // QR Code ou Código de Barras no Verso do Cartão
+        if (showBarcodeOnCard && (barcodeCardPosition === 'back' || barcodeCardPosition === 'both')) {
+          if (cardCodeType === 'qrcode') {
+            try {
+              const qrVal = getMemberQrPayload(member);
+              const qrDataUrl = await QRCode.toDataURL(qrVal, {
+                margin: 1,
+                width: 140,
+                color: { dark: '#000000', light: '#ffffff' }
+              });
+              if (qrDataUrl) {
+                doc.setFillColor(255, 255, 255);
+                doc.setDrawColor(180);
+                doc.setLineWidth(0.1);
+                // Quadrado perfeitamente centralizado entre as duas assinaturas, sem sobrepor!
+                doc.roundedRect(bX + 32.5, currentY + 38.5, 13, 13, 1, 1, 'FD');
+                doc.addImage(qrDataUrl, 'PNG', bX + 33, currentY + 39, 12, 12, undefined, 'FAST');
+                doc.setFontSize(4);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(80);
+                doc.text("VALIDAÇÃO", bX + 39, currentY + 53, { align: 'center' });
+                doc.setTextColor(cardTextColorBack);
+              }
+            } catch (e) {
+              console.warn("Error drawing QR code in PDF:", e);
+            }
+          } else {
+            try {
+              const bVal = getMemberBarcodeValue(member);
+              const bText = getMemberBarcodeDisplayText(member);
+              const bDataUrl = generateBarcodeDataUrl(bVal, {
+                width: 1.0,
+                height: 12,
+                fontSize: 6,
+                displayValue: true,
+                text: bText
+              });
+              if (bDataUrl) {
+                doc.setFillColor(255, 255, 255);
+                doc.setDrawColor(200);
+                doc.setLineWidth(0.1);
+                doc.roundedRect(bX + 10, currentY + 41, 58, 5, 0.5, 0.5, 'FD');
+                doc.addImage(bDataUrl, 'PNG', bX + 11, currentY + 41.2, 56, 4.6, undefined, 'FAST');
+              }
+            } catch (e) {
+              console.warn("Error drawing barcode in PDF:", e);
+            }
+          }
+        }
+
+        // Signatures (Perfeitamente dimensionadas e alinhadas dos dois lados)
         doc.setDrawColor(100);
         doc.setLineWidth(0.1);
         
-        let sigY = currentY + 52;
-        doc.line(bX, sigY-3, bX + 35, sigY-3)
-        doc.setFontSize(6)
-        doc.setFont("helvetica", "bold")
+        let sigY = currentY + 51;
+        // Assinatura do Membro (lado esquerdo: largura 30mm)
+        doc.line(bX + 1.5, sigY - 2.5, bX + 31, sigY - 2.5);
+        doc.setFontSize(5.5);
+        doc.setFont("helvetica", "bold");
         let memName = member.name || '';
-        let mFontSize = 6;
+        let mFontSize = 5.5;
         doc.setFontSize(mFontSize);
-        while (doc.getTextWidth(memName) > 30 && mFontSize > 3) {
+        while (doc.getTextWidth(memName) > 28 && mFontSize > 3) {
             mFontSize -= 0.5;
             doc.setFontSize(mFontSize);
         }
         
         if (churchData?.secretarySignatureUrl) {
             try {
-                doc.addImage(churchData.secretarySignatureUrl, 'PNG', bX + 3.5, sigY - 11, 28, 9, undefined, 'FAST')
+                doc.addImage(churchData.secretarySignatureUrl, 'PNG', bX + 3.5, sigY - 10, 24, 7, undefined, 'FAST');
             } catch(e) {}
         }
         
-        doc.text(memName, bX + 17.5, sigY, { align: 'center' })
-        doc.setFontSize(5)
-        doc.text("MEMBRO", bX + 17.5, sigY + 2.5, { align: 'center' })
+        doc.text(memName, bX + 16.25, sigY, { align: 'center' });
+        doc.setFontSize(4.5);
+        doc.text("MEMBRO", bX + 16.25, sigY + 2.5, { align: 'center' });
 
-        doc.line(bX + 42, sigY-3, bX + 78, sigY-3)
-        doc.setFont("helvetica", "bold")
+        // Assinatura do Pastor (lado direito: largura 30mm)
+        doc.line(bX + 47, sigY - 2.5, bX + 76.5, sigY - 2.5);
+        doc.setFont("helvetica", "bold");
         
         let pastorName = churchData?.pastorTitular || 'Pastor Responsável';
-        let pFontSize = 6;
+        let pFontSize = 5.5;
         doc.setFontSize(pFontSize);
-        while (doc.getTextWidth(pastorName) > 36 && pFontSize > 3) {
+        while (doc.getTextWidth(pastorName) > 28 && pFontSize > 3) {
             pFontSize -= 0.5;
             doc.setFontSize(pFontSize);
         }
         if (churchData?.pastorSignatureUrl) {
             try {
-                doc.addImage(churchData.pastorSignatureUrl, 'PNG', bX + 46, sigY - 11, 28, 9, undefined, 'FAST')
+                doc.addImage(churchData.pastorSignatureUrl, 'PNG', bX + 49, sigY - 10, 24, 7, undefined, 'FAST');
             } catch(e) {}
         }
-        doc.text(pastorName, bX + 60, sigY, { align: 'center' })
+        doc.text(pastorName, bX + 61.75, sigY, { align: 'center' });
         
-        doc.setFontSize(5)
-        doc.text("PASTOR LOCAL", bX + 60, sigY + 2.5, { align: 'center' })
+        doc.setFontSize(4.5);
+        doc.text("PASTOR LOCAL", bX + 61.75, sigY + 2.5, { align: 'center' });
 
         currentY += cardH;
         cardsOnPage++;
@@ -2521,16 +2658,6 @@ export function Secretaria() {
             >
               <Printer className="mr-1.5 h-4 w-4 text-primary" /> Exportar PDF / Imprimir
             </Button>
-            <Button 
-              onClick={() => {
-                setBatismoMemberTarget(null);
-                setIsBatismoModalOpen(true);
-              }} 
-              variant="outline"
-              className="border-sky-300 dark:border-sky-800 text-sky-700 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-950/40 font-semibold shadow-xs text-xs sm:text-sm h-9 sm:h-10 px-3.5" 
-            >
-              <Droplet className="mr-1.5 h-4 w-4 text-sky-600 dark:text-sky-400" /> Ficha de Batismo
-            </Button>
             <Button onClick={handleOpenAddModal} className="bg-primary text-primary-foreground shadow-xs hover:shadow-md transition-all font-semibold text-xs sm:text-sm h-9 sm:h-10 px-4">
               <Plus className="mr-1.5 h-4 w-4" /> Novo Membro
             </Button>
@@ -2640,8 +2767,20 @@ export function Secretaria() {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full mt-4">
-          <Dialog open={isDocsModalOpen} onOpenChange={setIsDocsModalOpen}>
+        {/* FRAME 1: DOCUMENTOS, COMUNICADOS & RELATÓRIOS OFICIAIS */}
+        <Card className="mt-4">
+          <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5 text-blue-600" />
+              Documentos, Comunicados & Relatórios Oficiais
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              Emissão de cartas pastorais, certificados solenes, carteirinhas de membros e comunicados institucionais.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 w-full">
+              <Dialog open={isDocsModalOpen} onOpenChange={setIsDocsModalOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-primary/5 transition-all text-left w-full shadow-sm">
                 <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg text-blue-600 dark:text-blue-400">
@@ -3403,7 +3542,7 @@ export function Secretaria() {
                 </div>
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="w-[96vw] max-w-4xl max-h-[92vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
               <DialogHeader>
                 <DialogTitle>Impressão e Relatórios</DialogTitle>
                 <DialogDescription>Gere relatórios de membros ou imprima carteirinhas personalizadas.</DialogDescription>
@@ -3500,9 +3639,19 @@ export function Secretaria() {
               {printTab === 'cards' && (
                 <div className="space-y-6 py-2">
                   {/* Card Preview */}
-                  <div className="flex flex-col items-center gap-4 mb-4 pt-4 border-b pb-6 overflow-hidden">
-                    <div className="flex items-center justify-between w-full px-4 mb-2"><h3 className="font-semibold text-slate-700">Visualização Online</h3><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => generateCardsPNG(true)}><Download className="w-4 h-4 mr-2" /> Baixar PNG</Button><Button variant="outline" size="sm" onClick={() => generateCardsPDF(true)}><Download className="w-4 h-4 mr-2" /> Baixar PDF</Button></div></div>
-                    <div className="flex flex-col sm:flex-row gap-4 origin-top" style={{ transform: 'scale(0.85)' }}>
+                  <div className="flex flex-col items-center gap-4 mb-4 pt-2 border-b pb-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full px-2 mb-2 gap-2">
+                      <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm">Visualização Online da Carteirinha</h3>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => generateCardsPNG(true)}>
+                          <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar PNG
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => generateCardsPDF(true)}>
+                          <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar PDF
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex flex-col lg:flex-row items-center justify-center gap-6 p-2 w-full overflow-x-auto">
                       {/* Front */}
                       <div id="card-preview-front"
                         className="border shadow-md relative text-[8px] font-sans overflow-hidden rounded-md transition-colors"
@@ -3583,6 +3732,21 @@ export function Secretaria() {
                               </div>
                            </div>
                         </div>
+
+                        {/* Barcode Frontal (se habilitado) */}
+                        {showBarcodeOnCard && (barcodeCardPosition === 'front' || barcodeCardPosition === 'both') && (
+                          <div className="mt-1 mx-2 flex items-center justify-center bg-white/95 rounded border border-slate-300 py-0.5 px-2 shadow-2xs">
+                            <BarcodeGenerator
+                              value={getMemberBarcodeValue(previewMember)}
+                              text={getMemberBarcodeDisplayText(previewMember)}
+                              width={0.95}
+                              height={12}
+                              fontSize={6}
+                              displayValue={true}
+                              lineColor="#000000"
+                            />
+                          </div>
+                        )}
                       </div>
 
                       {/* Back */}
@@ -3697,29 +3861,60 @@ export function Secretaria() {
                               <div className="flex-[0.2]"></div>
                            </div>
                         </div>
+
+                        {/* Código de Barras Tradicional (Apenas se configurado como barcode) */}
+                        {showBarcodeOnCard && cardCodeType === 'barcode' && (barcodeCardPosition === 'back' || barcodeCardPosition === 'both') && (
+                          <div className="my-0.5 mx-2 flex items-center justify-center bg-white/95 rounded border border-slate-300 py-0.5 px-2 shadow-2xs">
+                            <BarcodeGenerator
+                              value={getMemberBarcodeValue(previewMember)}
+                              text={getMemberBarcodeDisplayText(previewMember)}
+                              width={0.9}
+                              height={10}
+                              fontSize={6}
+                              displayValue={true}
+                              lineColor="#000000"
+                            />
+                          </div>
+                        )}
                         
-                        <div className="flex mt-2 mb-0.5 px-3 gap-3 justify-between h-[10mm] items-end relative">
+                        {/* Seção de Assinaturas e QR Code de Validação Centralizado */}
+                        <div className="flex mt-1 mb-0.5 px-2.5 gap-2 justify-between h-[12mm] items-end relative">
+                            {/* Assinatura do Membro */}
                             <div className="flex-1 flex flex-col items-center relative">
                                 {churchData?.secretarySignatureUrl && (
-                                    <img src={churchData.secretarySignatureUrl} className="absolute bottom-2 h-[8mm] object-contain opacity-80" alt="Assinatura" />
+                                    <img src={churchData.secretarySignatureUrl} className="absolute bottom-2 h-[7mm] object-contain opacity-80" alt="Assinatura" />
                                 )}
                                 <div className="w-full border-b z-10" style={{ borderColor: cardTextColorBack + '77' }}></div>
                                 <span 
-                                  className="font-bold mt-0.5 w-full text-center"
-                                  style={{ fontSize: (previewMember?.name || "").length > 26 ? '4.5px' : (previewMember?.name || "").length > 20 ? '5px' : '6px', whiteSpace: 'nowrap' }}
+                                  className="font-bold mt-0.5 w-full text-center truncate block"
+                                  style={{ fontSize: (previewMember?.name || "").length > 20 ? '4.5px' : '5.5px' }}
                                 >
                                   {previewMember?.name || "Membro"}
                                 </span>
                                 <span className="text-[5px] opacity-75">MEMBRO</span>
                             </div>
+
+                            {/* QR Code de Validação no Centro (Perfeito, sem cortes ou sobreposições) */}
+                            {showBarcodeOnCard && cardCodeType === 'qrcode' && (
+                              <div className="shrink-0 flex flex-col items-center justify-center p-0.5 bg-white rounded border border-slate-300 shadow-2xs">
+                                <QRCodeSVG 
+                                  value={getMemberQrPayload(previewMember)} 
+                                  size={34} 
+                                  level="M" 
+                                />
+                                <span className="text-[4px] font-bold text-slate-700 mt-0.5 leading-none">VALIDAÇÃO</span>
+                              </div>
+                            )}
+
+                            {/* Assinatura do Pastor */}
                             <div className="flex-1 flex flex-col items-center relative">
                                 {churchData?.pastorSignatureUrl && (
-                                    <img src={churchData.pastorSignatureUrl} className="absolute bottom-2 h-[8mm] object-contain opacity-80" alt="Assinatura Pastor" />
+                                    <img src={churchData.pastorSignatureUrl} className="absolute bottom-2 h-[7mm] object-contain opacity-80" alt="Assinatura Pastor" />
                                 )}
                                 <div className="w-full border-b z-10" style={{ borderColor: cardTextColorBack + '77' }}></div>
                                 <span 
-                                  className="font-bold mt-0.5 w-full text-center"
-                                  style={{ fontSize: (churchData?.pastorTitular || "Pastor Responsável").length > 26 ? '4.5px' : (churchData?.pastorTitular || "Pastor Responsável").length > 20 ? '5px' : '6px', whiteSpace: 'nowrap' }}
+                                  className="font-bold mt-0.5 w-full text-center truncate block"
+                                  style={{ fontSize: (churchData?.pastorTitular || "Pastor Responsável").length > 20 ? '4.5px' : '5.5px' }}
                                 >
                                   {churchData?.pastorTitular || "Pastor Responsável"}
                                 </span>
@@ -3890,6 +4085,69 @@ export function Secretaria() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Configuração do Código de Validação Oficial (QR Code / Barra) */}
+                    <div className="p-3 bg-muted/20 border border-border/70 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <QrCode className="w-4 h-4 text-emerald-600" />
+                          <span className="text-xs font-bold text-foreground uppercase tracking-wide">Código de Validação Digital (QR Code / Barra)</span>
+                        </div>
+                        <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={showBarcodeOnCard}
+                            onChange={(e) => setShowBarcodeOnCard(e.target.checked)}
+                            className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5"
+                          />
+                          <span>Exibir no Cartão</span>
+                        </label>
+                      </div>
+
+                      {showBarcodeOnCard && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Tipo de Código</Label>
+                            <Select value={cardCodeType} onValueChange={(v: any) => setCardCodeType(v)}>
+                              <SelectTrigger className="h-8 text-xs bg-background">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="qrcode">📱 QR Code (Recomendado)</SelectItem>
+                                <SelectItem value="barcode">📊 Código de Barras (CODE128)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs">Posicionamento</Label>
+                            <Select value={barcodeCardPosition} onValueChange={(v: any) => setBarcodeCardPosition(v)}>
+                              <SelectTrigger className="h-8 text-xs bg-background">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="back">Verso (Central entre Assinaturas)</SelectItem>
+                                <SelectItem value="front">Frente (Abaixo dos Dados)</SelectItem>
+                                <SelectItem value="both">Ambos (Frente e Verso)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs">Identificador</Label>
+                            <Select value={barcodeFormat} onValueChange={(v: any) => setBarcodeFormat(v)}>
+                              <SelectTrigger className="h-8 text-xs bg-background">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="cpf">CPF do Membro (Padrão)</SelectItem>
+                                <SelectItem value="matricula">Matrícula (MEM-000001)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex gap-2 mt-4"><Button variant="outline" className="flex-1" onClick={() => generateCardsPNG(false)}>Exportar PNGs (ZIP)</Button><Button className="flex-1" onClick={() => generateCardsPDF(false)}>Gerar PDF</Button></div>
@@ -3927,7 +4185,100 @@ export function Secretaria() {
               <div className="text-xs text-muted-foreground font-normal">Gerenciar eclesiásticos</div>
             </div>
           </Button>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* FRAME 2: GESTÃO DE ESCALAS, MURAL DO TEMPLO & CRACHÁS */}
+        <Card className="mt-4">
+          <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-amber-600" />
+              Escalas da Igreja, Mural do Templo & Identificação
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              Escalas dos ministérios da congregação, publicação no mural oficial e confecção de crachás para obreiros e voluntários.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 w-full">
+              {/* 1. Escala do Mural */}
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEscalaMuralModalOpen(true)} 
+                className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all text-left w-full shadow-sm"
+              >
+                <div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-lg text-amber-700 dark:text-amber-400">
+                  <ClipboardList className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-semibold text-sm">Escala do Mural</div>
+                  <div className="text-xs text-muted-foreground font-normal">Diaconato & voluntários</div>
+                </div>
+              </Button>
+
+              {/* 2. Escala Dirigentes */}
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEscalaDirigentesModalOpen(true)} 
+                className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all text-left w-full shadow-sm"
+              >
+                <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg text-blue-700 dark:text-blue-400">
+                  <Mic className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-semibold text-sm">Escala Dirigentes</div>
+                  <div className="text-xs text-muted-foreground font-normal">Dirigentes e pregadores</div>
+                </div>
+              </Button>
+
+              {/* 3. Escala de Músicos */}
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEscalaMusicosModalOpen(true)} 
+                className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all text-left w-full shadow-sm"
+              >
+                <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-lg text-purple-700 dark:text-purple-400">
+                  <Music className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-semibold text-sm">Escala de Músicos</div>
+                  <div className="text-xs text-muted-foreground font-normal">Louvor e instrumentistas</div>
+                </div>
+              </Button>
+
+              {/* 4. Escala de Limpeza */}
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEscalaLimpezaModalOpen(true)} 
+                className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all text-left w-full shadow-sm"
+              >
+                <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-lg text-emerald-700 dark:text-emerald-400">
+                  <Brush className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-semibold text-sm">Escala de Limpeza</div>
+                  <div className="text-xs text-muted-foreground font-normal">Zeladoria e conservação</div>
+                </div>
+              </Button>
+
+              {/* 5. Crachás e Credenciais Oficiais */}
+              <Button 
+                variant="outline" 
+                onClick={() => setIsCrachaVoluntariosModalOpen(true)} 
+                className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all text-left w-full shadow-sm"
+              >
+                <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-lg text-indigo-700 dark:text-indigo-400">
+                  <IdCard className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-semibold text-sm">Crachás Oficiais</div>
+                  <div className="text-xs text-muted-foreground font-normal">Diaconato, Kids & Eventos</div>
+                </div>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Modal de Lista de Presença para Eventos */}
         <Dialog open={isEventPresenceModalOpen} onOpenChange={setIsEventPresenceModalOpen}>
@@ -4034,16 +4385,31 @@ export function Secretaria() {
                 <div className="flex items-center justify-between">
                   <DialogTitle>{editingMember ? "Editar Membro" : "Novo Membro"}</DialogTitle>
                   {editingMember && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="text-xs h-7 border-amber-300 text-amber-800 dark:text-amber-200 hover:bg-amber-50"
-                      onClick={() => handleOpenFicha(editingMember)}
-                    >
-                      <FileText className="w-3.5 h-3.5 mr-1 text-amber-600" />
-                      Ficha de Membro (A4)
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7 border-indigo-300 text-indigo-800 dark:text-indigo-200 hover:bg-indigo-50"
+                        onClick={() => {
+                          setVisitasMemberTarget(editingMember);
+                          setIsVisitasModalOpen(true);
+                        }}
+                      >
+                        <ClipboardList className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                        Histórico de Visitas (A4)
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7 border-amber-300 text-amber-800 dark:text-amber-200 hover:bg-amber-50"
+                        onClick={() => handleOpenFicha(editingMember)}
+                      >
+                        <FileText className="w-3.5 h-3.5 mr-1 text-amber-600" />
+                        Ficha de Membro (A4)
+                      </Button>
+                    </div>
                   )}
                 </div>
                 <DialogDescription>
@@ -4529,7 +4895,21 @@ export function Secretaria() {
             <Printer className="w-4 h-4" />
             Formulários
           </TabsTrigger>
+          <TabsTrigger value="escala_mural" className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400">
+            <ClipboardList className="w-4 h-4" />
+            Escala do Mural
+          </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="escala_mural" className="space-y-6">
+          <EscalaMuralDiaconatoModal
+            isEmbedded={true}
+            members={members}
+            churchData={churchData}
+            activeBranchName={activeBranchName}
+            activeBranchId={activeBranch}
+          />
+        </TabsContent>
 
         <TabsContent value="arquivos" className="space-y-6">
           <SecretariaFilesManager
@@ -4796,7 +5176,7 @@ export function Secretaria() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-amber-700 hover:text-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950"
-                          title="Visualizar e Imprimir Ficha de Cadastro Oficial"
+                          title="Visualizar e Imprimir Ficha de Cadastro Oficial (A4)"
                           onClick={() => handleOpenFicha(m)}
                         >
                           <FileText className="h-4 w-4" />
@@ -4804,14 +5184,14 @@ export function Secretaria() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:hover:bg-sky-950"
-                          title="Ficha de Candidato ao Batismo nas Águas"
+                          className="h-8 w-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950"
+                          title="Imprimir Ficha com Histórico de Visita e Acompanhamento Pastoral (A4)"
                           onClick={() => {
-                            setBatismoMemberTarget(m);
-                            setIsBatismoModalOpen(true);
+                            setVisitasMemberTarget(m);
+                            setIsVisitasModalOpen(true);
                           }}
                         >
-                          <Droplet className="h-4 w-4" />
+                          <ClipboardList className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950" title="Editar Membro" onClick={() => handleOpenEditModal(m)}>
                           <Edit className="h-4 w-4" />
@@ -5222,19 +5602,73 @@ export function Secretaria() {
         userName={user?.name || "Administrador"}
       />
 
-      {/* Modal de Ficha de Candidato ao Batismo nas Águas */}
-      <FichaCandidatoBatismoModal
-        isOpen={isBatismoModalOpen}
+      {/* Modal de Ficha com Histórico de Visitas e Acompanhamento Pastoral */}
+      <FichaVisitasAcompanhamentoModal
+        isOpen={isVisitasModalOpen}
         onClose={() => {
-          setIsBatismoModalOpen(false)
-          setBatismoMemberTarget(null)
+          setIsVisitasModalOpen(false)
+          setVisitasMemberTarget(null)
         }}
+        member={visitasMemberTarget}
         members={members}
         churchData={churchData}
-        initialMember={batismoMemberTarget}
-        onCandidateSaved={(novoCandidato) => {
-          toast.success(`Candidato ${novoCandidato.nome} cadastrado com sucesso para o batismo!`)
+        onSaveRecord={(mId, rec) => {
+          const targetMem = members.find((m: any) => m.id === mId)
+          if (targetMem) {
+            const updated = [rec, ...(targetMem.communications || [])]
+            updateDoc(doc(db, "members", mId), { communications: updated }).catch(console.error)
+          }
         }}
+      />
+
+      {/* Modal de Escala do Diaconato & Voluntários para Mural (Anexo 4) */}
+      <EscalaMuralDiaconatoModal
+        isOpen={isEscalaMuralModalOpen}
+        onClose={() => setIsEscalaMuralModalOpen(false)}
+        members={members}
+        churchData={churchData}
+        activeBranchName={activeBranchName}
+        activeBranchId={activeBranch}
+      />
+
+      {/* Modal de Emissão de Crachás para Voluntários, Diáconos e Diaconisas */}
+      <CrachaVoluntariosModal
+        isOpen={isCrachaVoluntariosModalOpen}
+        onClose={() => setIsCrachaVoluntariosModalOpen(false)}
+        volunteers={secretariaVolunteersList}
+        churchData={churchData}
+        activeBranchName={activeBranchName}
+        activeBranchId={activeBranch}
+      />
+
+      {/* Modal de Escala de Dirigentes de Culto & Pregadores */}
+      <EscalaDirigentesModal
+        isOpen={isEscalaDirigentesModalOpen}
+        onClose={() => setIsEscalaDirigentesModalOpen(false)}
+        members={members}
+        churchData={churchData}
+        activeBranchName={activeBranchName}
+        activeBranchId={activeBranch}
+      />
+
+      {/* Modal de Escala de Limpeza & Conservação do Templo */}
+      <EscalaLimpezaModal
+        isOpen={isEscalaLimpezaModalOpen}
+        onClose={() => setIsEscalaLimpezaModalOpen(false)}
+        members={members}
+        churchData={churchData}
+        activeBranchName={activeBranchName}
+        activeBranchId={activeBranch}
+      />
+
+      {/* Modal de Escala de Músicos & Louvor */}
+      <EscalaMusicosModal
+        isOpen={isEscalaMusicosModalOpen}
+        onClose={() => setIsEscalaMusicosModalOpen(false)}
+        members={members}
+        churchData={churchData}
+        activeBranchName={activeBranchName}
+        activeBranchId={activeBranch}
       />
     </motion.div>
     </TooltipProvider>

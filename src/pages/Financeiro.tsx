@@ -1506,12 +1506,6 @@ export function Financeiro() {
         </div>
         <div className="flex gap-2 print:hidden flex-wrap">
           <Button 
-            onClick={() => setIsBalanceteModalOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
-          >
-            <FileSpreadsheet className="mr-2 h-4 w-4" /> Balancete para Assembleia
-          </Button>
-          <Button 
             onClick={() => setIsEcoPrintOpen(true)}
             className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-xs"
           >
@@ -1626,6 +1620,13 @@ export function Financeiro() {
               </div>
 
               <div className="grid gap-4 py-4">
+                <Button 
+                  variant="outline" 
+                  className="justify-start bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 font-semibold" 
+                  onClick={() => { setIsReportModalOpen(false); setIsBalanceteModalOpen(true); }}
+                >
+                  <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Balancete para Assembleia (Prestação de Contas Oficial)
+                </Button>
                 <Button 
                   variant="outline" 
                   className="justify-start text-blue-700 hover:text-blue-800 hover:bg-blue-50 border-blue-200 font-semibold" 

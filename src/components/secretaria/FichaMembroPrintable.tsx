@@ -1,5 +1,6 @@
 import React from "react"
 import { User } from "lucide-react"
+import { BarcodeGenerator } from "@/components/common/BarcodeGenerator"
 
 export interface FichaMembroData {
   numeroFicha?: string | number
@@ -242,6 +243,19 @@ export function FichaMembroPrintable({
                     </span>
                   </div>
                 )}
+              </div>
+
+              {/* Código de Barras Oficial do Membro */}
+              <div className="w-[30mm] flex flex-col items-center justify-center border border-black bg-white p-0.5 shadow-2xs mt-1">
+                <BarcodeGenerator
+                  value={d.cpf?.replace(/\D/g, '') || `REG${getDisplayNumeroFicha()}`}
+                  text={`REG-${getDisplayNumeroFicha()}`}
+                  width={0.85}
+                  height={11}
+                  fontSize={6}
+                  displayValue={true}
+                  lineColor="#000000"
+                />
               </div>
             </div>
           </div>

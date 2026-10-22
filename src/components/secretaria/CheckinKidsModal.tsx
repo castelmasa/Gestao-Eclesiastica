@@ -33,6 +33,7 @@ import { printDocument } from "@/lib/printUtils";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, addDoc, updateDoc, doc, serverTimestamp } from "firebase/firestore";
 import { getRegisteredChurchLogo } from "@/lib/churchLogoHelper";
+import { BarcodeGenerator } from "@/components/common/BarcodeGenerator";
 
 export interface KidsCheckinRecord {
   id?: string;
@@ -569,10 +570,21 @@ export function CheckinKidsModal({
                     <h2 className="text-2xl font-black text-slate-900 mt-1">{childForGlobalPrint.childName}</h2>
                     <p className="text-sm font-bold text-slate-700 mt-0.5">{childForGlobalPrint.classroom} • {childForGlobalPrint.age}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex flex-col items-end">
                     <span className="text-[11px] font-bold text-slate-500 uppercase block">CÓDIGO DE RETIRADA</span>
-                    <div className="text-2xl font-black text-pink-700 bg-white border-2 border-pink-400 px-3 py-1 rounded-xl shadow-xs inline-block mt-0.5">
+                    <div className="text-2xl font-black text-pink-700 bg-white border-2 border-pink-400 px-3 py-0.5 rounded-xl shadow-xs inline-block mt-0.5">
                       {childForGlobalPrint.securityCode}
+                    </div>
+                    <div className="mt-1 bg-white p-1 rounded border border-pink-200">
+                      <BarcodeGenerator
+                        value={childForGlobalPrint.securityCode.replace(/[^a-zA-Z0-9]/g, "")}
+                        text={childForGlobalPrint.securityCode}
+                        width={1.1}
+                        height={18}
+                        fontSize={8}
+                        displayValue={true}
+                        lineColor="#000000"
+                      />
                     </div>
                   </div>
                 </div>
@@ -597,10 +609,21 @@ export function CheckinKidsModal({
                     <h3 className="text-base font-bold text-slate-800 mt-1">Entregue à: {childForGlobalPrint.parentName}</h3>
                     <p className="text-sm font-semibold text-slate-600">Filho(a): <strong>{childForGlobalPrint.childName}</strong></p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex flex-col items-end">
                     <span className="text-[11px] font-bold text-slate-500 uppercase block">CÓDIGO OBRIGATÓRIO</span>
-                    <div className="text-2xl font-black text-blue-700 bg-white border-2 border-blue-400 px-3 py-1 rounded-xl shadow-xs inline-block mt-0.5">
+                    <div className="text-2xl font-black text-blue-700 bg-white border-2 border-blue-400 px-3 py-0.5 rounded-xl shadow-xs inline-block mt-0.5">
                       {childForGlobalPrint.securityCode}
+                    </div>
+                    <div className="mt-1 bg-white p-1 rounded border border-blue-200">
+                      <BarcodeGenerator
+                        value={childForGlobalPrint.securityCode.replace(/[^a-zA-Z0-9]/g, "")}
+                        text={childForGlobalPrint.securityCode}
+                        width={1.1}
+                        height={18}
+                        fontSize={8}
+                        displayValue={true}
+                        lineColor="#000000"
+                      />
                     </div>
                   </div>
                 </div>

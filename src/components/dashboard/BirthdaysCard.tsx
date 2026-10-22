@@ -152,6 +152,7 @@ export function BirthdaysCard({ members, activeBranch: propActiveBranch }: Birth
     }
 
     const cleanPhone = member.phone.replace(/\D/g, '');
+    const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
     const churchName = localStorage.getItem("church_name") || "Igreja Evangélica Manancial";
     const text = encodeURIComponent(
       `A paz do Senhor, querido(a) ${member.name}! 🎉🎂\n\nEm nome da ${churchName}, queremos lhe desejar um abençoado Feliz Aniversário! Que o Senhor Deus derrame ricas bênçãos sobre sua vida, renovando suas forças com muita saúde, sabedoria, paz e alegria. Parabéns pelo seu dia!\n\n"O Senhor te abençoe e te guarde; o Senhor faça resplandecer o seu rosto sobre ti e te dê a paz." (Números 6:24-26)`

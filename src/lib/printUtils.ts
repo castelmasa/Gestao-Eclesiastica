@@ -271,7 +271,7 @@ export const printDocument = (
       window.removeEventListener('beforeprint', markPrinted);
       if (!nativePrintOpened && isIframe) {
         toast.info("Documento oficial preparado! Abrindo para sua impressora ou download...", { id: "print-toast-fallback" });
-        const targetElement = printableEl || document.getElementById(targetId);
+        const targetElement = printableEl || (explicitTargetId ? document.getElementById(explicitTargetId) : null);
         if (targetElement) {
           downloadElementAsPdf(targetElement, `formulario-${new Date().toISOString().slice(0, 10)}.pdf`);
         }

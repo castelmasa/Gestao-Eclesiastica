@@ -26,7 +26,9 @@ import {
   Maximize2,
   Download,
   Eye,
-  CheckCircle2
+  CheckCircle2,
+  Droplet,
+  ClipboardList
 } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -40,9 +42,11 @@ import { logAction } from "@/lib/audit"
 import { RichTextEditor } from "@/components/common/RichTextEditor"
 import { valorPorExtenso } from "@/lib/extenso"
 import { FichaMembroPrintable, FichaMembroData } from "@/components/secretaria/FichaMembroPrintable"
+import { FichaCandidatoBatismoModal } from "@/components/secretaria/FichaCandidatoBatismoModal"
+import { FichaVisitasAcompanhamentoModal } from "@/components/secretaria/FichaVisitasAcompanhamentoModal"
 import { getChurchLeadershipConfig } from "@/lib/churchConfigHelper"
 import { db } from "@/lib/firebase"
-import { collection, onSnapshot } from "firebase/firestore"
+import { collection, onSnapshot, doc, updateDoc } from "firebase/firestore"
 import { DEFAULT_MEMBER_TEST_DATA } from "./Secretaria"
 
 export function Formularios() {
@@ -62,6 +66,8 @@ export function Formularios() {
   const [printCopies, setPrintCopies] = useState<number>(1)
   const [imprimirSegundaVia, setImprimirSegundaVia] = useState<boolean>(true)
   const [members, setMembers] = useState<any[]>([])
+  const [isBatismoModalOpen, setIsBatismoModalOpen] = useState(false)
+  const [isVisitasModalOpen, setIsVisitasModalOpen] = useState(false)
 
   // Solicitante Manual / Declarações Dinâmicas
   const [solicitanteModo, setSolicitanteModo] = useState<'membro' | 'manual'>('membro')
@@ -149,6 +155,11 @@ export function Formularios() {
   const [casamentoLocal, setCasamentoLocal] = useState("Templo Sede")
   const [casamentoTestemunhas, setCasamentoTestemunhas] = useState("")
   const [casamentoPastor, setCasamentoPastor] = useState("")
+
+  // Ficha de Visitas e Acompanhamento Pastoral State
+  const [visitasPastor, setVisitasPastor] = useState("")
+  const [visitasTipo, setVisitasTipo] = useState("Visita Pastoral Domiciliar")
+  const [visitasProximoRetorno, setVisitasProximoRetorno] = useState("")
 
   // Igreja / Congregação Selecionada no Dashboard / Header
   const activeBranchObj = useMemo(() => {
@@ -396,6 +407,7 @@ export function Formularios() {
     if (formType === 'relatorio-culto') return 'Relatório de Culto Financeiro';
     if (formType === 'ficha-membro') return 'Ficha de Cadastro de Membros';
     if (formType === 'ficha-batismo') return 'Ficha de Candidato ao Batismo nas Águas';
+    if (formType === 'ficha-visitas-acompanhamento') return 'Ficha com Histórico de Visita e Acompanhamento';
     if (formType === 'ficha-apresentacao') return 'Ficha de Apresentação de Crianças';
     if (formType === 'ficha-reconciliacao') return 'Ficha de Reconciliação e Novos Convertidos';
     if (formType === 'ficha-casamento') return 'Requerimento de Casamento Religioso';
@@ -1294,47 +1306,47 @@ export function Formularios() {
                   </div>
                   <div className="border border-black text-[9px]">
                     <div className="flex border-b border-black">
-                      <div className="flex-[3] p-1 border-r border-black">
+                      <div className="flex-[3] p-1 border-r border-black flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Nome Completo do(a) Candidato(a):</span>
-                        <div className="font-semibold text-[10px] min-h-[14px]">________________________________________________________</div>
+                        <div className="font-semibold text-[10px] min-h-[14px] w-full border-b border-black flex items-end">{candidateName || ""}</div>
                       </div>
-                      <div className="flex-1 p-1 border-r border-black">
+                      <div className="flex-1 p-1 border-r border-black flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Data de Nascimento:</span>
-                        <div className="min-h-[14px]">____/____/________</div>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end">{candidateNasc || "____/____/________"}</div>
                       </div>
-                      <div className="w-[24mm] p-1">
+                      <div className="w-[24mm] p-1 flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Sexo:</span>
                         <div>[ ] Masculino  [ ] Feminino</div>
                       </div>
                     </div>
 
                     <div className="flex border-b border-black">
-                      <div className="flex-1 p-1 border-r border-black">
+                      <div className="flex-1 p-1 border-r border-black flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Naturalidade / UF:</span>
-                        <div className="min-h-[14px]">_____________________</div>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end">{candidateNat || ""}</div>
                       </div>
-                      <div className="flex-1 p-1 border-r border-black">
+                      <div className="flex-1 p-1 border-r border-black flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Estado Civil:</span>
-                        <div className="min-h-[14px]">[ ] Solteiro(a)  [ ] Casado(a)  [ ] Viúvo(a)  [ ] Divorciado(a)</div>
+                        <div className="min-h-[14px]">{candidateCivil || "[ ] Solteiro(a)  [ ] Casado(a)  [ ] Viúvo(a)  [ ] Divorciado(a)"}</div>
                       </div>
-                      <div className="flex-1 p-1">
+                      <div className="flex-1 p-1 flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Profissão / Ocupação:</span>
-                        <div className="min-h-[14px]">_____________________</div>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end">{candidateProfissao || ""}</div>
                       </div>
                     </div>
 
                     <div className="flex">
-                      <div className="flex-1 p-1 border-r border-black">
+                      <div className="flex-1 p-1 border-r border-black flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">RG / Órgão Emissor:</span>
-                        <div className="min-h-[16px]">_____________________</div>
+                        <div className="min-h-[16px] w-full border-b border-black flex items-end">{candidateRg || ""}</div>
                       </div>
-                      <div className="flex-[1.5] p-1 border-r border-black">
+                      <div className="flex-[1.5] p-1 border-r border-black flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">CPF:</span>
-                        <div className="min-h-[16px] font-mono text-[9.5px] flex items-center font-bold tracking-wider">____ . ____ . ____ - __</div>
+                        <div className="min-h-[16px] font-mono text-[9.5px] flex items-center font-bold tracking-wider w-full border-b border-black">{candidateCpf || "____ . ____ . ____ - __"}</div>
                       </div>
-                      <div className="flex-1 p-1">
+                      <div className="flex-1 p-1 flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Celular / WhatsApp:</span>
-                        <div className="min-h-[16px]">(____) ____________</div>
+                        <div className="min-h-[16px] w-full border-b border-black flex items-end">{candidateTel || ""}</div>
                       </div>
                     </div>
                   </div>
@@ -1347,50 +1359,50 @@ export function Formularios() {
                   </div>
                   <div className="border border-black text-[9px]">
                     <div className="flex border-b border-black">
-                      <div className="flex-1 p-1 border-r border-black">
+                      <div className="flex-1 p-1 border-r border-black flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Nome do Pai:</span>
-                        <div className="min-h-[14px]">___________________________________________</div>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end">{candidatePai || ""}</div>
                       </div>
-                      <div className="flex-1 p-1">
+                      <div className="flex-1 p-1 flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Nome da Mãe:</span>
-                        <div className="min-h-[14px]">___________________________________________</div>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end">{candidateMae || ""}</div>
                       </div>
                     </div>
 
                     <div className="flex border-b border-black">
-                      <div className="flex-[2] p-1 border-r border-black">
+                      <div className="flex-[2] p-1 border-r border-black flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Nome do Cônjuge (se casado):</span>
-                        <div className="min-h-[14px]">___________________________________________</div>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end">{candidateConjuge || ""}</div>
                       </div>
-                      <div className="flex-1 p-1">
+                      <div className="flex-1 p-1 flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Cônjuge é evangélico(a)?</span>
                         <div>[ ] Sim   [ ] Não   [ ] Congrega conosco</div>
                       </div>
                     </div>
 
                     <div className="flex border-b border-black">
-                      <div className="flex-[3] p-1 border-r border-black">
+                      <div className="flex-[3] p-1 border-r border-black flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Endereço Residencial (Rua / Av., Nº, Apto):</span>
-                        <div className="min-h-[14px]">________________________________________________________</div>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end">{candidateEnd || ""}</div>
                       </div>
-                      <div className="flex-1 p-1">
+                      <div className="flex-1 p-1 flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Bairro:</span>
-                        <div className="min-h-[14px]">_____________________</div>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end">{candidateBairro || ""}</div>
                       </div>
                     </div>
 
                     <div className="flex">
-                      <div className="flex-1 p-1 border-r border-black">
+                      <div className="flex-1 p-1 border-r border-black flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">Cidade / UF:</span>
-                        <div className="min-h-[14px]">_____________________</div>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end">{candidateCidade || ""}</div>
                       </div>
-                      <div className="w-[30mm] p-1 border-r border-black">
+                      <div className="w-[30mm] p-1 border-r border-black flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">CEP:</span>
-                        <div className="min-h-[14px]">________-___</div>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end">{candidateCep || ""}</div>
                       </div>
-                      <div className="flex-1 p-1">
+                      <div className="flex-1 p-1 flex flex-col justify-between">
                         <span className="font-bold block text-[7.5px] uppercase text-gray-700">E-mail:</span>
-                        <div className="min-h-[14px] truncate">_____________________________________</div>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end truncate">{candidateEmail || ""}</div>
                       </div>
                     </div>
                   </div>
@@ -1403,22 +1415,34 @@ export function Formularios() {
                   </div>
                   <div className="border border-black p-1.5 space-y-1.5 text-[9px]">
                     <div className="grid grid-cols-2 gap-2">
-                      <div>
+                      <div className="flex flex-col justify-between">
                         <span className="font-bold text-[8px] uppercase">Data da Decisão por Cristo (Aceitou Jesus em):</span>
-                        <div className="mt-0.5">____/____/________ (Igreja: _____________________)</div>
+                        <div className="mt-0.5 flex items-center gap-1">
+                          <span>____/____/________</span>
+                          <span className="ml-1 font-semibold">Igreja:</span>
+                          <span className="flex-1 border-b border-black min-h-[14px] inline-block"></span>
+                        </div>
                       </div>
-                      <div>
+                      <div className="flex flex-col justify-between">
                         <span className="font-bold text-[8px] uppercase">Concluiu o Curso de Discipulado / Pré-Batismo?</span>
-                        <div className="mt-0.5">[ ] Sim   [ ] Não   (Instrutor: ___________________)</div>
+                        <div className="mt-0.5 flex items-center gap-1">
+                          <span>[ ] Sim   [ ] Não</span>
+                          <span className="ml-1 font-semibold">Instrutor:</span>
+                          <span className="flex-1 border-b border-black min-h-[14px] inline-block">{batismoInstrutor || ""}</span>
+                        </div>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 border-t border-gray-300 pt-1">
-                      <div>
+                      <div className="flex flex-col justify-between">
                         <span className="font-bold text-[8px] uppercase">Já foi batizado nas águas por imersão antes?</span>
-                        <div className="mt-0.5">[ ] Não (1ª vez)   [ ] Sim (Denominação: _____________________)</div>
+                        <div className="mt-0.5 flex items-center gap-1">
+                          <span>[ ] Não (1ª vez)   [ ] Sim</span>
+                          <span className="ml-1 font-semibold">Denominação:</span>
+                          <span className="flex-1 border-b border-black min-h-[14px] inline-block"></span>
+                        </div>
                       </div>
-                      <div>
+                      <div className="flex flex-col justify-between">
                         <span className="font-bold text-[8px] uppercase">Batismo no Espírito Santo (com dom de línguas)?</span>
                         <div className="mt-0.5">[ ] Sim   [ ] Não   [ ] Em busca do revestimento de poder</div>
                       </div>
@@ -1484,14 +1508,16 @@ export function Formularios() {
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-center text-[8.5px]">
-                      <div>
-                        <span className="font-bold uppercase">Local / Tanque Batismal: </span>
-                        <span>___________________________________________</span>
+                    <div className="flex justify-between items-center text-[8.5px] gap-4">
+                      <div className="flex-1 flex items-center gap-1">
+                        <span className="font-bold uppercase whitespace-nowrap">Local / Tanque Batismal:</span>
+                        <span className="flex-1 border-b border-black min-h-[14px] inline-block font-semibold px-1">{batismoLocal || ""}</span>
                       </div>
-                      <div>
-                        <span className="font-bold uppercase">Livro de Batismo nº: </span>
-                        <span>_____ | Folha: _____</span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-bold uppercase whitespace-nowrap">Livro de Batismo nº:</span>
+                        <span className="w-16 border-b border-black min-h-[14px] inline-block text-center font-semibold">{batismoLivro || ""}</span>
+                        <span className="font-bold uppercase whitespace-nowrap ml-2">Folha:</span>
+                        <span className="w-14 border-b border-black min-h-[14px] inline-block text-center font-semibold">{batismoFolha || ""}</span>
                       </div>
                     </div>
 
@@ -2366,6 +2392,236 @@ export function Formularios() {
     );
   };
 
+  const renderFichaVisitasAcompanhamento = () => {
+    const isEmBranco = !selectedMember;
+    const mNome = selectedMember?.nome || selectedMember?.name || "";
+    const mCargo = selectedMember?.role || selectedMember?.cargo || (isEmBranco ? "" : "Membro");
+    const mCivil = selectedMember?.maritalStatus || selectedMember?.estadoCivil || "";
+    const mTel = selectedMember?.telefone || selectedMember?.phone || "";
+    const mEnd = selectedMember?.endereco || selectedMember?.address || "";
+    const mBairro = selectedMember?.bairro || "";
+    const mCidade = selectedMember?.cidade || leadership.church.cidade || "Valparaíso - SP";
+    const mNasc = selectedMember?.dataNascimento ? new Date(selectedMember.dataNascimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : (selectedMember?.dataNasc || "");
+    const mBatismo = selectedMember?.dataBatismo || selectedMember?.baptismDate || "";
+    const mComms = selectedMember?.communications || [];
+    const pastorName = visitasPastor || leadership.pastor.name || "Pr. Presidente";
+
+    // 6 linhas de histórico
+    const rowsCount = Math.max(6, mComms.length);
+    const visitRows = Array.from({ length: rowsCount }).map((_, idx) => mComms[idx] || null);
+
+    return (
+      <div id="printable-standard">
+        <style>{`
+          @media print {
+            body * { visibility: hidden; }
+            #printable-standard, #printable-standard * { visibility: visible; }
+            #printable-standard { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; background: transparent; }
+            @page { size: A4 portrait; margin: 0; }
+            ::-webkit-scrollbar { display: none; }
+            .print-page { page-break-after: always; height: 297mm; max-height: 297mm; box-sizing: border-box; overflow: hidden; }
+          }
+        `}</style>
+
+        {Array.from({ length: printCopies }).flatMap((_, copyIdx) => {
+          const currentSeq = sequenceNumber + 1 + copyIdx;
+          return [0].map((viaIdx) => (
+            <div
+              key={`${copyIdx}-${viaIdx}`}
+              className="w-[210mm] max-w-[210mm] min-h-[297mm] bg-white p-[8mm] mx-auto text-[9.5px] font-sans print:block print-page relative box-border mb-6 print:mb-0 text-black flex flex-col justify-between"
+            >
+              <div className="border-2 border-black flex flex-col relative z-10 p-3 space-y-2.5">
+                {/* Header Oficial */}
+                <div className="flex border-b-2 border-black pb-2">
+                  <div className="w-[24mm] h-[22mm] border-r border-black flex items-center justify-center p-1 pr-2 shrink-0">
+                    {churchData.logoDataUrl || leadership.church.logoUrl ? (
+                      <img src={churchData.logoDataUrl || leadership.church.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
+                    ) : (
+                      <div className="text-center font-bold text-[8px] leading-tight">LOGO<br/>DA IGREJA</div>
+                    )}
+                  </div>
+                  <div className="flex-1 flex flex-col items-center justify-center text-center px-2">
+                    <h1 className="font-bold text-[13px] leading-tight uppercase w-full">{displayChurchName}</h1>
+                    <p className="text-[8px] uppercase mt-0.5 leading-tight font-semibold">
+                      {displayChurchAddress} | CNPJ: {displayCnpj}
+                    </p>
+                    <div className="border border-black bg-gray-200 font-black px-3 py-0.5 mt-1 text-[11px] uppercase tracking-wide">
+                      FICHA COM HISTÓRICO DE VISITA E ACOMPANHAMENTO PASTORAL
+                    </div>
+                  </div>
+                  <div className="w-[32mm] border-l border-black flex flex-col items-center justify-center font-bold leading-none py-1 bg-white pl-2 shrink-0">
+                    <span className="text-[13px] font-black tracking-wider text-black">OBPC</span>
+                    <span className="text-indigo-700 font-bold text-[11px] mt-1">PRONTUÁRIO Nº</span>
+                    <span className="text-indigo-800 font-black text-[17px] tracking-wider mt-0.5">{String(currentSeq).padStart(5, '0')}</span>
+                  </div>
+                </div>
+
+                <div className="text-center text-[8.5px] italic text-gray-700 border-b border-gray-300 pb-1">
+                  "Apascentai o rebanho de Deus que está entre vós, tendo cuidado dele..." (1 Pedro 5:2) • Confidencial e Reservado à Liderança Pastoral
+                </div>
+
+                {/* Bloco 1: Identificação */}
+                <div>
+                  <div className="bg-gray-100 font-bold text-[9px] uppercase px-1.5 py-0.5 border border-black mb-1">
+                    1. Identificação do Membro / Família Assistida
+                  </div>
+                  <div className="border border-black text-[9px]">
+                    <div className="flex border-b border-black">
+                      <div className="flex-[3] p-1 border-r border-black flex flex-col justify-between">
+                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">Nome Completo do Membro / Titular:</span>
+                        <div className="font-semibold text-[10px] min-h-[14px] w-full border-b border-black flex items-end">{mNome || ""}</div>
+                      </div>
+                      <div className="flex-1 p-1 border-r border-black flex flex-col justify-between">
+                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">Cargo / Função Eclesiástica:</span>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end font-semibold">{mCargo || ""}</div>
+                      </div>
+                      <div className="flex-1 p-1 flex flex-col justify-between">
+                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">Telefone / WhatsApp:</span>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end font-semibold">{mTel || ""}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex border-b border-black">
+                      <div className="flex-[3] p-1 border-r border-black flex flex-col justify-between">
+                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">Endereço Residencial:</span>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end">{mEnd || ""}</div>
+                      </div>
+                      <div className="flex-1 p-1 border-r border-black flex flex-col justify-between">
+                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">Bairro:</span>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end">{mBairro || ""}</div>
+                      </div>
+                      <div className="flex-1 p-1 flex flex-col justify-between">
+                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">Cidade / UF:</span>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end">{mCidade || ""}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex">
+                      <div className="flex-1 p-1 border-r border-black flex flex-col justify-between">
+                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">Data de Nascimento:</span>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end">{mNasc || "____/____/________"}</div>
+                      </div>
+                      <div className="flex-1 p-1 border-r border-black flex flex-col justify-between">
+                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">Estado Civil:</span>
+                        <div className="min-h-[14px]">{mCivil || "[ ] Solteiro(a)  [ ] Casado(a)  [ ] Viúvo(a)"}</div>
+                      </div>
+                      <div className="flex-1 p-1 border-r border-black flex flex-col justify-between">
+                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">Data do Batismo:</span>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end">{mBatismo || "____/____/________"}</div>
+                      </div>
+                      <div className="flex-1 p-1 flex flex-col justify-between">
+                        <span className="font-bold block text-[7.5px] uppercase text-gray-700">Pastor Titular:</span>
+                        <div className="min-h-[14px] w-full border-b border-black flex items-end font-semibold">{pastorName}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bloco 2: Alvos de Oração e Diagnóstico */}
+                <div>
+                  <div className="bg-gray-100 font-bold text-[9px] uppercase px-1.5 py-0.5 border border-black mb-1">
+                    2. Diagnóstico Pastoral & Alvos Contínuos de Intercessão
+                  </div>
+                  <div className="border border-black p-2 space-y-1.5 text-[8.5px]">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>[ ] Restauração Familiar / Matrimonial</div>
+                      <div>[ ] Saúde Física / Enfermidade Grave</div>
+                      <div>[ ] Emprego / Providência Financeira</div>
+                      <div>[ ] Libertação Espiritual / Oração Forte</div>
+                      <div>[ ] Discipulado / Fortalecimento na Fé</div>
+                      <div>[ ] Enlutados / Apoio Emocional</div>
+                    </div>
+                    <div className="pt-1 border-t border-gray-300">
+                      <span className="font-bold text-[8px] uppercase block mb-1">Observações Confidenciais & Orientações Pastorais Gerais:</span>
+                      <div className="w-full border-b border-black min-h-[16px]"></div>
+                      <div className="w-full border-b border-black min-h-[16px] mt-1.5"></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bloco 3: Histórico de Visitas */}
+                <div>
+                  <div className="bg-gray-100 font-bold text-[9px] uppercase px-1.5 py-0.5 border border-black mb-1 flex justify-between items-center">
+                    <span>3. Registro Cronológico de Visitas e Atendimentos</span>
+                    <span className="text-[7.5px] font-normal lowercase">(anotar presencial, hospitalar, chamada ou aconselhamento)</span>
+                  </div>
+                  <table className="w-full border-collapse border border-black text-[8.5px]">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-black font-bold uppercase text-[7.5px]">
+                        <th className="border-r border-black p-1 text-center w-[22mm]">Data</th>
+                        <th className="border-r border-black p-1 text-center w-[30mm]">Tipo / Modalidade</th>
+                        <th className="border-r border-black p-1 text-left w-[40mm]">Pastor / Obreiro</th>
+                        <th className="border-r border-black p-1 text-left">Assuntos Tratados / Palavra Ministrada</th>
+                        <th className="border-r border-black p-1 text-center w-[25mm]">Próx. Retorno</th>
+                        <th className="p-1 text-center w-[20mm]">Rubrica</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visitRows.map((v, i) => (
+                        <tr key={i} className="border-b border-black min-h-[22px]">
+                          <td className="border-r border-black p-1 text-center font-mono">
+                            {v ? v.date : "____/____"}
+                          </td>
+                          <td className="border-r border-black p-1 text-center">
+                            {v ? (v.type || "Presencial") : ""}
+                          </td>
+                          <td className="border-r border-black p-1 truncate">
+                            {v ? (v.responsible || pastorName) : ""}
+                          </td>
+                          <td className="border-r border-black p-1 text-[8px]">
+                            {v ? (v.notes || v.prayerRequest || "") : ""}
+                          </td>
+                          <td className="border-r border-black p-1 text-center">
+                            {v ? (v.nextVisitDate || "—") : ""}
+                          </td>
+                          <td className="p-1 text-center"></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Bloco 4: Assinaturas */}
+                <div>
+                  <div className="bg-gray-100 font-bold text-[9px] uppercase px-1.5 py-0.5 border border-black mb-1">
+                    4. Termo de Compromisso e Assinaturas
+                  </div>
+                  <div className="border border-black p-2 space-y-2 text-[8.5px]">
+                    <div className="pt-4 grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <div className="border-b border-black min-h-[14px]"></div>
+                        <span className="font-bold text-[8px] uppercase block mt-0.5">{pastorName}</span>
+                        <span className="text-[7px] text-gray-600 block">Pastor Responsável</span>
+                      </div>
+                      <div>
+                        <div className="border-b border-black min-h-[14px]"></div>
+                        <span className="font-bold text-[8px] uppercase block mt-0.5">Líder da Equipe de Visitação</span>
+                        <span className="text-[7px] text-gray-600 block">Obreiro / Diácono</span>
+                      </div>
+                      <div>
+                        <div className="border-b border-black min-h-[14px]"></div>
+                        <span className="font-bold text-[8px] uppercase block mt-0.5">Membro / Família Visitada</span>
+                        <span className="text-[7px] text-gray-600 block">Assinatura ou Ciente</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rodapé */}
+                <div className="flex justify-between items-center text-[8px] text-gray-500 font-medium pt-1 border-t border-gray-300">
+                  <span>Secretaria Geral & Departamento Pastoral • Sistema Integrado OBPC</span>
+                  <span className="px-2 py-0.5 border rounded font-bold text-[8.5px] uppercase border-black bg-slate-100 text-black">
+                    Documento Oficial A4
+                  </span>
+                </div>
+              </div>
+            </div>
+          ));
+        })}
+      </div>
+    );
+  };
+
   const renderFichaCestaBasicaAnalitica = () => {
     const isEmBranco = cestaModo === 'em_branco';
     const bNome = isEmBranco ? "" : (selectedMember?.nome || selectedMember?.name || "");
@@ -3221,6 +3477,7 @@ export function Formularios() {
                         <SelectItem value="ficha-cesta-basica-analitica">🧺 Ficha Cesta Básica — Versão Analítica (Completa A4)</SelectItem>
                         <SelectItem value="ficha-cesta-basica-simples">📝 Ficha Cesta Básica — Versão Simplificada (Rápida A4)</SelectItem>
                         <SelectItem value="ficha-batismo">💧 Ficha de Candidato ao Batismo nas Águas (A4)</SelectItem>
+                        <SelectItem value="ficha-visitas-acompanhamento">📋 Ficha com Histórico de Visita e Acompanhamento Pastoral (A4)</SelectItem>
                         <SelectItem value="ficha-apresentacao">👶 Ficha de Apresentação e Dedicação de Crianças (A4)</SelectItem>
                         <SelectItem value="ficha-reconciliacao">🕊️ Ficha de Reconciliação & Novos Convertidos (A4)</SelectItem>
                         <SelectItem value="ficha-casamento">💍 Requerimento de Casamento Religioso (A4)</SelectItem>
@@ -3648,16 +3905,26 @@ export function Formularios() {
               {/* Painel de Preenchimento da Ficha de Batismo */}
               {formType === 'ficha-batismo' && (
                 <div className="mt-6 pt-5 border-t border-dashed space-y-4 bg-sky-50/50 dark:bg-sky-950/20 p-4 rounded-xl border border-sky-200 dark:border-sky-900/60">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold flex items-center gap-2 text-sky-800 dark:text-sky-300">
                       <FileText className="h-4 w-4" /> Dados Específicos para a Ficha de Batismo
                     </h3>
-                    {selectedMember && (
-                      <span className="text-xs text-emerald-600 font-medium">
-                        ✓ Dados pessoais preenchidos automaticamente do cadastro de {selectedMember.nome || selectedMember.name}
-                      </span>
-                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsBatismoModalOpen(true)}
+                      className="h-8 text-xs gap-1.5 border-sky-300 text-sky-800 hover:bg-sky-100 dark:text-sky-300 dark:hover:bg-sky-950"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Assistente & Termo de Autorização
+                    </Button>
                   </div>
+                  {selectedMember && (
+                    <span className="text-xs text-emerald-600 font-medium block">
+                      ✓ Dados pessoais preenchidos automaticamente do cadastro de {selectedMember.nome || selectedMember.name}
+                    </span>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     Os campos abaixo complementam a ficha impressa. Se preferir imprimir em branco para preenchimento manual pelo candidato, deixe-os vazios.
                   </p>
@@ -3713,6 +3980,64 @@ export function Formularios() {
                         placeholder="Ex: 12" 
                         value={batismoFolha} 
                         onChange={(e) => setBatismoFolha(e.target.value)} 
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Painel de Preenchimento da Ficha com Histórico de Visita e Acompanhamento */}
+              {formType === 'ficha-visitas-acompanhamento' && (
+                <div className="mt-6 pt-5 border-t border-dashed space-y-4 bg-indigo-50/50 dark:bg-indigo-950/20 p-4 rounded-xl border border-indigo-200 dark:border-indigo-900/60">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold flex items-center gap-2 text-indigo-900 dark:text-indigo-300">
+                      <ClipboardList className="h-4 w-4 text-indigo-600" /> Histórico de Visita e Acompanhamento Pastoral
+                    </h3>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsVisitasModalOpen(true)}
+                      className="h-8 text-xs gap-1.5 border-indigo-300 text-indigo-700 hover:bg-indigo-100 dark:text-indigo-300 dark:hover:bg-indigo-950"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Assistente & Lançamento de Visitas
+                    </Button>
+                  </div>
+                  {selectedMember && (
+                    <span className="text-xs text-emerald-600 font-medium block">
+                      ✓ Dados e histórico vinculados a {selectedMember.nome || selectedMember.name} ({selectedMember.role || "Membro"})
+                    </span>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Selecione um membro acima para preencher automaticamente os dados cadastrais e o histórico de atendimentos, ou imprima a ficha em branco para acompanhamento presencial em campo.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Pastor / Obreiro Visitador</Label>
+                      <Input 
+                        placeholder={leadership.pastor.name || "Pr. Presidente"} 
+                        value={visitasPastor} 
+                        onChange={(e) => setVisitasPastor(e.target.value)} 
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Tipo de Visita Principal</Label>
+                      <Input 
+                        placeholder="Visita Pastoral Domiciliar" 
+                        value={visitasTipo} 
+                        onChange={(e) => setVisitasTipo(e.target.value)} 
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Previsão Próximo Retorno</Label>
+                      <Input 
+                        placeholder="Ex: Em 15 dias" 
+                        value={visitasProximoRetorno} 
+                        onChange={(e) => setVisitasProximoRetorno(e.target.value)} 
                         className="h-9 text-xs"
                       />
                     </div>
@@ -4200,6 +4525,7 @@ export function Formularios() {
                 {formType === 'recibo' && renderRecibo()}
                 {formType === 'ficha-membro' && renderFichaMembro()}
                 {formType === 'ficha-batismo' && renderFichaBatismo()}
+                {formType === 'ficha-visitas-acompanhamento' && renderFichaVisitasAcompanhamento()}
                 {formType === 'ficha-apresentacao' && renderFichaApresentacao()}
                 {formType === 'ficha-reconciliacao' && renderFichaReconciliacao()}
                 {formType === 'ficha-casamento' && renderFichaCasamento()}
@@ -4554,6 +4880,7 @@ export function Formularios() {
                 {previewType === 'standard' && formType === 'recibo' && renderRecibo()}
                 {previewType === 'standard' && formType === 'ficha-membro' && renderFichaMembro()}
                 {previewType === 'standard' && formType === 'ficha-batismo' && renderFichaBatismo()}
+                {previewType === 'standard' && formType === 'ficha-visitas-acompanhamento' && renderFichaVisitasAcompanhamento()}
                 {previewType === 'standard' && formType === 'ficha-apresentacao' && renderFichaApresentacao()}
                 {previewType === 'standard' && formType === 'ficha-reconciliacao' && renderFichaReconciliacao()}
                 {previewType === 'standard' && formType === 'ficha-casamento' && renderFichaCasamento()}
@@ -4594,6 +4921,34 @@ export function Formularios() {
            window.open('', '_blank')?.document.write('Pressione Ctrl+P (ou Cmd+P) para imprimir esta página.<br><br>Verifique se os bloqueadores de pop-up estão desativados.');
            toast.info("Tente imprimir usando o atalho de teclado na nova aba.");
         }} 
+      />
+
+      {/* Assistente Completo de Batismo nas Águas */}
+      <FichaCandidatoBatismoModal
+        isOpen={isBatismoModalOpen}
+        onClose={() => setIsBatismoModalOpen(false)}
+        initialMember={selectedMember}
+        churchData={churchData}
+        members={members}
+        onCandidateSaved={() => {
+          toast.success("Dados do candidato ao batismo atualizados com sucesso!");
+        }}
+      />
+
+      {/* Assistente Completo de Visita e Acompanhamento Pastoral */}
+      <FichaVisitasAcompanhamentoModal
+        isOpen={isVisitasModalOpen}
+        onClose={() => setIsVisitasModalOpen(false)}
+        member={selectedMember}
+        members={members}
+        churchData={churchData}
+        onSaveRecord={(mId, rec) => {
+          const targetMem = members.find((m: any) => m.id === mId);
+          if (targetMem) {
+            const updated = [rec, ...(targetMem.communications || [])];
+            updateDoc(doc(db, "members", mId), { communications: updated }).catch(console.error);
+          }
+        }}
       />
     </div>
   )

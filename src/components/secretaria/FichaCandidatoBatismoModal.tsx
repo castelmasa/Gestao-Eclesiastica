@@ -493,9 +493,9 @@ export function FichaCandidatoBatismoModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent className="w-[96vw] max-w-4xl h-[86vh] max-h-[86vh] flex flex-col p-0 gap-0 overflow-hidden my-auto rounded-2xl border shadow-2xl bg-background">
         {/* Header */}
-        <DialogHeader className="p-5 pb-3 border-b bg-card">
+        <DialogHeader className="shrink-0 p-4 pb-3 border-b bg-card">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold shadow-xs">
@@ -543,7 +543,7 @@ export function FichaCandidatoBatismoModal({
         </DialogHeader>
 
         {/* Conteúdo rolável */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6">
           {viewMode === "form" ? (
             <div className="space-y-6">
               {/* Seleção rápida de membro existente */}
@@ -955,7 +955,9 @@ export function FichaCandidatoBatismoModal({
                     <tbody>
                       <tr className="border-b border-slate-300">
                         <td className="p-1.5 font-bold w-1/4 bg-slate-50">Nome Completo:</td>
-                        <td className="p-1.5 font-semibold" colSpan={3}>{nome || "___________________________________________"}</td>
+                        <td className="p-1.5 font-semibold" colSpan={3}>
+                          {nome ? nome : <div className="w-full border-b border-slate-700 min-h-[14px]"></div>}
+                        </td>
                       </tr>
                       <tr className="border-b border-slate-300">
                         <td className="p-1.5 font-bold bg-slate-50">Nascimento:</td>
@@ -971,16 +973,29 @@ export function FichaCandidatoBatismoModal({
                       </tr>
                       <tr className="border-b border-slate-300">
                         <td className="p-1.5 font-bold bg-slate-50">Telefone / E-mail:</td>
-                        <td className="p-1.5" colSpan={3}>{telefone || "(__) _____-____"} | {email || "-"}</td>
+                        <td className="p-1.5" colSpan={3}>
+                          {telefone || email ? `${telefone || "(__) _____-____"} | ${email || "-"}` : <div className="w-full border-b border-slate-700 min-h-[14px]"></div>}
+                        </td>
                       </tr>
                       <tr className="border-b border-slate-300">
                         <td className="p-1.5 font-bold bg-slate-50">Endereço Residencial:</td>
-                        <td className="p-1.5" colSpan={3}>{endereco || "________________________"} - {cidade || "Cidade"}</td>
+                        <td className="p-1.5" colSpan={3}>
+                          {endereco ? `${endereco} - ${cidade || "Cidade"}` : <div className="w-full border-b border-slate-700 min-h-[14px]"></div>}
+                        </td>
                       </tr>
                       <tr>
                         <td className="p-1.5 font-bold bg-slate-50">Filiação:</td>
                         <td className="p-1.5" colSpan={3}>
-                          Mãe: {nomeMae || "________________________"} | Pai: {nomePai || "________________________"}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-slate-700">Mãe:</span>
+                              <span className="flex-1 border-b border-slate-700 min-h-[14px] inline-block font-medium">{nomeMae || ""}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-slate-700">Pai:</span>
+                              <span className="flex-1 border-b border-slate-700 min-h-[14px] inline-block font-medium">{nomePai || ""}</span>
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     </tbody>
@@ -998,7 +1013,9 @@ export function FichaCandidatoBatismoModal({
                         <td className="p-1.5 font-bold w-1/4 bg-slate-50">Data de Conversão:</td>
                         <td className="p-1.5">{dataConversao ? new Date(dataConversao).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "___/___/______"}</td>
                         <td className="p-1.5 font-bold bg-slate-50">Discipulador(a):</td>
-                        <td className="p-1.5">{nomeDiscipulador || "________________________"}</td>
+                        <td className="p-1.5">
+                          {nomeDiscipulador ? nomeDiscipulador : <div className="w-full border-b border-slate-700 min-h-[14px]"></div>}
+                        </td>
                       </tr>
                       <tr className="border-b border-slate-300">
                         <td className="p-1.5 font-bold bg-slate-50">Classe / Período:</td>
@@ -1021,8 +1038,8 @@ export function FichaCandidatoBatismoModal({
                       3. Termo de Autorização dos Pais / Responsáveis Legais (Menor de 18 Anos)
                     </div>
                     <div className="p-2.5 border border-red-300 bg-red-50/30 rounded text-xs space-y-1.5 leading-relaxed">
-                      <p>
-                        Eu, <strong>{nomeResponsavel || "___________________________________________"}</strong>, portador(a) do documento <strong>{documentoResponsavel || "_________________"}</strong>, na qualidade de <strong>{parentescoResponsavel || "Pai/Mãe/Responsável"}</strong> do(a) candidato(a) menor <strong>{nome || "_________________________"}</strong>, autorizo de livre e espontânea vontade sua participação nos estudos e a realização do seu BATISMO NAS ÁGUAS.
+                      <p className="flex flex-wrap items-center gap-1 leading-loose">
+                        Eu, <span className="inline-block flex-1 min-w-[200px] border-b border-slate-800 font-bold px-1">{nomeResponsavel || ""}</span>, portador(a) do documento <span className="inline-block w-36 border-b border-slate-800 font-bold px-1">{documentoResponsavel || ""}</span>, na qualidade de <span className="inline-block w-28 border-b border-slate-800 font-bold px-1">{parentescoResponsavel || "Pai/Mãe"}</span> do(a) candidato(a) menor <span className="inline-block flex-1 min-w-[180px] border-b border-slate-800 font-bold px-1">{nome || ""}</span>, autorizo de livre e espontânea vontade sua participação nos estudos e a realização do seu BATISMO NAS ÁGUAS.
                       </p>
                       <div className="pt-4 flex justify-between items-center text-[10px]">
                         <span>Data: {new Date().toLocaleDateString("pt-BR")}</span>
@@ -1082,7 +1099,7 @@ export function FichaCandidatoBatismoModal({
         </div>
 
         {/* Footer com botões de ação */}
-        <DialogFooter className="p-4 border-t bg-card flex flex-col sm:flex-row items-center justify-between gap-3">
+        <DialogFooter className="shrink-0 p-3 sm:p-4 border-t bg-card flex flex-col sm:flex-row items-center justify-between gap-3 z-10 shadow-xs">
           <div className="text-xs text-muted-foreground">
             {isMenorDeIdade ? (
               <span className="text-amber-600 font-semibold flex items-center gap-1">

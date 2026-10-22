@@ -84,6 +84,58 @@ export function ComunicadosModal({
   const [presetCategory, setPresetCategory] = useState<string>("todos")
   const [presetSearch, setPresetSearch] = useState<string>("")
 
+  // CALENDÁRIO PARA DATA / HORÁRIO DO EVENTO (Solicitado no Anexo 5)
+  const [showCalendarPicker, setShowCalendarPicker] = useState(false)
+  const [calendarDate, setCalendarDate] = useState(() => new Date().toISOString().split("T")[0])
+  const [calendarTime, setCalendarTime] = useState("19:00")
+
+  const handleApplyCalendarDateTime = (dateStr?: string, timeStr?: string) => {
+    const d = dateStr || calendarDate
+    const t = timeStr !== undefined ? timeStr : calendarTime
+    if (!d) return
+    const [year, month, day] = d.split("-")
+    const dateObj = new Date(Number(year), Number(month) - 1, Number(day))
+    const weekdays = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"]
+    const weekdayName = weekdays[dateObj.getDay()]
+    const formatted = `${weekdayName}, ${day}/${month}/${year}${t ? ` às ${t}` : ""}`
+    setNoticeEventDate(formatted)
+  }
+
+  const handleQuickCalendarOption = (option: 'hoje' | 'amanha' | 'domingo_manha' | 'domingo_noite' | 'terca' | 'sexta') => {
+    const today = new Date()
+    const target = new Date()
+    let time = "19:30"
+
+    if (option === 'hoje') {
+      time = "19:30"
+    } else if (option === 'amanha') {
+      target.setDate(today.getDate() + 1)
+      time = "19:30"
+    } else if (option === 'domingo_manha') {
+      const daysUntilSunday = (7 - today.getDay()) % 7 || 7
+      target.setDate(today.getDate() + daysUntilSunday)
+      time = "09:00"
+    } else if (option === 'domingo_noite') {
+      const daysUntilSunday = (7 - today.getDay()) % 7 || 7
+      target.setDate(today.getDate() + daysUntilSunday)
+      time = "19:00"
+    } else if (option === 'terca') {
+      const daysUntilTue = (2 - today.getDay() + 7) % 7 || 7
+      target.setDate(today.getDate() + daysUntilTue)
+      time = "19:30"
+    } else if (option === 'sexta') {
+      const daysUntilFri = (5 - today.getDay() + 7) % 7 || 7
+      target.setDate(today.getDate() + daysUntilFri)
+      time = "20:00"
+    }
+
+    const iso = target.toISOString().split("T")[0]
+    setCalendarDate(iso)
+    setCalendarTime(time)
+    handleApplyCalendarDateTime(iso, time)
+    toast.success(`Data preenchida pelo calendário!`)
+  }
+
   // Load history from localStorage
   const [history, setHistory] = useState<ComunicadoHistoryItem[]>(() => {
     try {
@@ -792,16 +844,121 @@ export function ComunicadosModal({
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="noticeEventDate" className="text-xs font-semibold">
-                  Data / Horário do Evento (Opcional)
-                </Label>
-                <Input
-                  id="noticeEventDate"
-                  value={noticeEventDate}
-                  onChange={(e) => setNoticeEventDate(e.target.value)}
-                  placeholder="Ex: Domingo às 19h00"
-                  className="text-sm"
-                />
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="noticeEventDate" className="text-xs font-semibold flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-primary" />
+                    Data / Horário do Evento
+                  </Label>
+                  <Button
+                    type="button"
+                    variant={showCalendarPicker ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowCalendarPicker(!showCalendarPicker)}
+                    className="h-5 text-[10px] px-2 font-medium"
+                  >
+                    <Calendar className="w-3 h-3 mr-1" />
+                    {showCalendarPicker ? "Fechar" : "📅 Calendário"}
+                  </Button>
+                </div>
+                <div className="relative">
+                  <Input
+                    id="noticeEventDate"
+                    value={noticeEventDate}
+                    onChange={(e) => setNoticeEventDate(e.target.value)}
+                    placeholder="Ex: Domingo às 19h00 ou escolha no calendário"
+                    className="text-sm pr-8"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCalendarPicker(!showCalendarPicker)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+                    title="Abrir calendário para escolher data e horário"
+                  >
+                    <Calendar className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* PAINEL INTERATIVO DE CALENDÁRIO */}
+                {showCalendarPicker && (
+                  <div className="p-3 bg-muted/50 border border-primary/40 rounded-xl space-y-2 mt-2 shadow-sm animate-in fade-in-50">
+                    <div className="flex items-center justify-between border-b pb-1">
+                      <span className="text-[11px] font-bold text-foreground flex items-center gap-1">
+                        <span>🗓️</span> Escolha a Data no Calendário
+                      </span>
+                      <span className="text-[9px] text-muted-foreground">Formatação automática</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-0.5">
+                        <Label className="text-[10px] text-muted-foreground">Data</Label>
+                        <Input
+                          type="date"
+                          value={calendarDate}
+                          onChange={(e) => {
+                            setCalendarDate(e.target.value)
+                            handleApplyCalendarDateTime(e.target.value, calendarTime)
+                          }}
+                          className="h-7 text-xs bg-background"
+                        />
+                      </div>
+                      <div className="space-y-0.5">
+                        <Label className="text-[10px] text-muted-foreground">Horário</Label>
+                        <Input
+                          type="time"
+                          value={calendarTime}
+                          onChange={(e) => {
+                            setCalendarTime(e.target.value)
+                            handleApplyCalendarDateTime(calendarDate, e.target.value)
+                          }}
+                          className="h-7 text-xs bg-background"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Atalhos rápidos de cultos */}
+                    <div className="pt-1 border-t space-y-1">
+                      <span className="text-[9px] font-semibold text-muted-foreground block">Atalhos de Cultos:</span>
+                      <div className="flex flex-wrap gap-1">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleQuickCalendarOption('domingo_noite')}
+                          className="h-5 text-[9px] px-1.5"
+                        >
+                          ⛪ Próx. Domingo (19h)
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleQuickCalendarOption('domingo_manha')}
+                          className="h-5 text-[9px] px-1.5"
+                        >
+                          ☀️ Domingo Manhã (09h)
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleQuickCalendarOption('terca')}
+                          className="h-5 text-[9px] px-1.5"
+                        >
+                          📖 Terça (19h30)
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleQuickCalendarOption('sexta')}
+                          className="h-5 text-[9px] px-1.5"
+                        >
+                          🔥 Sexta (20h)
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

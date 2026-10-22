@@ -71,6 +71,11 @@ const defaultConfig = {
   conselhoFiscal3Email: "",
   conselhoFiscal3SignatureUrl: "",
   conselhoFiscal3SignatureFileName: "",
+  diretorPatrimonio: "",
+  diretorPatrimonioTelefone: "",
+  diretorPatrimonioEmail: "",
+  diretorPatrimonioSignatureUrl: "",
+  diretorPatrimonioSignatureFileName: "",
   logoFileName: "",
   logoDataUrl: "",
   secretarySignatureUrl: "",
@@ -575,6 +580,41 @@ export function Parametros() {
                     }))}
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Patrimônio & Zeladoria */}
+            <div className="pt-6 mt-6 border-t border-border space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Patrimônio & Zeladoria</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Responsável pela gestão de bens, inventário patrimonial, manutenções e zeladoria da igreja.</p>
+              </div>
+
+              <div className="space-y-3 p-4 border rounded-xl bg-card/60 shadow-xs">
+                <div className="space-y-1.5">
+                  <Label htmlFor="diretorPatrimonio" className="font-semibold text-sm text-foreground">Diretor(a) de Patrimônio</Label>
+                  <Input id="diretorPatrimonio" value={churchData.diretorPatrimonio || ""} onChange={handleChange} placeholder="Nome completo do Diretor(a) de Patrimônio" className="h-10 text-sm" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3.5 items-end">
+                  <div className="sm:col-span-1 lg:col-span-5 space-y-1.5">
+                    <Label htmlFor="diretorPatrimonioTelefone" className="text-xs font-medium text-muted-foreground">Celular / WhatsApp</Label>
+                    <Input id="diretorPatrimonioTelefone" value={churchData.diretorPatrimonioTelefone || ""} onChange={handleChange} placeholder="(00) 00000-0000" className="h-10 text-sm" />
+                  </div>
+                  <div className="sm:col-span-1 lg:col-span-7 space-y-1.5">
+                    <Label htmlFor="diretorPatrimonioEmail" className="text-xs font-medium text-muted-foreground">E-mail</Label>
+                    <Input id="diretorPatrimonioEmail" type="email" value={churchData.diretorPatrimonioEmail || ""} onChange={handleChange} placeholder="patrimonio@igreja.com.br" className="h-10 text-sm w-full" />
+                  </div>
+                </div>
+                <DigitalSignatureField
+                  label="Assinatura Digital (Diretor(a) de Patrimônio)"
+                  helperText="Assinatura oficial para laudos de vistoria, termos de cautela de bens, inventário e relatórios patrimoniais."
+                  value={churchData.diretorPatrimonioSignatureUrl}
+                  onChange={(url, fileName) => setChurchData(prev => ({
+                    ...prev,
+                    diretorPatrimonioSignatureUrl: url,
+                    diretorPatrimonioSignatureFileName: fileName || ""
+                  }))}
+                />
               </div>
             </div>
 

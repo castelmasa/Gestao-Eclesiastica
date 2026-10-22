@@ -24,6 +24,7 @@ import { ServicoSocial } from "./pages/ServicoSocial"
 import { Formularios } from "./pages/Formularios"
 import { AreaPastoral } from "./pages/AreaPastoral"
 import { AutoBackupRunner } from "./components/AutoBackupRunner"
+import { ValidarCrachaPublico } from "./pages/ValidarCrachaPublico"
 import { Button } from "./components/ui/button"
 import { AccessDeniedScreen } from "./components/common/AccessDeniedScreen"
 
@@ -129,6 +130,8 @@ function AppRoutes() {
 
   return (
     <Routes>
+      <Route path="/validar-cracha" element={<ValidarCrachaPublico />} />
+      <Route path="/validar/cracha" element={<ValidarCrachaPublico />} />
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />

@@ -593,25 +593,26 @@ export function GestaoEscalasModal({
                     {/* Printable Scale View */}
                     <div
                       id="escala-printable-area"
-                      className="p-6 bg-white text-slate-900 rounded-xl border border-slate-200 space-y-4"
+                      className="p-6 bg-white text-slate-900 rounded-xl border border-slate-200 space-y-4 font-sans"
+                      style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
                     >
-                      <div className="border-b border-slate-300 pb-3 flex items-center justify-between">
+                      <div className="border-b-2 border-slate-900 pb-3 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           {churchLogo ? (
-                            <img src={churchLogo} alt="Logo" className="w-12 h-12 object-contain" />
+                            <img src={churchLogo} alt="Logo" className="w-14 h-14 object-contain shrink-0" />
                           ) : (
-                            <div className="w-10 h-10 rounded-lg bg-slate-900 text-white font-bold flex items-center justify-center text-sm">
-                              IM
+                            <div className="w-12 h-12 rounded-lg bg-slate-900 text-white font-black flex items-center justify-center text-sm shrink-0">
+                              OBPC
                             </div>
                           )}
                           <div>
-                            <h2 className="text-sm font-black uppercase text-slate-900">{churchName}</h2>
-                            <p className="text-[11px] text-slate-600 font-medium">ESCALA OFICIAL DE VOLUNTÁRIOS</p>
+                            <h2 className="text-base font-black uppercase text-slate-950 tracking-normal leading-snug">{churchName}</h2>
+                            <p className="text-xs text-slate-700 font-bold tracking-wider mt-0.5 uppercase">ESCALA OFICIAL DE VOLUNTÁRIOS</p>
                           </div>
                         </div>
                         <div className="text-right text-xs">
-                          <span className="font-bold text-slate-900">{selectedScale.serviceTitle}</span>
-                          <p className="text-slate-500 text-[11px]">{selectedScale.date} às {selectedScale.time}</p>
+                          <span className="font-black text-sm text-slate-950 block">{selectedScale.serviceTitle}</span>
+                          <p className="text-slate-700 text-xs font-semibold mt-0.5">{selectedScale.date} às {selectedScale.time}</p>
                         </div>
                       </div>
 
