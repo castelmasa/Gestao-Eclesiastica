@@ -12,14 +12,27 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [photoData, setPhotoData] = useState<string | null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => {
+        try { track.stop(); } catch (e) {}
+      });
+      streamRef.current = null;
+    }
+    setStream(null);
+    setIsStreaming(false);
+  }, []);
 
   const startCamera = async () => {
     try {
+      stopCamera();
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
         audio: false,
       });
+      streamRef.current = mediaStream;
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
@@ -31,14 +44,6 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
       alert("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
     }
   };
-
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-    setIsStreaming(false);
-  }, [stream]);
 
   const takePhoto = () => {
     if (videoRef.current && canvasRef.current) {

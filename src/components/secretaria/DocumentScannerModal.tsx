@@ -59,13 +59,23 @@ export function DocumentScannerModal({
   const [docNotes, setDocNotes] = useState("")
   const [isSaving, setIsSaving] = useState(false)
 
-  // Start camera
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        try { track.stop(); } catch (e) {}
+      });
+      streamRef.current = null;
+    }
+    setStream(null);
+    setIsCameraActive(false);
+  }, []);
+
   const startCamera = useCallback(async (facing: "environment" | "user" = cameraFacing) => {
-    setCameraError(null)
+    setCameraError(null);
     try {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop())
-      }
+      stopCamera();
 
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -74,30 +84,23 @@ export function DocumentScannerModal({
           height: { ideal: 1080 }
         },
         audio: false
-      })
+      });
 
-      setStream(mediaStream)
+      streamRef.current = mediaStream;
+      setStream(mediaStream);
       if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream
-        await videoRef.current.play()
-        setIsCameraActive(true)
+        videoRef.current.srcObject = mediaStream;
+        await videoRef.current.play();
+        setIsCameraActive(true);
       }
     } catch (err: any) {
-      console.warn("Camera access failed:", err)
+      console.warn("Camera access failed:", err);
       setCameraError(
         "Acesso à câmera não disponível neste dispositivo ou bloqueado pelo navegador. Você pode usar o botão 'Carregar Arquivo / Foto' abaixo."
-      )
-      setIsCameraActive(false)
+      );
+      setIsCameraActive(false);
     }
-  }, [cameraFacing, stream])
-
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop())
-      setStream(null)
-    }
-    setIsCameraActive(false)
-  }, [stream])
+  }, [cameraFacing, stopCamera]);
 
   useEffect(() => {
     if (isOpen && !capturedImage) {

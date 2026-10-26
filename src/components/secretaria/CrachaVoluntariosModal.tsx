@@ -1149,8 +1149,9 @@ export function CrachaVoluntariosModal({
   const [logoBgColor, setLogoBgColor] = useState<string>("#FFFFFF");
   const [logoPadding, setLogoPadding] = useState<number>(3);
 
-  // Personalização Avançada do QR Code (Tamanho, Cores e Contorno)
-  const [qrCodeSizePx, setQrCodeSizePx] = useState<number>(28);
+  // Personalização Avançada do QR Code (Tamanho, Cores, Modo e Contorno)
+  const [qrCodePayloadMode, setQrCodePayloadMode] = useState<'short_url' | 'vcard' | 'text' | 'full_url'>('short_url');
+  const [qrCodeSizePx, setQrCodeSizePx] = useState<number>(36);
   const [qrCodeColor, setQrCodeColor] = useState<string>("#000000");
   const [qrCodeBgColor, setQrCodeBgColor] = useState<string>("#FFFFFF");
   const [qrHasBorder, setQrHasBorder] = useState<boolean>(true);
@@ -1159,7 +1160,8 @@ export function CrachaVoluntariosModal({
   const [qrBorderRadius, setQrBorderRadius] = useState<'none' | 'sm' | 'md' | 'lg'>('md');
 
   const resetQrCodeCustomization = () => {
-    setQrCodeSizePx(28);
+    setQrCodePayloadMode('short_url');
+    setQrCodeSizePx(36);
     setQrCodeColor("#000000");
     setQrCodeBgColor("#FFFFFF");
     setQrHasBorder(true);
@@ -1872,17 +1874,72 @@ export function CrachaVoluntariosModal({
 
   const qrCodeText = useMemo(() => {
     const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://igreja-obpc.app';
+    
+    if (qrCodePayloadMode === 'vcard') {
+      return `BEGIN:VCARD\nVERSION:3.0\nFN:${customName}\nTITLE:${customRole}\nORG:${activeBranchName || 'OBPC'}\nNOTE:Matrícula: ${customMatricula}\nEND:VCARD`;
+    }
+
+    if (qrCodePayloadMode === 'text') {
+      return `OBPC - CREDENCIAL\nNOME: ${customName}\nCARGO: ${customRole}\nMATRÍCULA: ${customMatricula}\nVAL: ${customValidity}`;
+    }
+
+    if (qrCodePayloadMode === 'full_url') {
+      const params = new URLSearchParams({
+        reg: customMatricula,
+        nome: customName,
+        cargo: customRole,
+        depto: customDepartment,
+        dir: `${customResponsibleRole} - ${customResponsibleName}`,
+        val: customValidity,
+        cong: activeBranchName
+      });
+      return `${origin}/validar-cracha?${params.toString()}`;
+    }
+
+    // Default: 'short_url' (Compact URL -> 25x25 matrix -> Huge readable blocks -> Scans instantly on any camera!)
     const params = new URLSearchParams({
       reg: customMatricula,
       nome: customName,
-      cargo: customRole,
-      depto: customDepartment,
-      dir: `${customResponsibleRole} - ${customResponsibleName}`,
-      val: customValidity,
-      cong: activeBranchName
+      cargo: customRole
     });
     return `${origin}/validar-cracha?${params.toString()}`;
-  }, [customMatricula, customName, customRole, customDepartment, customResponsibleRole, customResponsibleName, customValidity, activeBranchName]);
+  }, [qrCodePayloadMode, customMatricula, customName, customRole, customDepartment, customResponsibleRole, customResponsibleName, customValidity, activeBranchName]);
+
+  const getVolQrPayload = (volItem?: { name?: string; role?: string; matricula?: string }) => {
+    const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://igreja-obpc.app';
+    const name = volItem?.name || customName;
+    const role = volItem?.role || customRole;
+    const mat = volItem?.matricula || customMatricula;
+
+    if (qrCodePayloadMode === 'vcard') {
+      return `BEGIN:VCARD\nVERSION:3.0\nFN:${name}\nTITLE:${role}\nORG:${activeBranchName || 'OBPC'}\nNOTE:Matrícula: ${mat}\nEND:VCARD`;
+    }
+
+    if (qrCodePayloadMode === 'text') {
+      return `OBPC CREDENCIAL | NOME: ${name} | CARGO: ${role} | MATRÍCULA: ${mat}`;
+    }
+
+    if (qrCodePayloadMode === 'full_url') {
+      const params = new URLSearchParams({
+        reg: mat,
+        nome: name,
+        cargo: role,
+        depto: customDepartment,
+        dir: `${customResponsibleRole} - ${customResponsibleName}`,
+        val: customValidity,
+        cong: activeBranchName
+      });
+      return `${origin}/validar-cracha?${params.toString()}`;
+    }
+
+    // Default: 'short_url' (Ultra short parameters -> 21x21 matrix -> Massive readable modules)
+    const params = new URLSearchParams({
+      reg: mat,
+      nome: name,
+      cargo: role
+    });
+    return `${origin}/validar-cracha?${params.toString()}`;
+  };
 
   // Handle Photo upload from computer / camera
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2244,11 +2301,12 @@ export function CrachaVoluntariosModal({
             onClick={() => setIsValidatingQr(true)}
           >
             <QRCodeSVG 
-              value={qrCodeText}
+              value={getVolQrPayload(vol)}
               size={qrCodeSizePx}
               fgColor={qrCodeColor}
               bgColor={qrCodeBgColor}
-              level="M"
+              level="L"
+              includeMargin={true}
             />
           </div>
         </div>
@@ -3907,8 +3965,81 @@ export function CrachaVoluntariosModal({
                     </div>
 
                     <p className="text-[11px] text-muted-foreground leading-tight">
-                      Aumente o tamanho para facilitar a leitura por câmeras de celular e personalize as cores e o contorno.
+                      Escolha o formato do conteúdo, aumente o tamanho e adapte o estilo para facilitar a leitura por câmeras de celular.
                     </p>
+
+                    {/* Modo de Conteúdo do QR Code (Facilidade de Leitura) */}
+                    <div className="space-y-1.5 p-2.5 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[11px] font-bold text-emerald-900 dark:text-emerald-200">
+                          Formato de Leitura no Celular:
+                        </Label>
+                        <Badge variant="outline" className="text-[9px] bg-emerald-100 text-emerald-800 font-bold border-emerald-300">
+                          {qrCodePayloadMode === 'short_url' ? '25x25 (Ultra Nítido)' : qrCodePayloadMode === 'text' ? 'Texto Direto' : qrCodePayloadMode === 'vcard' ? 'Contato vCard' : 'URL Detalhada'}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setQrCodePayloadMode('short_url')}
+                          className={`p-1.5 rounded border text-left text-[10px] transition-all flex flex-col ${
+                            qrCodePayloadMode === 'short_url'
+                              ? "bg-emerald-600 text-white font-bold border-emerald-700 shadow-xs ring-1 ring-emerald-600"
+                              : "bg-background hover:bg-muted text-foreground border-slate-200"
+                          }`}
+                        >
+                          <span className="font-bold flex items-center gap-1">⚡ URL Curta (Recomendado)</span>
+                          <span className={`text-[9.5px] ${qrCodePayloadMode === 'short_url' ? 'text-emerald-100' : 'text-muted-foreground'}`}>
+                            Pontos grandes! Leitura super rápida.
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setQrCodePayloadMode('text')}
+                          className={`p-1.5 rounded border text-left text-[10px] transition-all flex flex-col ${
+                            qrCodePayloadMode === 'text'
+                              ? "bg-emerald-600 text-white font-bold border-emerald-700 shadow-xs ring-1 ring-emerald-600"
+                              : "bg-background hover:bg-muted text-foreground border-slate-200"
+                          }`}
+                        >
+                          <span className="font-bold flex items-center gap-1">📝 Texto da Credencial</span>
+                          <span className={`text-[9.5px] ${qrCodePayloadMode === 'text' ? 'text-emerald-100' : 'text-muted-foreground'}`}>
+                            Exibe o Nome, Cargo e Matrícula.
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setQrCodePayloadMode('vcard')}
+                          className={`p-1.5 rounded border text-left text-[10px] transition-all flex flex-col ${
+                            qrCodePayloadMode === 'vcard'
+                              ? "bg-emerald-600 text-white font-bold border-emerald-700 shadow-xs ring-1 ring-emerald-600"
+                              : "bg-background hover:bg-muted text-foreground border-slate-200"
+                          }`}
+                        >
+                          <span className="font-bold flex items-center gap-1">🪪 Cartão vCard</span>
+                          <span className={`text-[9.5px] ${qrCodePayloadMode === 'vcard' ? 'text-emerald-100' : 'text-muted-foreground'}`}>
+                            Opção de salvar nos contatos.
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setQrCodePayloadMode('full_url')}
+                          className={`p-1.5 rounded border text-left text-[10px] transition-all flex flex-col ${
+                            qrCodePayloadMode === 'full_url'
+                              ? "bg-emerald-600 text-white font-bold border-emerald-700 shadow-xs ring-1 ring-emerald-600"
+                              : "bg-background hover:bg-muted text-foreground border-slate-200"
+                          }`}
+                        >
+                          <span className="font-bold flex items-center gap-1">🌐 URL Completa</span>
+                          <span className={`text-[9.5px] ${qrCodePayloadMode === 'full_url' ? 'text-emerald-100' : 'text-muted-foreground'}`}>
+                            Todos os parâmetros estendidos.
+                          </span>
+                        </button>
+                      </div>
+                    </div>
 
                     {/* Tamanho do QR Code */}
                     <div className="space-y-2 p-2.5 rounded-lg bg-muted/40 border">
@@ -4201,11 +4332,12 @@ export function CrachaVoluntariosModal({
                         }}
                       >
                         <QRCodeSVG 
-                          value="https://obpc.org.br/validar"
+                          value={qrCodeText}
                           size={Math.min(32, qrCodeSizePx)}
                           fgColor={qrCodeColor}
                           bgColor={qrCodeBgColor}
-                          level="M"
+                          level="L"
+                          includeMargin={true}
                         />
                       </div>
                     </div>

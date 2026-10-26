@@ -1301,8 +1301,9 @@ export function Formularios() {
 
                 {/* Bloco 1: Identificação do Candidato */}
                 <div>
-                  <div className="bg-gray-100 font-bold text-[9px] uppercase px-1.5 py-0.5 border border-black mb-1">
-                    1. Identificação do(a) Candidato(a)
+                  <div className="bg-gray-100 font-bold text-[9px] uppercase px-1.5 py-0.5 border border-black mb-1 flex justify-between items-center">
+                    <span>1. Identificação do(a) Candidato(a)</span>
+                    <span className="text-[8px] font-semibold text-gray-700">Faixa Etária: [ ] Maior de 18 Anos   [ ] Menor de Idade (&lt; 18 Anos)</span>
                   </div>
                   <div className="border border-black text-[9px]">
                     <div className="flex border-b border-black">
@@ -1464,10 +1465,43 @@ export function Formularios() {
                   </div>
                 </div>
 
-                {/* Bloco 4: Termo de Confissão de Fé e Compromisso */}
+                {/* Bloco 4: Autorização dos Pais / Responsáveis (Caso Menor de Idade) */}
+                <div>
+                  <div className="bg-gray-100 font-bold text-[9px] uppercase px-1.5 py-0.5 border border-black mb-1 flex justify-between items-center">
+                    <span>4. Autorização dos Pais ou Responsáveis Legais (Candidatos Menores de 18 Anos)</span>
+                    <span className="text-[7.5px] font-bold text-red-700 uppercase">[ Obrigatorio para menores ]</span>
+                  </div>
+                  <div className="border border-black p-1.5 text-[8.5px] space-y-1 bg-gray-50/50">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="col-span-2">
+                        <span className="font-bold">Nome do Pai/Mãe ou Responsável Legal:</span> ____________________________________________________
+                      </div>
+                      <div>
+                        <span className="font-bold">Parentesco:</span> [ ] Pai  [ ] Mãe  [ ] Tutor
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="font-bold">Doc. CPF/RG Responsável:</span> ____________________________
+                      </div>
+                      <div>
+                        <span className="font-bold">Telefone Contato:</span> ____________________________
+                      </div>
+                    </div>
+                    <p className="text-[8px] leading-tight text-justify font-serif italic pt-0.5">
+                      "Eu, na qualidade de responsável legal pelo(a) candidato(a) menor acima qualificado(a), DECLARO QUE AUTORIZO EXPRESSAMENTE a sua participação nos estudos bíblicos preparatórios e a descer às águas batismais conforme a doutrina cristã."
+                    </p>
+                    <div className="pt-2 flex justify-between items-center">
+                      <span className="text-[8px]">Assinatura do Responsável Legal: ____________________________________________________</span>
+                      <span className="text-[8px]">Data: ____/____/________</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bloco 5: Termo de Confissão de Fé e Compromisso */}
                 <div>
                   <div className="bg-gray-100 font-bold text-[9px] uppercase px-1.5 py-0.5 border border-black mb-1">
-                    4. Termo de Confissão de Fé e Compromisso Bíblico do Candidato
+                    5. Termo de Confissão de Fé e Compromisso Bíblico do Candidato
                   </div>
                   <div className="border border-black p-2 text-justify text-[8.5px] leading-relaxed space-y-1.5">
                     <p>
@@ -1483,7 +1517,7 @@ export function Formularios() {
                       <div className="text-center w-[75mm]">
                         <div className="border-b border-black w-full min-h-[14px]"></div>
                         <span className="text-[8px] uppercase font-bold block mt-0.5">Assinatura do(a) Candidato(a)</span>
-                        <span className="text-[7px] text-gray-600 block">(ou do Responsável Legal caso menor de 18 anos)</span>
+                        <span className="text-[7px] text-gray-600 block">(ou do Responsável Legal se menor de idade)</span>
                       </div>
                     </div>
                   </div>

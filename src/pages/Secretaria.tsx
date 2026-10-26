@@ -582,13 +582,11 @@ export function Secretaria() {
   };
 
   const getMemberQrPayload = (m: any) => {
-    if (!m) return "OBPC-MEMBRO-0001";
+    if (!m) return "OBPC - MEMBRO";
     const name = m.name || m.nome || "Membro";
     const role = m.role || m.cargo || "Membro";
-    const cpf = m.cpf || "N/A";
     const id = m.id || m.numeroFicha || "1";
-    const church = churchData?.nome || activeBranchName || "OBPC";
-    return `OBPC-MEMBRO|ID:${id}|NOME:${name}|CARGO:${role}|CPF:${cpf}|CONGREGACAO:${church}|STATUS:ATIVO`;
+    return `OBPC | ${name} | ${role} | REG: ${id}`;
   };
   
   // Event Presence List Modal State
@@ -1325,7 +1323,7 @@ export function Secretaria() {
             try {
               const qrVal = getMemberQrPayload(member);
               const qrDataUrl = await QRCode.toDataURL(qrVal, {
-                margin: 1,
+                margin: 2,
                 width: 140,
                 color: { dark: '#000000', light: '#ffffff' }
               });
@@ -3903,6 +3901,7 @@ export function Secretaria() {
                                   value={getMemberQrPayload(previewMember)} 
                                   size={34} 
                                   level="M" 
+                                  includeMargin={true}
                                 />
                                 <span className="text-[4px] font-bold text-slate-700 mt-0.5 leading-none">VALIDAÇÃO</span>
                               </div>
@@ -4192,7 +4191,7 @@ export function Secretaria() {
         </Card>
 
         {/* FRAME 2: GESTÃO DE ESCALAS, MURAL DO TEMPLO & CRACHÁS */}
-        <Card className="mt-4">
+        <Card className="mt-4 overflow-hidden">
           <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
             <CardTitle className="text-lg flex items-center gap-2">
               <ClipboardList className="h-5 w-5 text-amber-600" />
@@ -4202,20 +4201,20 @@ export function Secretaria() {
               Escalas dos ministérios da congregação, publicação no mural oficial e confecção de crachás para obreiros e voluntários.
             </CardDescription>
           </CardHeader>
-          <CardContent className="pt-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 w-full">
+          <CardContent className="pt-4 overflow-hidden">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-3 w-full">
               {/* 1. Escala do Mural */}
               <Button 
                 variant="outline" 
                 onClick={() => setIsEscalaMuralModalOpen(true)} 
-                className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all text-left w-full shadow-sm"
+                className="h-auto flex-col items-start p-3.5 gap-1.5 border-slate-200 dark:border-slate-800 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all text-left w-full overflow-hidden shadow-xs"
               >
-                <div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-lg text-amber-700 dark:text-amber-400">
+                <div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-lg text-amber-700 dark:text-amber-400 shrink-0">
                   <ClipboardList className="h-5 w-5" />
                 </div>
-                <div>
-                  <div className="font-semibold text-sm">Escala do Mural</div>
-                  <div className="text-xs text-muted-foreground font-normal">Diaconato & voluntários</div>
+                <div className="w-full overflow-hidden">
+                  <div className="font-semibold text-sm truncate w-full">Escala do Mural</div>
+                  <div className="text-xs text-muted-foreground font-normal truncate w-full">Diaconato & voluntários</div>
                 </div>
               </Button>
 
@@ -4223,14 +4222,14 @@ export function Secretaria() {
               <Button 
                 variant="outline" 
                 onClick={() => setIsEscalaDirigentesModalOpen(true)} 
-                className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all text-left w-full shadow-sm"
+                className="h-auto flex-col items-start p-3.5 gap-1.5 border-slate-200 dark:border-slate-800 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all text-left w-full overflow-hidden shadow-xs"
               >
-                <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg text-blue-700 dark:text-blue-400">
+                <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg text-blue-700 dark:text-blue-400 shrink-0">
                   <Mic className="h-5 w-5" />
                 </div>
-                <div>
-                  <div className="font-semibold text-sm">Escala Dirigentes</div>
-                  <div className="text-xs text-muted-foreground font-normal">Dirigentes e pregadores</div>
+                <div className="w-full overflow-hidden">
+                  <div className="font-semibold text-sm truncate w-full">Escala Dirigentes</div>
+                  <div className="text-xs text-muted-foreground font-normal truncate w-full">Dirigentes e pregadores</div>
                 </div>
               </Button>
 
@@ -4238,14 +4237,14 @@ export function Secretaria() {
               <Button 
                 variant="outline" 
                 onClick={() => setIsEscalaMusicosModalOpen(true)} 
-                className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all text-left w-full shadow-sm"
+                className="h-auto flex-col items-start p-3.5 gap-1.5 border-slate-200 dark:border-slate-800 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all text-left w-full overflow-hidden shadow-xs"
               >
-                <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-lg text-purple-700 dark:text-purple-400">
+                <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-lg text-purple-700 dark:text-purple-400 shrink-0">
                   <Music className="h-5 w-5" />
                 </div>
-                <div>
-                  <div className="font-semibold text-sm">Escala de Músicos</div>
-                  <div className="text-xs text-muted-foreground font-normal">Louvor e instrumentistas</div>
+                <div className="w-full overflow-hidden">
+                  <div className="font-semibold text-sm truncate w-full">Escala de Músicos</div>
+                  <div className="text-xs text-muted-foreground font-normal truncate w-full">Louvor e instrumentistas</div>
                 </div>
               </Button>
 
@@ -4253,14 +4252,14 @@ export function Secretaria() {
               <Button 
                 variant="outline" 
                 onClick={() => setIsEscalaLimpezaModalOpen(true)} 
-                className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all text-left w-full shadow-sm"
+                className="h-auto flex-col items-start p-3.5 gap-1.5 border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all text-left w-full overflow-hidden shadow-xs"
               >
-                <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-lg text-emerald-700 dark:text-emerald-400">
+                <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-lg text-emerald-700 dark:text-emerald-400 shrink-0">
                   <Brush className="h-5 w-5" />
                 </div>
-                <div>
-                  <div className="font-semibold text-sm">Escala de Limpeza</div>
-                  <div className="text-xs text-muted-foreground font-normal">Zeladoria e conservação</div>
+                <div className="w-full overflow-hidden">
+                  <div className="font-semibold text-sm truncate w-full">Escala de Limpeza</div>
+                  <div className="text-xs text-muted-foreground font-normal truncate w-full">Zeladoria e conservação</div>
                 </div>
               </Button>
 
@@ -4268,14 +4267,14 @@ export function Secretaria() {
               <Button 
                 variant="outline" 
                 onClick={() => setIsCrachaVoluntariosModalOpen(true)} 
-                className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all text-left w-full shadow-sm"
+                className="h-auto flex-col items-start p-3.5 gap-1.5 border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all text-left w-full overflow-hidden shadow-xs"
               >
-                <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-lg text-indigo-700 dark:text-indigo-400">
+                <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-lg text-indigo-700 dark:text-indigo-400 shrink-0">
                   <IdCard className="h-5 w-5" />
                 </div>
-                <div>
-                  <div className="font-semibold text-sm">Crachás Oficiais</div>
-                  <div className="text-xs text-muted-foreground font-normal">Diaconato, Kids & Eventos</div>
+                <div className="w-full overflow-hidden">
+                  <div className="font-semibold text-sm truncate w-full">Crachás Oficiais</div>
+                  <div className="text-xs text-muted-foreground font-normal truncate w-full">Diaconato, Kids & Eventos</div>
                 </div>
               </Button>
 
@@ -4283,14 +4282,14 @@ export function Secretaria() {
               <Button 
                 variant="outline" 
                 onClick={() => setIsFormulariosFinanceirosModalOpen(true)} 
-                className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all text-left w-full shadow-sm"
+                className="h-auto flex-col items-start p-3.5 gap-1.5 border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all text-left w-full overflow-hidden shadow-xs"
               >
-                <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-lg text-emerald-700 dark:text-emerald-400">
+                <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-lg text-emerald-700 dark:text-emerald-400 shrink-0">
                   <FileText className="h-5 w-5" />
                 </div>
-                <div>
-                  <div className="font-semibold text-sm">Formulários Financeiros</div>
-                  <div className="text-xs text-muted-foreground font-normal">Entradas, Saídas, Dizimista & Fechamento</div>
+                <div className="w-full overflow-hidden">
+                  <div className="font-semibold text-sm truncate w-full">Formulários Financeiros</div>
+                  <div className="text-xs text-muted-foreground font-normal truncate w-full">Entradas, Saídas & Caixa</div>
                 </div>
               </Button>
             </div>
