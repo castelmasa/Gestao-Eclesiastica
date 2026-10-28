@@ -29,7 +29,8 @@ import {
   FileUp, 
   Sparkles,
   StopCircle,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 
@@ -71,6 +72,7 @@ export function VCardQrContactScannerModal({
 
   // Camera State
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isProcessingScan, setIsProcessingScan] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const readerElementId = "qr-code-interactive-scanner";
@@ -122,8 +124,14 @@ export function VCardQrContactScannerModal({
           qrbox: { width: 250, height: 250 }
         },
         (decodedText) => {
-          handleDecodedText(decodedText);
+          toast.loading("Validando e processando QR Code...", { id: "qr-scan-toast" });
+          setIsProcessingScan(true);
           stopCamera();
+          setTimeout(() => {
+            handleDecodedText(decodedText);
+            toast.success("Dados do QR Code lidos com sucesso!", { id: "qr-scan-toast" });
+            setIsProcessingScan(false);
+          }, 350);
         },
         () => {
           // ignore scan frame errors
@@ -379,6 +387,13 @@ export function VCardQrContactScannerModal({
               <TabsContent value="camera" className="space-y-3 pt-3">
                 <div className="relative border-2 border-dashed border-border/80 rounded-2xl overflow-hidden bg-slate-950 flex flex-col items-center justify-center min-h-[300px] text-white">
                   <div id={readerElementId} className="w-full max-w-[360px] aspect-square rounded-xl overflow-hidden" />
+                  
+                  {isProcessingScan && (
+                    <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center text-white p-4 space-y-3 z-50">
+                      <Loader2 className="w-10 h-10 animate-spin text-emerald-400" />
+                      <span className="text-xs font-bold tracking-wide text-emerald-100">Validando e processando dados do QR Code...</span>
+                    </div>
+                  )}
                   
                   {cameraError && (
                     <div className="absolute inset-0 bg-background/95 p-6 flex flex-col items-center justify-center text-center">

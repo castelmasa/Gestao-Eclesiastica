@@ -377,7 +377,16 @@ export async function downloadElementAsPdf(
         if (i > 0) {
           pdf.addPage('a4', 'portrait');
         }
-        pdf.addImage(dataUrl, 'PNG', 0, 0, 210, 297);
+        const imgProps = pdf.getImageProperties(dataUrl);
+        const imgWidth = 210;
+        const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+        if (imgHeight >= 290) {
+          pdf.addImage(dataUrl, 'PNG', 0, 0, 210, 297);
+        } else {
+          const yOffset = (297 - imgHeight) / 2;
+          pdf.addImage(dataUrl, 'PNG', 0, Math.max(0, yOffset), imgWidth, imgHeight);
+        }
       }
     } else {
       const dataUrl = await toPng(element, {
@@ -385,7 +394,21 @@ export async function downloadElementAsPdf(
         pixelRatio: 2,
         backgroundColor: '#ffffff'
       });
-      pdf.addImage(dataUrl, 'PNG', 0, 0, 210, 297);
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const imgWidth = 210;
+      const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+      if (imgHeight >= 290) {
+        pdf.addImage(dataUrl, 'PNG', 0, 0, 210, 297);
+      } else if (imgHeight > 297) {
+        const scaledHeight = 297;
+        const scaledWidth = (imgProps.width * scaledHeight) / imgProps.height;
+        const xOffset = (210 - scaledWidth) / 2;
+        pdf.addImage(dataUrl, 'PNG', xOffset, 0, scaledWidth, scaledHeight);
+      } else {
+        const yOffset = (297 - imgHeight) / 2;
+        pdf.addImage(dataUrl, 'PNG', 0, Math.max(0, yOffset), imgWidth, imgHeight);
+      }
     }
 
     pdf.save(fileName);
