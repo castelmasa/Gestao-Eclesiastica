@@ -4,57 +4,85 @@
  */
 import type { jsPDF } from "jspdf"
 
-export function getRegisteredChurchLogo(activeBranchId?: string): string | null {
-  try {
-    if (typeof window === "undefined" || !window.localStorage) return null
+export const DEFAULT_OFFICIAL_CHURCH_LOGO = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80"><circle cx="36" cy="40" r="32" fill="%230f172a"/><path d="M22 40 L 50 24 L 38 56 Z" fill="%23ffffff"/><text x="76" y="28" font-family="sans-serif" font-size="12" font-weight="bold" fill="%230f172a">Igreja</text><text x="76" y="46" font-family="sans-serif" font-size="15" font-weight="900" fill="%230f172a">Brasil</text><text x="76" y="66" font-family="sans-serif" font-size="18" font-weight="900" fill="%23b91c1c">CRISTO</text></svg>`;
 
-    // 1. Tenta da congregação ativa se não for sede/all
+export function getRegisteredChurchLogo(activeBranchId?: string): string {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) {
+      return DEFAULT_OFFICIAL_CHURCH_LOGO;
+    }
+
+    // 1. Tenta da congregação ativa se informada
     if (activeBranchId && activeBranchId !== "sede" && activeBranchId !== "all") {
-      const branchRaw = localStorage.getItem(`churchConfig_${activeBranchId}`)
+      const branchRaw = localStorage.getItem(`churchConfig_${activeBranchId}`);
       if (branchRaw) {
         try {
-          const parsed = JSON.parse(branchRaw)
-          if (parsed.logoDataUrl && typeof parsed.logoDataUrl === "string" && parsed.logoDataUrl.startsWith("data:image")) {
-            return parsed.logoDataUrl
+          const parsed = JSON.parse(branchRaw);
+          const logo = parsed.logoDataUrl || parsed.logoUrl || parsed.logo;
+          if (logo && typeof logo === "string" && logo.trim().length > 0) {
+            return logo;
           }
         } catch {}
       }
     }
 
     // 2. Tenta da configuração global da Igreja (Sede)
-    const globalRaw = localStorage.getItem("churchConfig")
+    const globalRaw = localStorage.getItem("churchConfig");
     if (globalRaw) {
       try {
-        const parsed = JSON.parse(globalRaw)
-        if (parsed.logoDataUrl && typeof parsed.logoDataUrl === "string" && parsed.logoDataUrl.startsWith("data:image")) {
-          return parsed.logoDataUrl
+        const parsed = JSON.parse(globalRaw);
+        const logo = parsed.logoDataUrl || parsed.logoUrl || parsed.logo;
+        if (logo && typeof logo === "string" && logo.trim().length > 0) {
+          return logo;
         }
       } catch {}
     }
 
-    // 3. Tenta do banco de logos personalizados armazenados
-    const logosRaw = localStorage.getItem("churchLogos")
+    // 3. Tenta chaves diretas salvas
+    const directLogo =
+      localStorage.getItem("churchLogoDataUrl") ||
+      localStorage.getItem("church_logo") ||
+      localStorage.getItem("churchLogo");
+    if (directLogo && typeof directLogo === "string" && directLogo.trim().length > 0) {
+      return directLogo;
+    }
+
+    // 4. Varre qualquer outra congregação cadastrada que tenha logo salvo
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("churchConfig_")) {
+        try {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const p = JSON.parse(raw);
+            const l = p.logoDataUrl || p.logoUrl || p.logo;
+            if (l && typeof l === "string" && l.trim().length > 0) {
+              return l;
+            }
+          }
+        } catch {}
+      }
+    }
+
+    // 5. Tenta do banco de logos personalizados armazenados
+    const logosRaw = localStorage.getItem("churchLogos");
     if (logosRaw) {
       try {
-        const parsed = JSON.parse(logosRaw)
+        const parsed = JSON.parse(logosRaw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const active = parsed.find((l: any) => l.active) || parsed[0]
-          if (active?.dataUrl && typeof active.dataUrl === "string" && active.dataUrl.startsWith("data:image")) {
-            return active.dataUrl
+          const active = parsed.find((l: any) => l.active) || parsed[0];
+          if (active?.dataUrl && typeof active.dataUrl === "string" && active.dataUrl.trim().length > 0) {
+            return active.dataUrl;
           }
         }
       } catch {}
     }
-
-    // 4. Fallback para chave isolada
-    const directLogo = localStorage.getItem("churchLogoDataUrl")
-    if (directLogo && directLogo.startsWith("data:image")) {
-      return directLogo
-    }
   } catch (err) {
-    console.warn("Erro ao buscar logo da igreja:", err)
+    console.warn("Erro ao buscar logo da igreja:", err);
   }
-  return null
+
+  // Fallback institucional oficial garantido
+  return DEFAULT_OFFICIAL_CHURCH_LOGO;
 }
 
 /**
@@ -69,24 +97,26 @@ export function drawChurchLogoInPdf(
   width: number,
   height: number
 ): boolean {
-  if (!logoUrl || typeof logoUrl !== "string" || !logoUrl.startsWith("data:image")) {
-    return false
+  const effective = logoUrl || getRegisteredChurchLogo();
+  if (!effective || typeof effective !== "string") {
+    return false;
   }
 
   try {
-    let format = "PNG"
-    if (logoUrl.startsWith("data:image/jpeg") || logoUrl.startsWith("data:image/jpg")) {
-      format = "JPEG"
-    } else if (logoUrl.startsWith("data:image/webp")) {
-      format = "WEBP"
+    if (effective.startsWith("data:image/png") || effective.startsWith("data:image/jpeg") || effective.startsWith("data:image/jpg") || effective.startsWith("data:image/webp")) {
+      let format = "PNG";
+      if (effective.startsWith("data:image/jpeg") || effective.startsWith("data:image/jpg")) {
+        format = "JPEG";
+      } else if (effective.startsWith("data:image/webp")) {
+        format = "WEBP";
+      }
+      doc.addImage(effective, format, x, y, width, height, undefined, "FAST");
+      return true;
     }
-
-    doc.addImage(logoUrl, format, x, y, width, height, undefined, "FAST")
-    return true
   } catch (err) {
-    console.warn("Aviso ao desenhar logo da igreja no PDF:", err)
-    return false
+    console.warn("Aviso ao desenhar logo da igreja no PDF:", err);
   }
+  return false;
 }
 
 export interface ChurchReportHeaderOptions {
@@ -212,73 +242,186 @@ export function drawSafeChurchReportHeader(
 
 /**
  * Desenha o bloco padrão e elegante de assinaturas do Pastor e do Tesoureiro
- * no rodapé do relatório financeiro impresso/PDF, com linhas de assinatura
- * proporcionais e declaração formal de conformidade contábil.
+/**
+ * Insere imagem de assinatura digital com segurança no PDF
+ */
+function drawDigitalSignatureInPdf(
+  doc: jsPDF,
+  dataUrl: string | undefined | null,
+  centerX: number,
+  lineY: number,
+  maxWidth = 36,
+  maxHeight = 12
+): boolean {
+  if (!dataUrl || typeof dataUrl !== "string" || !dataUrl.startsWith("data:image")) {
+    return false
+  }
+  try {
+    let format = "PNG"
+    if (dataUrl.startsWith("data:image/jpeg") || dataUrl.startsWith("data:image/jpg")) {
+      format = "JPEG"
+    } else if (dataUrl.startsWith("data:image/webp")) {
+      format = "WEBP"
+    }
+    const x = centerX - (maxWidth / 2)
+    const y = lineY - maxHeight - 1
+    doc.addImage(dataUrl, format, x, y, maxWidth, maxHeight, undefined, "FAST")
+    return true
+  } catch (err) {
+    console.warn("Aviso ao desenhar assinatura digital no PDF:", err)
+    return false
+  }
+}
+
+/**
+ * Desenha o bloco oficial de assinaturas dos responsáveis (Pastor, Tesoureiro(a), etc.)
+ * de acordo com os parâmetros do sistema (Parametros.tsx / churchConfig).
+ * Suporta assinaturas digitais quando cadastradas e 2 ou 3 signatários.
  */
 export function drawFinancialReportSignatures(
   doc: jsPDF,
   churchConfig?: any,
-  preferredY?: number
+  preferredY?: number,
+  options?: {
+    closingDate?: string
+    city?: string
+  }
 ): number {
   const pageHeight = doc.internal.pageSize.getHeight() // 297mm A4
-  const footerMargin = 22
-  const signatureHeight = 32
+  const footerLimit = 274 // Limite seguro antes da linha do rodapé (283mm)
 
-  let y = preferredY || (pageHeight - signatureHeight - footerMargin)
+  // Monta a lista de responsáveis conforme os parâmetros do sistema
+  interface Signatory {
+    name: string
+    cargo: string
+    signatureUrl?: string
+  }
+
+  const signatories: Signatory[] = []
+
+  // 1. Pastor Titular / Presidente
+  const pastorName =
+    churchConfig?.pastorTitular?.trim() ||
+    churchConfig?.pastorName?.trim() ||
+    churchConfig?.pastor?.trim() ||
+    "Pr. Samuel de Oliveira"
+  const pastorSig =
+    churchConfig?.pastorSignatureUrl ||
+    churchConfig?.pastorSignature ||
+    ""
+  signatories.push({
+    name: pastorName,
+    cargo: "Pastor Presidente / Titular",
+    signatureUrl: pastorSig
+  })
+
+  // 2. 1º Tesoureiro(a)
+  const tesoureiroName =
+    churchConfig?.tesoureiro1?.trim() ||
+    churchConfig?.tesoureiro?.trim() ||
+    churchConfig?.tesoureiroName?.trim() ||
+    "Carlos Roberto"
+  const tesoureiroSig =
+    churchConfig?.tesoureiro1SignatureUrl ||
+    churchConfig?.tesoureiroSignatureUrl ||
+    churchConfig?.tesoureiroSignature ||
+    ""
+  signatories.push({
+    name: tesoureiroName,
+    cargo: "1º Tesoureiro(a) Geral",
+    signatureUrl: tesoureiroSig
+  })
+
+  // 3. 2º Tesoureiro(a) ou Secretária (se configurados nos parâmetros)
+  if (churchConfig?.tesoureiro2 && churchConfig.tesoureiro2.trim()) {
+    signatories.push({
+      name: churchConfig.tesoureiro2.trim(),
+      cargo: "2º Tesoureiro(a)",
+      signatureUrl: churchConfig?.tesoureiro2SignatureUrl
+    })
+  } else if (churchConfig?.secretario1 && churchConfig.secretario1.trim()) {
+    signatories.push({
+      name: churchConfig.secretario1.trim(),
+      cargo: "1º Secretário(a)",
+      signatureUrl: churchConfig?.secretario1SignatureUrl || churchConfig?.secretarySignatureUrl
+    })
+  }
+
+  const hasAnyDigitalSig = signatories.some(s => s.signatureUrl && s.signatureUrl.startsWith("data:image"))
+  const signatureBlockHeight = hasAnyDigitalSig ? 30 : 25
+
+  let y = preferredY || (footerLimit - signatureBlockHeight)
 
   // Se o y ultrapassar o espaço disponível na página atual, salta para nova página
-  if (y + signatureHeight > pageHeight - footerMargin) {
+  if (y + signatureBlockHeight > footerLimit) {
     doc.addPage()
     y = 35
   }
 
-  const pastorName = churchConfig?.pastorTitular || "Pastor Presidente / Titular"
-  const tesoureiroName = churchConfig?.tesoureiro1 || "1º Tesoureiro(a) Geral"
-
-  // Declaração de idoneidade
+  // Declaração formal de idoneidade
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
   doc.setTextColor(70, 70, 70)
   doc.text(
     "Declaro para os devidos fins que as informações acima conferem com os livros e comprovantes arquivados na secretaria/tesouraria.",
     105,
-    y - 2,
-    { maxWidth: 175, align: "center" }
+    y,
+    { maxWidth: 180, align: "center" }
   )
 
-  // Coordenadas das assinaturas
-  const leftStart = 20
-  const leftEnd = 95
-  const leftCenter = (leftStart + leftEnd) / 2
-
-  const rightStart = 115
-  const rightEnd = 190
-  const rightCenter = (rightStart + rightEnd) / 2
-
+  const lineY = y + (hasAnyDigitalSig ? 15 : 12)
   doc.setDrawColor(0, 0, 0)
   doc.setLineWidth(0.4)
 
-  // Assinatura do Pastor
-  doc.line(leftStart, y + 14, leftEnd, y + 14)
-  doc.setFont("helvetica", "bold")
-  doc.setFontSize(9)
-  doc.setTextColor(0, 0, 0)
-  doc.text(pastorName.toUpperCase(), leftCenter, y + 19, { align: "center", maxWidth: 75 })
-  doc.setFont("helvetica", "normal")
-  doc.setFontSize(7.5)
-  doc.setTextColor(80, 80, 80)
-  doc.text("Pastor Presidente / Titular", leftCenter, y + 23, { align: "center" })
+  if (signatories.length === 2) {
+    const slots = [
+      { start: 20, end: 95, center: 57.5, maxW: 75 },
+      { start: 115, end: 190, center: 152.5, maxW: 75 }
+    ]
 
-  // Assinatura do Tesoureiro
-  doc.line(rightStart, y + 14, rightEnd, y + 14)
-  doc.setFont("helvetica", "bold")
-  doc.setFontSize(9)
-  doc.setTextColor(0, 0, 0)
-  doc.text(tesoureiroName.toUpperCase(), rightCenter, y + 19, { align: "center", maxWidth: 75 })
-  doc.setFont("helvetica", "normal")
-  doc.setFontSize(7.5)
-  doc.setTextColor(80, 80, 80)
-  doc.text("1º Tesoureiro(a) Geral", rightCenter, y + 23, { align: "center" })
+    signatories.forEach((sig, idx) => {
+      const slot = slots[idx]
+      if (sig.signatureUrl) {
+        drawDigitalSignatureInPdf(doc, sig.signatureUrl, slot.center, lineY, 40, 12)
+      }
+      doc.line(slot.start, lineY, slot.end, lineY)
 
-  return y + signatureHeight
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(8.5)
+      doc.setTextColor(0, 0, 0)
+      doc.text(sig.name.toUpperCase(), slot.center, lineY + 4.5, { align: "center", maxWidth: slot.maxW })
+
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(7.5)
+      doc.setTextColor(80, 80, 80)
+      doc.text(sig.cargo, slot.center, lineY + 8.5, { align: "center", maxWidth: slot.maxW })
+    })
+  } else {
+    // 3 Signatários
+    const slots = [
+      { start: 14, end: 68, center: 41, maxW: 54 },
+      { start: 76, end: 130, center: 103, maxW: 54 },
+      { start: 138, end: 192, center: 165, maxW: 54 }
+    ]
+
+    signatories.slice(0, 3).forEach((sig, idx) => {
+      const slot = slots[idx]
+      if (sig.signatureUrl) {
+        drawDigitalSignatureInPdf(doc, sig.signatureUrl, slot.center, lineY, 32, 11)
+      }
+      doc.line(slot.start, lineY, slot.end, lineY)
+
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(8)
+      doc.setTextColor(0, 0, 0)
+      doc.text(sig.name.toUpperCase(), slot.center, lineY + 4.5, { align: "center", maxWidth: slot.maxW })
+
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(7)
+      doc.setTextColor(80, 80, 80)
+      doc.text(sig.cargo, slot.center, lineY + 8.5, { align: "center", maxWidth: slot.maxW })
+    })
+  }
+
+  return lineY + 12
 }

@@ -438,17 +438,11 @@ export function FinancialEcoPrintModal({
             {/* Header Oficial da Igreja Conforme Anexo 1 e Anexo 2 */}
             <div className="border-b-2 border-black pb-2 mb-3">
               <div className="flex items-center justify-between gap-4">
-                {churchLogo ? (
-                  <img 
-                    src={churchLogo} 
-                    alt="Logo da Igreja" 
-                    className="h-16 max-w-[45mm] object-contain shrink-0" 
-                  />
-                ) : (
-                  <div className="w-14 h-14 border border-dashed border-gray-400 flex items-center justify-center text-[9px] font-bold text-gray-400 shrink-0">
-                    LOGO
-                  </div>
-                )}
+                <img 
+                  src={churchLogo || getRegisteredChurchLogo()} 
+                  alt="Logo Oficial da Igreja" 
+                  className="h-16 max-w-[45mm] object-contain shrink-0" 
+                />
                 <div className="flex-1 text-center min-w-0 px-2">
                   <h1 className="font-extrabold text-[13px] sm:text-[14px] tracking-tight uppercase leading-snug break-words max-w-[135mm] mx-auto">
                     {churchConfig?.nome || "IGREJA EVANGÉLICA PENTECOSTAL O BRASIL PARA CRISTO"}
@@ -680,13 +674,27 @@ export function FinancialEcoPrintModal({
                   Declaro que as informações acima conferem com os livros e comprovantes fiscais arquivados na secretaria da igreja.
                 </div>
                 <div className="flex justify-between items-end px-8 text-center text-[9px]">
-                  <div className="w-[60mm]">
-                    <div className="border-b border-black h-8 mb-1"></div>
+                  <div className="w-[60mm] flex flex-col items-center">
+                    {churchConfig?.pastorSignatureUrl && (
+                      <img 
+                        src={churchConfig.pastorSignatureUrl} 
+                        alt="Assinatura Pastor" 
+                        className="h-12 w-auto max-w-[50mm] object-contain mb-1 filter contrast-125" 
+                      />
+                    )}
+                    <div className="w-full border-b border-black mb-1"></div>
                     <div className="font-bold uppercase">{churchConfig?.pastorTitular || "Pastor Presidente / Titular"}</div>
                     <div className="text-[8px] text-gray-600">Visto da Liderança</div>
                   </div>
-                  <div className="w-[60mm]">
-                    <div className="border-b border-black h-8 mb-1"></div>
+                  <div className="w-[60mm] flex flex-col items-center">
+                    {churchConfig?.tesoureiro1SignatureUrl && (
+                      <img 
+                        src={churchConfig.tesoureiro1SignatureUrl} 
+                        alt="Assinatura Tesoureiro" 
+                        className="h-12 w-auto max-w-[50mm] object-contain mb-1 filter contrast-125" 
+                      />
+                    )}
+                    <div className="w-full border-b border-black mb-1"></div>
                     <div className="font-bold uppercase">{churchConfig?.tesoureiro1 || "1º Tesoureiro(a) Geral"}</div>
                     <div className="text-[8px] text-gray-600">Responsável Financeiro</div>
                   </div>

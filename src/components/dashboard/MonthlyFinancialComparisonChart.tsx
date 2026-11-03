@@ -36,6 +36,8 @@ import {
 interface MonthlyFinancialComparisonChartProps {
   transactions: any[]
   activeBranch?: string
+  selectedMonth?: number
+  selectedYear?: number
 }
 
 const MONTH_NAMES = [
@@ -56,12 +58,14 @@ const MONTH_NAMES = [
 export function MonthlyFinancialComparisonChart({
   transactions,
   activeBranch,
+  selectedMonth,
+  selectedYear,
 }: MonthlyFinancialComparisonChartProps) {
   const [viewMode, setViewMode] = useState<"semanal" | "acumulado" | "categorias">("semanal")
 
   const now = new Date()
-  const currentMonth = now.getMonth()
-  const currentYear = now.getFullYear()
+  const currentMonth = selectedMonth ?? now.getMonth()
+  const currentYear = selectedYear ?? now.getFullYear()
   const monthName = MONTH_NAMES[currentMonth]
 
   // Filtra transações do mês atual

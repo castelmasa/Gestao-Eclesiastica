@@ -153,6 +153,38 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["message", "source", "severity"]
+    },
+    "Asset": {
+      "title": "Asset",
+      "description": "Church ministry asset or inventory item",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "tag": { "type": "string" },
+        "category": { "type": "string" },
+        "location": { "type": "string" },
+        "branchId": { "type": "string" },
+        "value": { "type": "number" },
+        "status": { "type": "string", "enum": ["Ativo", "Em Manutenção", "Emprestado", "Baixado"] },
+        "purchaseDate": { "type": "string" },
+        "depreciationRate": { "type": "number" },
+        "lastMaintenance": { "type": "string" },
+        "borrowedTo": { "type": "string" },
+        "specs": { "type": "string" },
+        "notes": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "invoiceDocumentUrl": { "type": "string" },
+        "invoiceDocumentName": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "supplierName": { "type": "string" },
+        "acquisitionType": { "type": "string" },
+        "acquisitionDate": { "type": "string" },
+        "acquisitionValue": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["name", "category", "branchId"]
     }
   },
   "firestore": {
@@ -167,6 +199,10 @@
     "members/{memberId}": {
       "schema": { "$ref": "#/entities/Member" },
       "description": "Church congregation members"
+    },
+    "assets/{assetId}": {
+      "schema": { "$ref": "#/entities/Asset" },
+      "description": "Church ministry assets and inventory items"
     },
     "branches/{branchId}": {
       "schema": { "$ref": "#/entities/Branch" },

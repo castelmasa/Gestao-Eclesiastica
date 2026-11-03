@@ -1,7 +1,4 @@
-/**
- * Helper centralizado para obter dados institucionais, liderança e assinaturas oficiais
- * (Pastor Presidente/Titular, Tesoureiro, Secretária) a partir do módulo de Configurações/Parâmetros.
- */
+import { getRegisteredChurchLogo } from "./churchLogoHelper";
 
 export interface LeadershipSignatures {
   pastor: {
@@ -34,6 +31,11 @@ export interface LeadershipSignatures {
     cep: string;
     logoUrl?: string;
   };
+  conselhoFiscal: {
+    cf1: { name: string; signatureUrl?: string; role: string };
+    cf2: { name: string; signatureUrl?: string; role: string };
+    cf3: { name: string; signatureUrl?: string; role: string };
+  };
 }
 
 const DEFAULT_CHURCH_CONFIG = {
@@ -41,7 +43,7 @@ const DEFAULT_CHURCH_CONFIG = {
   cnpj: "51.105.484/0001-74",
   endereco: "Rua Bartolomeu Bueno, Nº 629",
   bairro: "Santa Casa",
-  cidade: "Valparaiso - SP",
+  cidade: "Valparaíso - SP",
   cep: "16880-000",
   pastorTitular: "Pr. Samuel de Oliveira",
   pastorSignatureUrl: "",
@@ -49,6 +51,12 @@ const DEFAULT_CHURCH_CONFIG = {
   secretario1SignatureUrl: "",
   tesoureiro1: "Carlos Roberto",
   tesoureiro1SignatureUrl: "",
+  conselhoFiscal1: "1º Conselheiro(a) Fiscal",
+  conselhoFiscal1SignatureUrl: "",
+  conselhoFiscal2: "2º Conselheiro(a) Fiscal",
+  conselhoFiscal2SignatureUrl: "",
+  conselhoFiscal3: "3º Conselheiro(a) Fiscal",
+  conselhoFiscal3SignatureUrl: "",
 };
 
 export function getChurchLeadershipConfig(activeBranchId?: string, branchList: any[] = []): LeadershipSignatures {
@@ -71,8 +79,13 @@ export function getChurchLeadershipConfig(activeBranchId?: string, branchList: a
     }
   }
 
-  // Merge das configurações: global < filial
-  const mergedConfig = { ...savedConfig, ...branchSpecificConfig };
+  // Merge seguro: valores não-vazios da filial têm prioridade; vazios herdam da Sede / Global
+  const mergedConfig: any = { ...savedConfig };
+  for (const [k, v] of Object.entries(branchSpecificConfig)) {
+    if (v !== "" && v !== null && v !== undefined) {
+      mergedConfig[k] = v;
+    }
+  }
 
   let branchObj: any = null;
   if (activeBranchId && activeBranchId !== "all" && branchList.length > 0) {
@@ -83,12 +96,15 @@ export function getChurchLeadershipConfig(activeBranchId?: string, branchList: a
     branchObj?.pastor ||
     mergedConfig.pastorTitular ||
     mergedConfig.pastor ||
+    savedConfig.pastorTitular ||
     DEFAULT_CHURCH_CONFIG.pastorTitular;
 
   const pastorSig =
-    branchObj?.pastorSignatureUrl ||
-    mergedConfig.pastorSignatureUrl ||
+    branchSpecificConfig.pastorSignatureUrl ||
+    branchSpecificConfig.pastorSignature ||
     savedConfig.pastorSignatureUrl ||
+    savedConfig.pastorSignature ||
+    mergedConfig.pastorSignatureUrl ||
     "";
 
   const tesoureiroName =
@@ -98,10 +114,11 @@ export function getChurchLeadershipConfig(activeBranchId?: string, branchList: a
     DEFAULT_CHURCH_CONFIG.tesoureiro1;
 
   const tesoureiroSig =
-    mergedConfig.tesoureiro1SignatureUrl ||
-    mergedConfig.tesoureiroSignatureUrl ||
+    branchSpecificConfig.tesoureiro1SignatureUrl ||
+    branchSpecificConfig.tesoureiroSignatureUrl ||
     savedConfig.tesoureiro1SignatureUrl ||
     savedConfig.tesoureiroSignatureUrl ||
+    mergedConfig.tesoureiro1SignatureUrl ||
     "";
 
   const secretariaName =
@@ -112,26 +129,66 @@ export function getChurchLeadershipConfig(activeBranchId?: string, branchList: a
     DEFAULT_CHURCH_CONFIG.secretario1;
 
   const secretariaSig =
-    mergedConfig.secretario1SignatureUrl ||
-    mergedConfig.secretarySignatureUrl ||
+    branchSpecificConfig.secretario1SignatureUrl ||
+    branchSpecificConfig.secretarySignatureUrl ||
     savedConfig.secretario1SignatureUrl ||
     savedConfig.secretarySignatureUrl ||
+    mergedConfig.secretario1SignatureUrl ||
     "";
 
   const churchName =
     branchObj?.name ||
     mergedConfig.nome ||
+    savedConfig.nome ||
     DEFAULT_CHURCH_CONFIG.nome;
 
   const churchAddress =
     branchObj?.address ||
     mergedConfig.endereco ||
+    savedConfig.endereco ||
     DEFAULT_CHURCH_CONFIG.endereco;
 
   const churchCnpj =
     branchObj?.cnpj ||
     mergedConfig.cnpj ||
+    savedConfig.cnpj ||
     DEFAULT_CHURCH_CONFIG.cnpj;
+
+  const churchLogoUrl =
+    branchSpecificConfig.logoDataUrl ||
+    savedConfig.logoDataUrl ||
+    mergedConfig.logoDataUrl ||
+    getRegisteredChurchLogo(activeBranchId);
+
+  const cf1Name =
+    mergedConfig.conselhoFiscal1 ||
+    savedConfig.conselhoFiscal1 ||
+    DEFAULT_CHURCH_CONFIG.conselhoFiscal1;
+  const cf1Sig =
+    branchSpecificConfig.conselhoFiscal1SignatureUrl ||
+    savedConfig.conselhoFiscal1SignatureUrl ||
+    mergedConfig.conselhoFiscal1SignatureUrl ||
+    "";
+
+  const cf2Name =
+    mergedConfig.conselhoFiscal2 ||
+    savedConfig.conselhoFiscal2 ||
+    DEFAULT_CHURCH_CONFIG.conselhoFiscal2;
+  const cf2Sig =
+    branchSpecificConfig.conselhoFiscal2SignatureUrl ||
+    savedConfig.conselhoFiscal2SignatureUrl ||
+    mergedConfig.conselhoFiscal2SignatureUrl ||
+    "";
+
+  const cf3Name =
+    mergedConfig.conselhoFiscal3 ||
+    savedConfig.conselhoFiscal3 ||
+    DEFAULT_CHURCH_CONFIG.conselhoFiscal3;
+  const cf3Sig =
+    branchSpecificConfig.conselhoFiscal3SignatureUrl ||
+    savedConfig.conselhoFiscal3SignatureUrl ||
+    mergedConfig.conselhoFiscal3SignatureUrl ||
+    "";
 
   return {
     pastor: {
@@ -162,7 +219,24 @@ export function getChurchLeadershipConfig(activeBranchId?: string, branchList: a
       bairro: branchObj?.bairro || mergedConfig.bairro || DEFAULT_CHURCH_CONFIG.bairro,
       cidade: branchObj?.cidade || mergedConfig.cidade || DEFAULT_CHURCH_CONFIG.cidade,
       cep: mergedConfig.cep || savedConfig.cep || DEFAULT_CHURCH_CONFIG.cep,
-      logoUrl: mergedConfig.logoDataUrl || savedConfig.logoDataUrl || "",
+      logoUrl: churchLogoUrl,
+    },
+    conselhoFiscal: {
+      cf1: {
+        name: cf1Name,
+        signatureUrl: cf1Sig,
+        role: "1º Conselheiro(a) Fiscal"
+      },
+      cf2: {
+        name: cf2Name,
+        signatureUrl: cf2Sig,
+        role: "2º Conselheiro(a) Fiscal"
+      },
+      cf3: {
+        name: cf3Name,
+        signatureUrl: cf3Sig,
+        role: "3º Conselheiro(a) Fiscal"
+      }
     }
   };
 }

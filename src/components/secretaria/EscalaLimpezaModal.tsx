@@ -23,7 +23,6 @@ import {
   Edit2,
   Printer,
   Download,
-  Share2,
   Check,
   Save,
   Users,
@@ -31,7 +30,8 @@ import {
   Brush,
   CheckCircle2,
   Home,
-  AlertTriangle
+  AlertTriangle,
+  Image as ImageIcon
 } from "lucide-react";
 import { toast } from "sonner";
 import { db } from "@/lib/firebase";
@@ -43,13 +43,15 @@ import {
   doc,
   serverTimestamp
 } from "firebase/firestore";
-import { printDocument, downloadElementAsPdf } from "@/lib/printUtils";
+import { printDocument, downloadElementAsPdf, downloadElementAsImage } from "@/lib/printUtils";
 import { getRegisteredChurchLogo } from "@/lib/churchLogoHelper";
 
 export interface LimpezaEscalaItem {
   id: string;
   data: string; // YYYY-MM-DD
-  horario: string; // HH:MM
+  dataAlternativa?: string; // YYYY-MM-DD or free text e.g. "14/11/2026"
+  dataTextoPersonalizado?: string; // e.g. "Dia 07/11 ou Dia 14/11"
+  horario: string; // HH:MM or empty string
   equipe: string; // Ex: Equipe 1 - Irmãs da Coluna
   coordenador: string;
   voluntarios: string; // Nomes separados por vírgula ou lista
@@ -67,6 +69,7 @@ interface EscalaLimpezaModalProps {
 }
 
 const SETORES_PADRAO = [
+  "Não especificado",
   "Nave Principal & Altar / Púlpito",
   "Banheiros Masculino & Feminino",
   "Galeria / Mezanino & Sala de Som",
@@ -101,22 +104,25 @@ export function EscalaLimpezaModal({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Anexo 3: Responsável pela Criação da Escala
+  const [responsavelCriacaoEscala, setResponsavelCriacaoEscala] = useState<string>(() => {
+    return churchData?.secretario || churchData?.responsavelEscala || "Responsável pela Secretaria / Zeladoria";
+  });
+
   const [formData, setFormData] = useState<LimpezaEscalaItem>({
     id: "",
     data: new Date().toISOString().split("T")[0],
-    horario: "08:00",
+    dataAlternativa: "",
+    dataTextoPersonalizado: "",
+    horario: "",
     equipe: "Equipe 1 - Círculo de Oração & Mulheres",
     coordenador: "",
     voluntarios: "",
-    setores: [...SETORES_PADRAO],
+    setores: ["Não especificado"],
     observacoes: "Favor trazer luvas e produtos de limpeza autorizados."
   });
 
-  const [responsavelGeral, setResponsavelGeral] = useState(() => {
-    return churchData?.pastorTitular || churchData?.pastor || "Diretoria de Patrimônio & Zeladoria";
-  });
-
-  // Cadastrar / Gerenciar Equipes (Anexo 3)
+  // Cadastrar / Gerenciar / Editar Equipes (Anexo 3)
   const [customTeams, setCustomTeams] = useState<Array<{ id: string; name: string; leader?: string; members?: string }>>(() => {
     try {
       const saved = localStorage.getItem("church_limpeza_custom_teams");
@@ -128,43 +134,96 @@ export function EscalaLimpezaModal({
     return [];
   });
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [newTeamName, setNewTeamName] = useState("");
   const [newTeamLeader, setNewTeamLeader] = useState("");
   const [newTeamMembers, setNewTeamMembers] = useState("");
+
+  const handleOpenNewTeamModal = () => {
+    setEditingTeamId(null);
+    setNewTeamName("");
+    setNewTeamLeader("");
+    setNewTeamMembers("");
+    setIsTeamModalOpen(true);
+  };
+
+  const handleEditCustomTeam = (team: { id: string; name: string; leader?: string; members?: string }) => {
+    setEditingTeamId(team.id);
+    setNewTeamName(team.name);
+    setNewTeamLeader(team.leader || "");
+    setNewTeamMembers(team.members || "");
+    setIsTeamModalOpen(true);
+  };
 
   const handleSaveNewTeam = () => {
     if (!newTeamName.trim()) {
       toast.error("Por favor, digite o nome da equipe.");
       return;
     }
-    const newTeam = {
-      id: `team_${Date.now()}`,
-      name: newTeamName.trim(),
-      leader: newTeamLeader.trim(),
-      members: newTeamMembers.trim()
-    };
-    const updated = [...customTeams, newTeam];
-    setCustomTeams(updated);
-    localStorage.setItem("church_limpeza_custom_teams", JSON.stringify(updated));
-    
-    setFormData(prev => ({
-      ...prev,
-      equipe: newTeam.name,
-      coordenador: newTeam.leader || prev.coordenador,
-      voluntarios: newTeam.members || prev.voluntarios
-    }));
 
+    if (editingTeamId) {
+      // Atualizando equipe existente
+      const updated = customTeams.map(t => {
+        if (t.id === editingTeamId) {
+          return {
+            ...t,
+            name: newTeamName.trim(),
+            leader: newTeamLeader.trim(),
+            members: newTeamMembers.trim()
+          };
+        }
+        return t;
+      });
+      setCustomTeams(updated);
+      localStorage.setItem("church_limpeza_custom_teams", JSON.stringify(updated));
+
+      // Se a equipe editada estiver selecionada no formulário, atualiza os dados
+      if (formData.equipe === customTeams.find(t => t.id === editingTeamId)?.name || formData.equipe === newTeamName.trim()) {
+        setFormData(prev => ({
+          ...prev,
+          equipe: newTeamName.trim(),
+          coordenador: newTeamLeader.trim() || prev.coordenador,
+          voluntarios: newTeamMembers.trim() || prev.voluntarios
+        }));
+      }
+
+      toast.success(`Equipe "${newTeamName.trim()}" atualizada com sucesso!`);
+    } else {
+      // Criando nova equipe
+      const newTeam = {
+        id: `team_${Date.now()}`,
+        name: newTeamName.trim(),
+        leader: newTeamLeader.trim(),
+        members: newTeamMembers.trim()
+      };
+      const updated = [...customTeams, newTeam];
+      setCustomTeams(updated);
+      localStorage.setItem("church_limpeza_custom_teams", JSON.stringify(updated));
+      
+      setFormData(prev => ({
+        ...prev,
+        equipe: newTeam.name,
+        coordenador: newTeam.leader || prev.coordenador,
+        voluntarios: newTeam.members || prev.voluntarios
+      }));
+      toast.success(`Equipe "${newTeam.name}" cadastrada com sucesso!`);
+    }
+
+    setEditingTeamId(null);
     setNewTeamName("");
     setNewTeamLeader("");
     setNewTeamMembers("");
     setIsTeamModalOpen(false);
-    toast.success(`Equipe "${newTeam.name}" cadastrada e selecionada com sucesso!`);
   };
 
   const handleDeleteCustomTeam = (teamId: string) => {
     const updated = customTeams.filter(t => t.id !== teamId);
     setCustomTeams(updated);
     localStorage.setItem("church_limpeza_custom_teams", JSON.stringify(updated));
+    if (editingTeamId === teamId) {
+      setEditingTeamId(null);
+      setNewTeamName("");
+    }
     toast.info("Equipe removida.");
   };
 
@@ -182,7 +241,7 @@ export function EscalaLimpezaModal({
           items.push({ id: docSnap.id, ...data } as LimpezaEscalaItem);
         }
       });
-      items.sort((a, b) => a.data.localeCompare(b.data) || a.horario.localeCompare(b.horario));
+      items.sort((a, b) => a.data.localeCompare(b.data) || (a.horario || "").localeCompare(b.horario || ""));
       setEscalas(items);
     }, (err) => {
       console.warn("Erro ao carregar escalas de limpeza:", err);
@@ -207,7 +266,7 @@ export function EscalaLimpezaModal({
 
   // Salvar Item
   const handleSaveItem = async () => {
-    if (!formData.data) {
+    if (!formData.data && !formData.dataTextoPersonalizado) {
       toast.error("Informe a data da escala de limpeza.");
       return;
     }
@@ -240,7 +299,7 @@ export function EscalaLimpezaModal({
         } else {
           updated = [...prev, payload];
         }
-        updated.sort((a, b) => a.data.localeCompare(b.data) || a.horario.localeCompare(b.horario));
+        updated.sort((a, b) => a.data.localeCompare(b.data) || (a.horario || "").localeCompare(b.horario || ""));
         localStorage.setItem("escala_limpeza_local", JSON.stringify(updated));
         return updated;
       });
@@ -251,7 +310,9 @@ export function EscalaLimpezaModal({
       setFormData({
         id: "",
         data: formData.data,
-        horario: "08:00",
+        dataAlternativa: "",
+        dataTextoPersonalizado: "",
+        horario: "",
         equipe: "Equipe 2 - Jovens & Adolescentes",
         coordenador: "",
         voluntarios: "",
@@ -298,6 +359,33 @@ export function EscalaLimpezaModal({
     }
   };
 
+  // Ordenação Estrita por Data Cronológica
+  const getComparableDateKey = (item: LimpezaEscalaItem): string => {
+    if (item.data && /^\d{4}-\d{2}-\d{2}$/.test(item.data.trim())) {
+      return item.data.trim();
+    }
+    if (item.data && /^\d{2}\/\d{2}\/\d{4}$/.test(item.data.trim())) {
+      const [d, m, y] = item.data.trim().split("/");
+      return `${y}-${m}-${d}`;
+    }
+    const str = item.dataTextoPersonalizado || item.dataAlternativa || item.data || "";
+    const match = str.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if (match) {
+      const [, d, m, y] = match;
+      return `${y}-${m}-${d}`;
+    }
+    return item.data || "9999-99-99";
+  };
+
+  const sortedEscalas = useMemo(() => {
+    return [...escalas].sort((a, b) => {
+      const keyA = getComparableDateKey(a);
+      const keyB = getComparableDateKey(b);
+      if (keyA !== keyB) return keyA.localeCompare(keyB);
+      return (a.horario || "").localeCompare(b.horario || "");
+    });
+  }, [escalas]);
+
   // Editar Item
   const handleEditItem = (item: LimpezaEscalaItem) => {
     setEditingId(item.id);
@@ -305,13 +393,53 @@ export function EscalaLimpezaModal({
     setActiveTab('editor');
   };
 
-  // Formatação Data PT-BR
-  const formatBrazilianDate = (dateStr: string) => {
-    if (!dateStr) return "";
-    const [year, month, day] = dateStr.split("-");
-    const d = new Date(Number(year), Number(month) - 1, Number(day));
-    const weekdays = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
-    return `${day}/${month}/${year} (${weekdays[d.getDay()]})`;
+  // Parser auxiliar de data
+  const parseDateString = (str: string): { day: string; month: string; year: string; dateObj: Date } | null => {
+    if (!str) return null;
+    const s = str.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      const [year, month, day] = s.split("-");
+      const dateObj = new Date(Number(year), Number(month) - 1, Number(day));
+      return { day, month, year, dateObj };
+    }
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+      const [day, month, year] = s.split("/");
+      const dateObj = new Date(Number(year), Number(month) - 1, Number(day));
+      return { day, month, year, dateObj };
+    }
+    return null;
+  };
+
+  // Formatação Data PT-BR sem quebra de linhas para datas alternativas
+  const formatBrazilianDate = (itemOrDateStr: string | LimpezaEscalaItem): string => {
+    if (typeof itemOrDateStr !== 'string') {
+      const item = itemOrDateStr;
+      if (item.dataTextoPersonalizado && item.dataTextoPersonalizado.trim()) {
+        return item.dataTextoPersonalizado.trim();
+      }
+      
+      const parsed = parseDateString(item.data);
+      const parsedAlt = parseDateString(item.dataAlternativa || "");
+      
+      if (!parsed && !item.data) return "";
+      
+      const baseStr = parsed 
+        ? `${parsed.day}/${parsed.month}/${parsed.year}`
+        : item.data;
+
+      if (parsedAlt) {
+        const altFormatted = `${parsedAlt.day}/${parsedAlt.month}/${parsedAlt.year}`;
+        return `${baseStr} ou ${altFormatted}`;
+      } else if (item.dataAlternativa && item.dataAlternativa.trim()) {
+        return `${baseStr} ou ${item.dataAlternativa.trim()}`;
+      }
+      
+      return baseStr;
+    }
+
+    const parsed = parseDateString(itemOrDateStr);
+    if (!parsed) return itemOrDateStr;
+    return `${parsed.day}/${parsed.month}/${parsed.year}`;
   };
 
   // Impressão A4
@@ -336,30 +464,12 @@ export function EscalaLimpezaModal({
     }
   };
 
-  // WhatsApp
-  const handleShareWhatsApp = () => {
-    if (escalas.length === 0) {
-      toast.error("Não há escalas de limpeza para compartilhar.");
-      return;
-    }
-    let msg = `🧹 *ESCALA DE LIMPEZA E ZELADORIA DO TEMPLO*\n`;
-    msg += `⛪ *${churchName}*\n\n`;
-
-    escalas.forEach((e) => {
-      msg += `📅 *${formatBrazilianDate(e.data)} às ${e.horario}*\n`;
-      msg += `👥 *Equipe:* ${e.equipe}\n`;
-      if (e.coordenador) msg += `⭐ *Líder:* ${e.coordenador}\n`;
-      if (e.voluntarios) msg += `🤝 *Voluntários:* ${e.voluntarios}\n`;
-      msg += `🧹 *Setores:* ${e.setores.join(", ")}\n`;
-      if (e.observacoes) msg += `📝 *Obs:* ${e.observacoes}\n`;
-      msg += `────────────────────\n`;
-    });
-
-    msg += `\n✍️ *Coordenação Geral:* ${responsavelGeral}\n`;
-    msg += `_“Zelando bem da Casa do Senhor!”_`;
-
-    navigator.clipboard.writeText(msg);
-    toast.success("Escala de limpeza copiada para o WhatsApp!");
+  // Download Imagem PNG (Anexo 1)
+  const handleDownloadImage = async () => {
+    await downloadElementAsImage(
+      "escala-limpeza-print",
+      `Escala_Limpeza_${activeBranchName.replace(/\s+/g, '_')}.png`
+    );
   };
 
   return (
@@ -386,10 +496,15 @@ export function EscalaLimpezaModal({
             </div>
 
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleShareWhatsApp} className="h-8 text-xs">
-                <Share2 className="w-3.5 h-3.5 mr-1 text-emerald-600" /> WhatsApp
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadImage}
+                className="h-8 text-xs font-semibold text-purple-700 dark:text-purple-300 border-purple-500/40 hover:bg-purple-50"
+              >
+                <ImageIcon className="w-3.5 h-3.5 mr-1 text-purple-600" /> Salvar Imagem
               </Button>
-              <Button variant="outline" size="sm" onClick={handleDownloadPdf} className="h-8 text-xs">
+              <Button variant="outline" size="sm" onClick={handleDownloadPdf} className="h-8 text-xs font-medium text-blue-700 dark:text-blue-400 border-blue-500/40">
                 <Download className="w-3.5 h-3.5 mr-1" /> PDF A4
               </Button>
               <Button size="sm" onClick={handlePrint} className="h-8 text-xs font-semibold">
@@ -454,25 +569,67 @@ export function EscalaLimpezaModal({
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Data da Limpeza</Label>
-                    <Input
-                      type="date"
-                      value={formData.data}
-                      onChange={(e) => setFormData(p => ({ ...p, data: e.target.value }))}
-                      className="h-8 text-xs font-mono"
-                    />
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Data Principal</Label>
+                      <Input
+                        type="date"
+                        value={formData.data || ""}
+                        onChange={(e) => setFormData(p => ({ ...p, data: e.target.value }))}
+                        className="h-8 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold">Horário de Início</Label>
+                        {formData.horario ? (
+                          <button
+                            type="button"
+                            onClick={() => setFormData(p => ({ ...p, horario: "" }))}
+                            className="text-[10px] text-red-600 hover:underline font-medium"
+                          >
+                            Limpar
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-emerald-700 font-semibold">(Sem Horário)</span>
+                        )}
+                      </div>
+                      <Input
+                        type="time"
+                        value={formData.horario || ""}
+                        onChange={(e) => setFormData(p => ({ ...p, horario: e.target.value }))}
+                        placeholder="Horário livre"
+                        className="h-8 text-xs font-mono"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Horário de Início</Label>
-                    <Input
-                      type="time"
-                      value={formData.horario}
-                      onChange={(e) => setFormData(p => ({ ...p, horario: e.target.value }))}
-                      className="h-8 text-xs font-mono"
-                    />
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Data Alternativa (Opcional)</Label>
+                      <Input
+                        type="date"
+                        value={formData.dataAlternativa || ""}
+                        onChange={(e) => setFormData(p => ({ ...p, dataAlternativa: e.target.value }))}
+                        className="h-8 text-xs font-mono"
+                        placeholder="Ex: Dia Y"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Texto de Datas / Vários Dias</Label>
+                      <Input
+                        type="text"
+                        value={formData.dataTextoPersonalizado || ""}
+                        onChange={(e) => setFormData(p => ({ ...p, dataTextoPersonalizado: e.target.value }))}
+                        placeholder="Ex: 07/11 ou 14/11"
+                        className="h-8 text-xs"
+                      />
+                    </div>
                   </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Permite selecionar duas datas alternativas (ex: 07/11 ou 14/11) ou múltiplos dias para a mesma escala.
+                  </p>
                 </div>
 
                 <div className="space-y-1">
@@ -482,11 +639,11 @@ export function EscalaLimpezaModal({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => setIsTeamModalOpen(true)}
+                      onClick={handleOpenNewTeamModal}
                       className="h-6 text-[11px] font-bold text-primary hover:bg-primary/10 px-2"
                     >
                       <Plus className="w-3 h-3 mr-1" />
-                      Cadastrar Equipe
+                      Gerenciar / Cadastrar Equipe
                     </Button>
                   </div>
                   <Select
@@ -557,20 +714,40 @@ export function EscalaLimpezaModal({
                   </p>
                 </div>
 
-                {/* Seleção de Setores */}
+                {/* Seleção de Setores com Opção de Marcar / Desmarcar Todos e "Não especificado" padrão */}
                 <div className="space-y-1.5 pt-2 border-t">
-                  <Label className="text-xs font-semibold flex items-center justify-between">
-                    <span>Setores Designados</span>
-                    <span className="text-[10px] text-muted-foreground">{formData.setores.length} selecionados</span>
-                  </Label>
-                  <div className="grid grid-cols-1 gap-1.5 bg-background p-2.5 rounded-lg border max-h-32 overflow-y-auto">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">
+                      Setores Designados ({formData.setores.length} selecionados)
+                    </Label>
+                    <div className="flex items-center gap-1.5 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setFormData(p => ({ ...p, setores: [...SETORES_PADRAO] }))}
+                        className="font-bold text-emerald-700 dark:text-emerald-400 hover:underline"
+                      >
+                        Marcar Todos
+                      </button>
+                      <span className="text-muted-foreground">|</span>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(p => ({ ...p, setores: [] }))}
+                        className="font-medium text-muted-foreground hover:underline hover:text-red-500"
+                      >
+                        Desmarcar Todos
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-1.5 bg-background p-2.5 rounded-lg border max-h-36 overflow-y-auto">
                     {SETORES_PADRAO.map((setor) => (
                       <label key={setor} className="flex items-center gap-2 text-xs cursor-pointer hover:text-primary">
                         <Checkbox
                           checked={formData.setores.includes(setor)}
                           onCheckedChange={() => handleToggleSetor(setor)}
                         />
-                        <span className="text-[11px]">{setor}</span>
+                        <span className={`text-[11px] ${setor === "Não especificado" ? "font-bold text-emerald-700 dark:text-emerald-400" : ""}`}>
+                          {setor} {setor === "Não especificado" ? "(Padrão)" : ""}
+                        </span>
                       </label>
                     ))}
                   </div>
@@ -583,6 +760,19 @@ export function EscalaLimpezaModal({
                     value={formData.observacoes || ""}
                     onChange={(e) => setFormData(p => ({ ...p, observacoes: e.target.value }))}
                     className="h-7 text-xs"
+                  />
+                </div>
+
+                {/* Anexo 3: Responsável pela Criação da Escala */}
+                <div className="space-y-1 pt-2 border-t">
+                  <Label className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    Responsável pela Criação da Escala (Assinatura do Relatório)
+                  </Label>
+                  <Input
+                    placeholder="Nome do responsável pela criação da escala"
+                    value={responsavelCriacaoEscala}
+                    onChange={(e) => setResponsavelCriacaoEscala(e.target.value)}
+                    className="h-7 text-xs font-medium"
                   />
                 </div>
 
@@ -607,7 +797,7 @@ export function EscalaLimpezaModal({
                   </span>
                 </div>
 
-                {escalas.length === 0 ? (
+                {sortedEscalas.length === 0 ? (
                   <div className="text-center py-12 border rounded-xl bg-muted/20 text-muted-foreground">
                     <Brush className="w-8 h-8 mx-auto mb-2 opacity-40 text-emerald-500" />
                     <p className="text-xs font-medium">Nenhuma escala de limpeza cadastrada.</p>
@@ -615,13 +805,13 @@ export function EscalaLimpezaModal({
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-                    {escalas.map((item) => (
+                    {sortedEscalas.map((item) => (
                       <Card key={item.id} className="p-3 hover:border-emerald-500/50 transition-all shadow-xs">
                         <div className="flex items-start justify-between gap-2">
                           <div className="space-y-1 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                                {formatBrazilianDate(item.data)} • {item.horario}
+                                {formatBrazilianDate(item)} {item.horario && item.horario.trim() !== "" ? `• ${item.horario}` : ""}
                               </span>
                               <Badge variant="secondary" className="text-[10px] bg-emerald-50 text-emerald-800 border-emerald-200 font-bold">
                                 {item.equipe}
@@ -716,39 +906,41 @@ export function EscalaLimpezaModal({
                     </div>
                   </div>
 
-                  {/* Tabela de Limpeza */}
-                  <div className="border border-slate-800 rounded-sm overflow-hidden mb-6">
-                    <table className="w-full text-left text-xs border-collapse">
+                  {/* Tabela de Limpeza com Fontes Maiores, Legíveis e Datas Sem Quebrar */}
+                  <div className="border-2 border-slate-900 rounded-sm overflow-hidden mb-6">
+                    <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-slate-900 text-white uppercase text-[9px] tracking-wider">
-                          <th className="py-2 px-2 border-r border-slate-700 w-28">Data / Horário</th>
-                          <th className="py-2 px-2 border-r border-slate-700 w-44">Equipe / Ministério</th>
-                          <th className="py-2 px-2 border-r border-slate-700">Líder & Voluntários</th>
-                          <th className="py-2 px-2">Setores Atribuídos</th>
+                        <tr className="bg-slate-900 text-white uppercase text-xs font-black tracking-wider">
+                          <th className="py-3 px-3 border-r border-slate-700 w-[240px] min-w-[220px]">DATA / HORÁRIO</th>
+                          <th className="py-3 px-3 border-r border-slate-700 w-[200px]">EQUIPE / MINISTÉRIO</th>
+                          <th className="py-3 px-3 border-r border-slate-700">LÍDER & VOLUNTÁRIOS</th>
+                          <th className="py-3 px-3">SETORES ATRIBUÍDOS</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-300">
-                        {escalas.map((item, idx) => (
+                        {sortedEscalas.map((item, idx) => (
                           <tr key={item.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
-                            <td className="py-2 px-2 border-r border-slate-300 font-bold text-[10px]">
-                              <div>{formatBrazilianDate(item.data)}</div>
-                              <span className="text-emerald-800 font-mono text-[9px]">às {item.horario}</span>
+                            <td className="py-3 px-3 border-r border-slate-300 font-extrabold text-xs sm:text-sm text-slate-950 whitespace-nowrap">
+                              <div className="whitespace-nowrap">{formatBrazilianDate(item)}</div>
+                              {item.horario && item.horario.trim() !== "" && (
+                                <span className="text-emerald-800 font-mono text-xs font-bold block mt-0.5">às {item.horario}</span>
+                              )}
                             </td>
-                            <td className="py-2 px-2 border-r border-slate-300 font-black text-slate-950 text-[10.5px]">
+                            <td className="py-3 px-3 border-r border-slate-300 font-extrabold text-xs sm:text-sm text-slate-950">
                               {item.equipe}
                             </td>
-                            <td className="py-2 px-2 border-r border-slate-300 text-[10px]">
+                            <td className="py-3 px-3 border-r border-slate-300 text-xs text-slate-900 font-semibold">
                               {item.coordenador && (
-                                <div className="font-bold text-slate-900">Coord: {item.coordenador}</div>
+                                <div className="font-extrabold text-slate-950 text-xs sm:text-sm">Coord: {item.coordenador}</div>
                               )}
-                              <div className="text-[9px] text-slate-600 mt-0.5">
+                              <div className="text-xs text-slate-800 font-medium mt-0.5">
                                 {item.voluntarios || "Equipe convocada"}
                               </div>
                             </td>
-                            <td className="py-2 px-2 text-[9px] text-slate-700">
-                              <ul className="list-disc pl-3 space-y-0.5">
+                            <td className="py-3 px-3 text-xs text-slate-900 font-medium">
+                              <ul className="list-disc pl-4 space-y-0.5">
                                 {item.setores.map(s => (
-                                  <li key={s}>{s}</li>
+                                  <li key={s} className="font-semibold text-slate-900">{s}</li>
                                 ))}
                               </ul>
                             </td>
@@ -759,29 +951,34 @@ export function EscalaLimpezaModal({
                   </div>
                 </div>
 
-                {/* Rodapé e Versículo */}
+                {/* Rodapé: Versículo, Observações/Recomendações e Assinatura Única */}
                 <div className="pt-4 border-t-2 border-slate-900">
-                  <div className="p-2.5 rounded bg-slate-50 border border-slate-300 text-center mb-6">
+                  <div className="p-2.5 rounded bg-slate-50 border border-slate-300 text-center mb-4">
                     <p className="text-[11px] italic font-semibold text-slate-800">
                       {VERSO_LIMPEZA}
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-around text-center pt-2">
-                    <div className="w-64 border-t border-slate-900 pt-1">
-                      <p className="text-[10px] font-black uppercase text-slate-900">
-                        COORDENAÇÃO DE ZELADORIA
+                  {/* Bloco de Observações / Recomendações no Relatório */}
+                  {formData.observacoes && (
+                    <div className="p-2.5 rounded bg-amber-50/80 border border-amber-300 text-left mb-5">
+                      <p className="text-[10px] font-black text-amber-900 uppercase tracking-wide mb-0.5">
+                        📌 OBSERVAÇÕES / RECOMENDAÇÕES DA ESCALA:
                       </p>
-                      <p className="text-xs font-bold text-slate-950">
-                        {responsavelGeral}
+                      <p className="text-[10.5px] text-slate-800 leading-tight">
+                        {formData.observacoes}
                       </p>
                     </div>
-                    <div className="w-64 border-t border-slate-900 pt-1">
-                      <p className="text-[10px] font-black uppercase text-slate-900">
-                        DIRETORIA PASTORAL
+                  )}
+
+                  {/* Assinatura Única: Responsável pela Criação da Escala */}
+                  <div className="flex items-center justify-center text-center pt-3">
+                    <div className="w-80 border-t-2 border-slate-900 pt-1.5">
+                      <p className="text-[10px] font-black uppercase text-slate-900 tracking-wider">
+                        RESPONSÁVEL PELA CRIAÇÃO DA ESCALA
                       </p>
-                      <p className="text-xs font-bold text-slate-950">
-                        {churchData?.pastorTitular || "Pastor Titular"}
+                      <p className="text-xs font-bold text-slate-950 mt-0.5">
+                        {responsavelCriacaoEscala}
                       </p>
                     </div>
                   </div>
@@ -850,22 +1047,40 @@ export function EscalaLimpezaModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-    {/* MODAL DE CADASTRO / GERENCIAMENTO DE EQUIPE (Anexo 3) */}
+    {/* MODAL DE CADASTRO / GERENCIAMENTO / EDIÇÃO DE EQUIPE (Anexo 3) */}
     <Dialog open={isTeamModalOpen} onOpenChange={setIsTeamModalOpen}>
       <DialogContent className="max-w-md p-6">
         <DialogHeader className="border-b pb-3">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600">
-              <Users className="w-5 h-5" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  {editingTeamId ? "Editar Equipe de Limpeza" : "Cadastrar Equipe de Limpeza"}
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  Crie, edite ou exclua equipes de voluntários para as escalas da igreja.
+                </DialogDescription>
+              </div>
             </div>
-            <div>
-              <DialogTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
-                Cadastrar Equipe de Limpeza
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                Crie um grupo permanente de voluntários e líderes para escalas da igreja.
-              </DialogDescription>
-            </div>
+            {editingTeamId && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setEditingTeamId(null);
+                  setNewTeamName("");
+                  setNewTeamLeader("");
+                  setNewTeamMembers("");
+                }}
+                className="h-6 text-[10px] text-muted-foreground"
+              >
+                Cancelar Edição
+              </Button>
+            )}
           </div>
         </DialogHeader>
 
@@ -903,25 +1118,38 @@ export function EscalaLimpezaModal({
           {customTeams.length > 0 && (
             <div className="pt-2 border-t mt-2">
               <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                Equipes Já Cadastradas ({customTeams.length}):
+                Equipes Cadastradas ({customTeams.length}):
               </Label>
-              <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
+              <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                 {customTeams.map((ct) => (
                   <div key={ct.id} className="flex items-center justify-between p-2 rounded bg-muted/40 border text-xs">
-                    <div>
+                    <div className="space-y-0.5">
                       <p className="font-bold text-slate-900 dark:text-slate-100">{ct.name}</p>
                       {ct.leader && <p className="text-[10px] text-muted-foreground">Líder: {ct.leader}</p>}
+                      {ct.members && <p className="text-[10px] text-slate-500 truncate max-w-[200px]">Membros: {ct.members}</p>}
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteCustomTeam(ct.id)}
-                      className="h-6 w-6 p-0 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-                      title="Excluir equipe"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditCustomTeam(ct)}
+                        className="h-7 w-7 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                        title="Editar equipe"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteCustomTeam(ct.id)}
+                        className="h-7 w-7 p-0 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                        title="Excluir equipe"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -931,11 +1159,11 @@ export function EscalaLimpezaModal({
 
         <DialogFooter className="border-t pt-3 flex items-center justify-end gap-2">
           <Button variant="outline" size="sm" onClick={() => setIsTeamModalOpen(false)}>
-            Cancelar
+            Fechar
           </Button>
           <Button size="sm" onClick={handleSaveNewTeam} className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white">
             <Save className="w-3.5 h-3.5 mr-1" />
-            Cadastrar Equipe
+            {editingTeamId ? "Salvar Alterações da Equipe" : "Cadastrar Equipe"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -21,7 +21,6 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
       });
       streamRef.current = null;
     }
-    setStream(null);
     setIsStreaming(false);
   }, []);
 
@@ -33,7 +32,6 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
         audio: false,
       });
       streamRef.current = mediaStream;
-      setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         videoRef.current.play();

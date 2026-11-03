@@ -34,18 +34,28 @@ interface Transaction {
 interface FinancialSummaryCardsProps {
   transactions: Transaction[];
   activeBranch?: string;
+  selectedMonth?: number;
+  selectedYear?: number;
 }
 
-export function FinancialSummaryCards({ transactions, activeBranch: propActiveBranch }: FinancialSummaryCardsProps) {
+export function FinancialSummaryCards({ 
+  transactions, 
+  activeBranch: propActiveBranch,
+  selectedMonth,
+  selectedYear
+}: FinancialSummaryCardsProps) {
   const { activeBranch: contextActiveBranch, branches } = useBranch();
   const activeBranch = propActiveBranch || contextActiveBranch;
 
-  // Current month transactions calculation
+  // Selected or current month transactions calculation
   const summary = useMemo(() => {
     const now = new Date();
-    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const targetYear = selectedYear ?? now.getFullYear();
+    const targetMonth = selectedMonth ?? now.getMonth();
+    const currentYearMonth = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}`;
+    const prevMonthDate = new Date(targetYear, targetMonth - 1, 1);
     const prevYearMonth = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
+    const targetDate = new Date(targetYear, targetMonth, 1);
 
     // Filter by branch with matchesBranch
     const branchFiltered = transactions.filter(t => matchesBranch(t, activeBranch, branches));
@@ -127,9 +137,9 @@ export function FinancialSummaryCards({ transactions, activeBranch: propActiveBr
       percentEntradas,
       percentSaidas,
       taxaComprometimento,
-      monthName: now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+      monthName: targetDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
     };
-  }, [transactions, activeBranch]);
+  }, [transactions, activeBranch, branches, selectedMonth, selectedYear]);
 
   return (
     <div className="space-y-4">

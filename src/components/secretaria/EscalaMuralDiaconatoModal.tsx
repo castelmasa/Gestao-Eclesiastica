@@ -44,7 +44,8 @@ import {
   ShieldCheck,
   Info,
   IdCard,
-  AlertTriangle
+  AlertTriangle,
+  Image as ImageIcon
 } from "lucide-react";
 import { toast } from "sonner";
 import { db } from "@/lib/firebase";
@@ -58,7 +59,7 @@ import {
   setDoc,
   serverTimestamp
 } from "firebase/firestore";
-import { printDocument, downloadElementAsPdf } from "@/lib/printUtils";
+import { printDocument, downloadElementAsPdf, downloadElementAsImage } from "@/lib/printUtils";
 import { getRegisteredChurchLogo } from "@/lib/churchLogoHelper";
 import { CrachaVoluntariosModal } from "@/components/secretaria/CrachaVoluntariosModal";
 
@@ -901,6 +902,20 @@ export function EscalaMuralDiaconatoModal({
     }
   };
 
+  // Download Image (PNG)
+  const handleDownloadImage = async () => {
+    let success = await downloadElementAsImage(
+      "escala-mural-printable-container-permanent",
+      `Escala_Mural_Diaconato_${periodMonthYear.replace(/\s+/g, '_')}.png`
+    );
+    if (!success) {
+      success = await downloadElementAsImage(
+        "escala-mural-printable-container",
+        `Escala_Mural_Diaconato_${periodMonthYear.replace(/\s+/g, '_')}.png`
+      );
+    }
+  };
+
   // Visual calendar grid days for the selected month
   const calendarDays = useMemo(() => {
     const firstDayIndex = new Date(selectedYear, selectedMonth, 1).getDay();
@@ -1268,10 +1283,10 @@ export function EscalaMuralDiaconatoModal({
             type="button"
             variant="outline"
             size="sm"
-            onClick={handleCopyWhatsApp}
-            className="text-xs font-medium border-emerald-500/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+            onClick={handleDownloadImage}
+            className="text-xs font-semibold border-purple-500/40 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/30"
           >
-            <Share2 className="w-3.5 h-3.5 mr-1 text-emerald-600" /> WhatsApp
+            <ImageIcon className="w-3.5 h-3.5 mr-1 text-purple-600" /> Salvar Imagem
           </Button>
 
           <Button
@@ -2131,10 +2146,10 @@ export function EscalaMuralDiaconatoModal({
                 type="button"
                 variant="outline" 
                 size="sm" 
-                onClick={handleCopyWhatsApp}
-                className="h-8 text-xs font-medium text-emerald-700 dark:text-emerald-400 border-emerald-500/40"
+                onClick={handleDownloadImage}
+                className="h-8 text-xs font-semibold text-purple-700 dark:text-purple-300 border-purple-500/40 hover:bg-purple-50"
               >
-                <Share2 className="w-3.5 h-3.5 mr-1" /> WhatsApp
+                <ImageIcon className="w-3.5 h-3.5 mr-1 text-purple-600" /> Salvar Imagem
               </Button>
               <Button 
                 type="button" 

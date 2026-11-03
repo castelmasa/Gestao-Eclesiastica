@@ -1,6 +1,7 @@
 import React from "react"
 import { User } from "lucide-react"
 import { BarcodeGenerator } from "@/components/common/BarcodeGenerator"
+import { getRegisteredChurchLogo } from "@/lib/churchLogoHelper"
 
 export interface FichaMembroData {
   numeroFicha?: string | number
@@ -124,41 +125,38 @@ export function FichaMembroPrintable({
     return String(Math.abs(hash) + 1).padStart(4, "0")
   }
 
-  // Official OBPC emblem or logo
+  // Official emblem or logo from Church Parameters
   const renderObpcLogo = () => {
-    if (logoUrl) {
+    const effectiveLogo = logoUrl || getRegisteredChurchLogo();
+    if (effectiveLogo) {
       return (
         <img
-          src={logoUrl}
-          alt="Logo Igreja O Brasil para Cristo"
+          src={effectiveLogo}
+          alt="Logotipo Oficial da Igreja"
           className="max-h-[22mm] max-w-[42mm] object-contain block"
           crossOrigin="anonymous"
         />
-      )
+      );
     }
 
     return (
-      <div className="flex items-center gap-1.5">
-        <svg viewBox="0 0 120 100" className="w-[42mm] h-[22mm]">
-          <circle cx="45" cy="50" r="40" fill="none" stroke="#0f172a" strokeWidth="5" />
-          <path d="M15 50 Q 45 20, 80 40 Q 60 70, 20 55" fill="#334155" opacity="0.8" />
-          <path d="M30 40 L 75 35 L 50 65 Z" fill="#fff" stroke="#0f172a" strokeWidth="2.5" />
-          <text x="86" y="32" fontFamily="sans-serif" fontSize="12" fontWeight="bold" fill="#0f172a">
+      <div className="flex items-center gap-2">
+        <svg viewBox="0 0 200 80" className="w-[42mm] h-[22mm]">
+          <circle cx="36" cy="40" r="32" fill="#0f172a" />
+          <path d="M22 40 L 50 24 L 38 56 Z" fill="#ffffff" />
+          <text x="76" y="28" fontFamily="sans-serif" fontSize="12" fontWeight="bold" fill="#0f172a">
             Igreja
           </text>
-          <text x="84" y="52" fontFamily="sans-serif" fontSize="17" fontWeight="900" fill="#0f172a">
+          <text x="76" y="46" fontFamily="sans-serif" fontSize="15" fontWeight="900" fill="#0f172a">
             Brasil
           </text>
-          <text x="86" y="70" fontFamily="sans-serif" fontSize="11" fontWeight="bold" fill="#475569">
-            para
-          </text>
-          <text x="84" y="90" fontFamily="sans-serif" fontSize="20" fontWeight="900" fill="#b91c1c">
+          <text x="76" y="66" fontFamily="sans-serif" fontSize="18" fontWeight="900" fill="#b91c1c">
             CRISTO
           </text>
         </svg>
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <div

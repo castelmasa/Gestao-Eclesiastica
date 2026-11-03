@@ -1,32 +1,45 @@
-import { TooltipProvider } from "@/components/ui/tooltip"
-import React from "react"
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
-import { Toaster } from "sonner"
-import { Layout } from "./components/layout/Layout"
-import { Dashboard } from "./pages/Dashboard"
-import { Agenda } from "./pages/Agenda"
-import { Financeiro } from "./pages/Financeiro"
-import { Secretaria } from "./pages/Secretaria"
-import { Fornecedores } from "./pages/Fornecedores"
-import { Patrimonio } from "./pages/Patrimonio"
-import { Configuracoes } from "./pages/Configuracoes"
-import { Auditoria } from "./pages/Auditoria"
-import { Automacoes } from "./pages/Automacoes"
-import { Parametros } from "./pages/Parametros"
-import { Ajuda } from "./pages/Ajuda"
-import { PaletasCores } from "./pages/PaletasCores"
-import { Login } from "./pages/Login"
-import { AuthProvider, useAuth } from "./contexts/AuthContext"
-import { BranchProvider } from "./contexts/BranchContext"
-import { ThemeProvider } from "./contexts/ThemeContext"
-import { ColorThemeProvider } from "./contexts/ColorThemeContext"
-import { ServicoSocial } from "./pages/ServicoSocial"
-import { Formularios } from "./pages/Formularios"
-import { AreaPastoral } from "./pages/AreaPastoral"
-import { AutoBackupRunner } from "./components/AutoBackupRunner"
-import { ValidarCrachaPublico } from "./pages/ValidarCrachaPublico"
-import { Button } from "./components/ui/button"
-import { AccessDeniedScreen } from "./components/common/AccessDeniedScreen"
+import { TooltipProvider } from "@/components/ui/tooltip";
+import React, { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "sonner";
+import { Layout } from "./components/layout/Layout";
+import { Dashboard } from "./pages/Dashboard";
+import { Agenda } from "./pages/Agenda";
+import { Financeiro } from "./pages/Financeiro";
+import { Secretaria } from "./pages/Secretaria";
+import { Fornecedores } from "./pages/Fornecedores";
+import { Patrimonio } from "./pages/Patrimonio";
+import { Configuracoes } from "./pages/Configuracoes";
+import { Auditoria } from "./pages/Auditoria";
+import { Automacoes } from "./pages/Automacoes";
+import { Parametros } from "./pages/Parametros";
+import { Ajuda } from "./pages/Ajuda";
+import { PaletasCores } from "./pages/PaletasCores";
+import { Login } from "./pages/Login";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { BranchProvider } from "./contexts/BranchContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import { ColorThemeProvider } from "./contexts/ColorThemeContext";
+import { ServicoSocial } from "./pages/ServicoSocial";
+import { Formularios } from "./pages/Formularios";
+import { AreaPastoral } from "./pages/AreaPastoral";
+import { AutoBackupRunner } from "./components/AutoBackupRunner";
+import { ValidarCrachaPublico } from "./pages/ValidarCrachaPublico";
+import { Button } from "./components/ui/button";
+import { AccessDeniedScreen } from "./components/common/AccessDeniedScreen";
+import { doc, getDocFromServer } from "firebase/firestore";
+import { db } from "./lib/firebase";
+
+// Validates active connection to Firestore on initialization
+async function testFirestoreConnection() {
+  try {
+    await getDocFromServer(doc(db, "test", "connection"));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("the client is offline")) {
+      console.warn("Verificando conexão Firestore...");
+    }
+  }
+}
 
 function LicenseExpiredScreen() {
   const { user, logout } = useAuth();
@@ -156,20 +169,24 @@ function AppRoutes() {
 }
 
 export default function App() {
+  useEffect(() => {
+    testFirestoreConnection();
+  }, []);
+
   return (
     <ThemeProvider>
       <ColorThemeProvider>
-      <TooltipProvider>
-      <AuthProvider>
-        <BranchProvider>
-        <BrowserRouter>
-          <AppRoutes />
-          <Toaster position="top-right" richColors />
-        </BrowserRouter>
-      </BranchProvider>
-      </AuthProvider>
-    </TooltipProvider>
-    </ColorThemeProvider>
+        <TooltipProvider>
+          <AuthProvider>
+            <BranchProvider>
+              <BrowserRouter>
+                <AppRoutes />
+                <Toaster position="top-right" richColors />
+              </BrowserRouter>
+            </BranchProvider>
+          </AuthProvider>
+        </TooltipProvider>
+      </ColorThemeProvider>
     </ThemeProvider>
-  )
+  );
 }

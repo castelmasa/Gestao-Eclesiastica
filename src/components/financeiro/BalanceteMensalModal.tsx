@@ -16,13 +16,20 @@ import {
   Eye,
   EyeOff,
   FileSpreadsheet,
+  Building2,
+  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { printDocument } from "@/lib/printUtils";
 import {
   getRegisteredChurchLogo,
   drawSafeChurchReportHeader,
+  drawChurchLogoInPdf,
 } from "@/lib/churchLogoHelper";
+import { useBranch } from "@/contexts/BranchContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { matchesBranch } from "@/lib/branchUtils";
+import { getChurchLeadershipConfig } from "@/lib/churchConfigHelper";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -65,45 +72,106 @@ export function BalanceteMensalModal({
   onClose,
   transactions,
   churchName = "Igreja Evangélica Pentecostal O Brasil para Cristo",
-  activeBranchName = "Templo Sede"
+  activeBranchName: initialBranchName = "Templo Sede"
 }: BalanceteMensalModalProps) {
+  const { user } = useAuth();
+  const { activeBranch, branches, userRestrictedBranch } = useBranch();
+
+  // Preferência para a congregação das transações realizadas ou congregação ativa
+  const detectedTransactionBranch = useMemo(() => {
+    if (transactions && transactions.length > 0) {
+      const bIds = transactions.map(t => t.branchId).filter(Boolean);
+      if (bIds.length > 0 && bIds.every(id => id === bIds[0])) {
+        return bIds[0];
+      }
+    }
+    return undefined;
+  }, [transactions]);
+
+  // Se o usuário tem restrição de perfil, respeita estritamente
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(() => {
+    if (userRestrictedBranch) return userRestrictedBranch;
+    if (detectedTransactionBranch) return detectedTransactionBranch;
+    return activeBranch && activeBranch !== "all" ? activeBranch : "sede";
+  });
+
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState<string>(String(currentDate.getMonth()));
   const [selectedYear, setSelectedYear] = useState<string>(String(currentDate.getFullYear()));
   const [reportModel, setReportModel] = useState<"assembleia" | "sintetico" | "analitico">("assembleia");
   const [showSignatures, setShowSignatures] = useState(true);
 
-  // Church config e logo
-  const [churchConfig, setChurchConfig] = useState<any>(() => {
-    try {
-      const activeBranch = localStorage.getItem("activeBranch");
-      if (activeBranch && activeBranch !== "all" && activeBranch !== "sede") {
-        const branchSaved = localStorage.getItem(`churchConfig_${activeBranch}`);
-        if (branchSaved) return JSON.parse(branchSaved);
-      }
-      const globalSaved = localStorage.getItem("churchConfig");
-      if (globalSaved) return JSON.parse(globalSaved);
-    } catch {}
-    return {
-      nome: churchName,
-      endereco: "Rua Bartolomeu Bueno, Nº 629 - Santa Casa",
-      cidade: "Valparaíso - SP",
-      cnpj: "51.105.484/0001-74",
-      pastorTitular: "Pr. Samuel de Oliveira",
-      tesoureiro1: "Carlos Roberto"
-    };
-  });
+  // Sincroniza se a filial ativa ou transações mudarem
+  useEffect(() => {
+    if (userRestrictedBranch) {
+      setSelectedBranchId(userRestrictedBranch);
+    } else if (detectedTransactionBranch) {
+      setSelectedBranchId(detectedTransactionBranch);
+    } else if (activeBranch && activeBranch !== "all") {
+      setSelectedBranchId(activeBranch);
+    }
+  }, [detectedTransactionBranch, activeBranch, userRestrictedBranch, isOpen]);
 
-  const [churchLogo, setChurchLogo] = useState<string | null>(null);
+  // Recupera as configurações oficiais da Igreja / Congregação a partir dos parâmetros centralizados
+  const leadership = useMemo(() => {
+    return getChurchLeadershipConfig(selectedBranchId, branches);
+  }, [selectedBranchId, branches, isOpen]);
+
+  const churchConfig = useMemo(() => {
+    const key = selectedBranchId === "sede" || !selectedBranchId || selectedBranchId === "all"
+      ? "churchConfig"
+      : `churchConfig_${selectedBranchId}`;
+    
+    let base: any = {
+      nome: leadership.church.name || churchName,
+      endereco: leadership.church.address || "Rua Bartolomeu Bueno, Nº 629 - Santa Casa",
+      cidade: leadership.church.cidade || "Valparaíso - SP",
+      cnpj: leadership.church.cnpj || "51.105.484/0001-74",
+      pastorTitular: leadership.pastor.name || "Pr. Samuel de Oliveira",
+      tesoureiro1: leadership.tesoureiro.name || "Carlos Roberto",
+      conselhoFiscal1: leadership.conselhoFiscal.cf1.name || "1º Conselheiro(a) Fiscal",
+      conselhoFiscal2: leadership.conselhoFiscal.cf2.name || "2º Conselheiro(a) Fiscal",
+      conselhoFiscal3: leadership.conselhoFiscal.cf3.name || "3º Conselheiro(a) Fiscal",
+    };
+
+    try {
+      const globalRaw = localStorage.getItem("churchConfig");
+      if (globalRaw) {
+        const parsedG = JSON.parse(globalRaw);
+        for (const [k, v] of Object.entries(parsedG)) {
+          if (v) base[k] = v;
+        }
+      }
+      if (key !== "churchConfig") {
+        const branchRaw = localStorage.getItem(key);
+        if (branchRaw) {
+          const parsedB = JSON.parse(branchRaw);
+          for (const [k, v] of Object.entries(parsedB)) {
+            if (v) base[k] = v;
+          }
+        }
+      }
+    } catch {}
+
+    const branchObj = branches.find(b => b.id === selectedBranchId);
+    if (branchObj) {
+      if (branchObj.name) base.nome = branchObj.name;
+      if (branchObj.address) base.endereco = branchObj.address;
+      if (branchObj.cnpj) base.cnpj = branchObj.cnpj;
+      if (branchObj.pastor) base.pastorTitular = branchObj.pastor;
+    }
+
+    return base;
+  }, [selectedBranchId, branches, churchName, isOpen, leadership]);
+
+  const [churchLogo, setChurchLogo] = useState<string>(() => {
+    return leadership.church.logoUrl || getRegisteredChurchLogo(selectedBranchId);
+  });
 
   useEffect(() => {
     const updateLogo = () => {
-      const logo = getRegisteredChurchLogo();
+      const logo = getRegisteredChurchLogo(selectedBranchId) || leadership.church.logoUrl;
       setChurchLogo(logo);
-      try {
-        const globalSaved = localStorage.getItem("churchConfig");
-        if (globalSaved) setChurchConfig(JSON.parse(globalSaved));
-      } catch {}
     };
     updateLogo();
     window.addEventListener("churchConfigUpdated", updateLogo);
@@ -112,12 +180,45 @@ export function BalanceteMensalModal({
       window.removeEventListener("churchConfigUpdated", updateLogo);
       window.removeEventListener("storage", updateLogo);
     };
-  }, [isOpen]);
+  }, [selectedBranchId, leadership.church.logoUrl, isOpen]);
 
-  const pastorName = churchConfig?.pastorTitular || localStorage.getItem("pastor_name") || "Pr. Responsável";
-  const tesoureiroName = churchConfig?.tesoureiro1 || localStorage.getItem("tesoureiro_name") || "1º Tesoureiro";
+  // Nomes e assinaturas oficiais estritamente vindas dos parâmetros do sistema
+  const pastorName = leadership.pastor.name || churchConfig?.pastorTitular || "Pr. Samuel de Oliveira";
+  const pastorSignatureUrl = leadership.pastor.signatureUrl || churchConfig?.pastorSignatureUrl || "";
 
-  // Financial calculations
+  const tesoureiroName = leadership.tesoureiro.name || churchConfig?.tesoureiro1 || "Carlos Roberto";
+  const tesoureiroSignatureUrl = leadership.tesoureiro.signatureUrl || churchConfig?.tesoureiro1SignatureUrl || "";
+
+  const conselhoFiscal1Name = leadership.conselhoFiscal.cf1.name || churchConfig?.conselhoFiscal1 || "1º Conselheiro(a) Fiscal";
+  const conselhoFiscal1SignatureUrl = leadership.conselhoFiscal.cf1.signatureUrl || churchConfig?.conselhoFiscal1SignatureUrl || "";
+
+  const conselhoFiscal2Name = leadership.conselhoFiscal.cf2.name || churchConfig?.conselhoFiscal2 || "2º Conselheiro(a) Fiscal";
+  const conselhoFiscal2SignatureUrl = leadership.conselhoFiscal.cf2.signatureUrl || churchConfig?.conselhoFiscal2SignatureUrl || "";
+
+  const conselhoFiscal3Name = leadership.conselhoFiscal.cf3.name || churchConfig?.conselhoFiscal3 || "3º Conselheiro(a) Fiscal";
+  const conselhoFiscal3SignatureUrl = leadership.conselhoFiscal.cf3.signatureUrl || churchConfig?.conselhoFiscal3SignatureUrl || "";
+
+  // Filtra transações estritamente pela congregação selecionada no balancete
+  const branchFilteredTransactions = useMemo(() => {
+    if (!transactions) return [];
+    if (selectedBranchId === "all") return transactions;
+    return transactions.filter(t => matchesBranch(t, selectedBranchId, branches));
+  }, [transactions, selectedBranchId, branches]);
+
+  // Lista de igrejas permitidas conforme permissão do usuário
+  const allowedBranches = useMemo(() => {
+    if (userRestrictedBranch) {
+      return branches.filter(b => b.id === userRestrictedBranch);
+    }
+    return branches;
+  }, [branches, userRestrictedBranch]);
+
+  const selectedBranchObj = branches.find(b => b.id === selectedBranchId);
+  const displayChurchName = selectedBranchObj?.name?.toUpperCase() || churchConfig?.nome?.toUpperCase() || churchName.toUpperCase();
+  const displayAddress = selectedBranchObj?.address || churchConfig?.endereco || "Rua Bartolomeu Bueno, Nº 629 - Santa Casa";
+  const displayCity = selectedBranchObj?.cidade ? `${selectedBranchObj.cidade}/${selectedBranchObj.uf || 'SP'}` : (churchConfig?.cidade || "Valparaíso - SP");
+  const displayCnpj = selectedBranchObj?.cnpj || churchConfig?.cnpj || "51.105.484/0001-74";
+  const currentBranchLabel = selectedBranchObj?.name || initialBranchName;
   const balanceteData = useMemo(() => {
     const month = parseInt(selectedMonth, 10);
     const year = parseInt(selectedYear, 10);
@@ -132,7 +233,7 @@ export function BalanceteMensalModal({
     let totalEntradas = 0;
     let totalSaidas = 0;
 
-    transactions.forEach(t => {
+    branchFilteredTransactions.forEach(t => {
       if (!t.date) return;
       const tDate = new Date(t.date);
       if (isNaN(tDate.getTime())) return;
@@ -193,11 +294,6 @@ export function BalanceteMensalModal({
   }, [transactions, selectedMonth, selectedYear]);
 
   const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "Mês";
-  const displayChurchName = (churchConfig?.nome || churchName || "IGREJA O BRASIL PARA CRISTO").toUpperCase();
-  const displayAddress = (churchConfig?.endereco || "RUA BARTOLOMEU BUENO, Nº 629 - SANTA CASA").toUpperCase();
-  const displayCity = (churchConfig?.cidade || "VALPARAÍSO - SP").toUpperCase();
-  const displayCnpj = churchConfig?.cnpj || "51.105.484/0001-74";
-
   const formatCurrency = (val: number) => {
     return val.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
@@ -216,9 +312,9 @@ export function BalanceteMensalModal({
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const headerRes = drawSafeChurchReportHeader(doc, {
         title: "BALANCETE FINANCEIRO PARA ASSEMBLEIA GERAL ORDINÁRIA",
-        subtitle: `Mês de Apuração: ${monthLabel.toUpperCase()} / ${selectedYear} | Unidade: ${activeBranchName} | Emissão: ${new Date().toLocaleDateString("pt-BR")}`,
+        subtitle: `Mês de Apuração: ${monthLabel.toUpperCase()} / ${selectedYear} | Unidade: ${currentBranchLabel} | Emissão: ${new Date().toLocaleDateString("pt-BR")}`,
         churchData: churchConfig,
-        activeBranchName: activeBranchName,
+        activeBranchName: currentBranchLabel,
         leftMargin: 14,
         rightMargin: 14,
         topY: 10
@@ -339,25 +435,94 @@ export function BalanceteMensalModal({
       const parecer = `A Comissão de Exame de Contas da ${displayChurchName}, no cumprimento de suas atribuições estatutárias, examinou detidamente os lançamentos contábeis, notas fiscais, recibos e extratos bancários referentes ao mês de ${monthLabel} de ${selectedYear}, constatando a regularidade e conformidade de todas as contas, opinando pela sua APROVAÇÃO INTEGRAL SEM RESSALVAS pela Assembleia Geral dos Membros.`;
       doc.text(doc.splitTextToSize(parecer, 180), 14, currentY + 4);
 
-      // Assinaturas
+      // Assinaturas completas com Parecer e Conselho Fiscal
       if (showSignatures) {
-        const sigY = 265;
-        doc.setLineWidth(0.2);
-        doc.line(20, sigY, 90, sigY);
-        doc.line(120, sigY, 190, sigY);
+        if (currentY + 58 > 280) {
+          doc.addPage();
+          currentY = 25;
+        }
+
+        const sigY1 = currentY + 14;
+
+        // Assinatura digital do Pastor
+        if (pastorSignatureUrl && pastorSignatureUrl.startsWith("data:image")) {
+          try {
+            doc.addImage(pastorSignatureUrl, "PNG", 35, sigY1 - 13, 40, 12, undefined, "FAST");
+          } catch {}
+        }
+        // Assinatura digital do Tesoureiro
+        if (tesoureiroSignatureUrl && tesoureiroSignatureUrl.startsWith("data:image")) {
+          try {
+            doc.addImage(tesoureiroSignatureUrl, "PNG", 135, sigY1 - 13, 40, 12, undefined, "FAST");
+          } catch {}
+        }
+
+        doc.setLineWidth(0.3);
+        doc.line(20, sigY1, 90, sigY1);
+        doc.line(120, sigY1, 190, sigY1);
 
         doc.setFontSize(7.5);
         doc.setFont("helvetica", "bold");
-        doc.text(pastorName, 55, sigY + 3.5, { align: "center" });
-        doc.text(tesoureiroName, 155, sigY + 3.5, { align: "center" });
+        doc.text(pastorName, 55, sigY1 + 3.5, { align: "center" });
+        doc.text(tesoureiroName, 155, sigY1 + 3.5, { align: "center" });
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(6.5);
-        doc.text("Pastor Titular / Presidente", 55, sigY + 7, { align: "center" });
-        doc.text("1º Tesoureiro Geral", 155, sigY + 7, { align: "center" });
+        doc.text("Pastor Titular / Presidente", 55, sigY1 + 7, { align: "center" });
+        doc.text("1º Tesoureiro Geral", 155, sigY1 + 7, { align: "center" });
+
+        // Bloco Conselho Fiscal
+        const sigY2 = sigY1 + 18;
+        doc.setFontSize(7.5);
+        doc.setFont("helvetica", "bold");
+        doc.text("COMISSÃO DE EXAME DE CONTAS / CONSELHO FISCAL", 105, sigY2 - 3, { align: "center" });
+
+        const sigY3 = sigY2 + 10;
+
+        // Conselheiro 1
+        if (conselhoFiscal1SignatureUrl && conselhoFiscal1SignatureUrl.startsWith("data:image")) {
+          try {
+            doc.addImage(conselhoFiscal1SignatureUrl, "PNG", 25, sigY3 - 10, 32, 9, undefined, "FAST");
+          } catch {}
+        }
+        doc.line(16, sigY3, 68, sigY3);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.5);
+        doc.text(conselhoFiscal1Name, 42, sigY3 + 3, { align: "center" });
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6);
+        doc.text("1º Conselheiro(a) Fiscal", 42, sigY3 + 6, { align: "center" });
+
+        // Conselheiro 2
+        if (conselhoFiscal2SignatureUrl && conselhoFiscal2SignatureUrl.startsWith("data:image")) {
+          try {
+            doc.addImage(conselhoFiscal2SignatureUrl, "PNG", 89, sigY3 - 10, 32, 9, undefined, "FAST");
+          } catch {}
+        }
+        doc.line(79, sigY3, 131, sigY3);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.5);
+        doc.text(conselhoFiscal2Name, 105, sigY3 + 3, { align: "center" });
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6);
+        doc.text("2º Conselheiro(a) Fiscal", 105, sigY3 + 6, { align: "center" });
+
+        // Conselheiro 3
+        if (conselhoFiscal3SignatureUrl && conselhoFiscal3SignatureUrl.startsWith("data:image")) {
+          try {
+            doc.addImage(conselhoFiscal3SignatureUrl, "PNG", 152, sigY3 - 10, 32, 9, undefined, "FAST");
+          } catch {}
+        }
+        doc.line(142, sigY3, 194, sigY3);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.5);
+        doc.text(conselhoFiscal3Name, 168, sigY3 + 3, { align: "center" });
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6);
+        doc.text("3º Conselheiro(a) Fiscal", 168, sigY3 + 6, { align: "center" });
       }
 
-      doc.save(`Balancete_Assembleia_${monthLabel}_${selectedYear}.pdf`);
+      doc.save(`Balancete_Assembleia_${monthLabel}_${selectedYear}_${currentBranchLabel.replace(/\s+/g, '_')}.pdf`);
       toast.success("Balancete para Assembleia baixado em PDF com sucesso!");
     } catch (e) {
       console.error(e);
@@ -403,6 +568,28 @@ export function BalanceteMensalModal({
 
           {/* Barra de Filtros e Opções de Formatação */}
           <div className="flex flex-wrap items-center gap-3 pt-3 text-xs border-t border-border/60 mt-2">
+            {/* Seletor Oficial de Igreja / Congregação */}
+            <div className="flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+              <Label className="text-xs font-semibold">Igreja:</Label>
+              <Select 
+                value={selectedBranchId} 
+                onValueChange={(val) => setSelectedBranchId(val)}
+                disabled={!!userRestrictedBranch}
+              >
+                <SelectTrigger className="w-[170px] sm:w-[220px] h-8 text-xs bg-background">
+                  <SelectValue placeholder="Selecione a Congregação..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allowedBranches.map(b => (
+                    <SelectItem key={b.id} value={b.id} className="text-xs">
+                      {b.name} {b.type === 'sede' ? '(Sede)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
               <Label className="text-xs font-semibold">Mês:</Label>
@@ -472,17 +659,11 @@ export function BalanceteMensalModal({
             {/* Header Oficial da Igreja (Idêntico ao FinancialEcoPrintModal e demais relatórios) */}
             <div className="border-b-2 border-black pb-2 mb-3">
               <div className="flex items-center justify-between gap-4">
-                {churchLogo ? (
-                  <img
-                    src={churchLogo}
-                    alt="Logo da Igreja"
-                    className="h-16 max-w-[45mm] object-contain shrink-0"
-                  />
-                ) : (
-                  <div className="w-14 h-14 border border-dashed border-gray-400 flex items-center justify-center text-[9px] font-bold text-gray-400 shrink-0">
-                    LOGO
-                  </div>
-                )}
+                <img
+                  src={churchLogo || getRegisteredChurchLogo(selectedBranchId)}
+                  alt="Logo Oficial da Igreja"
+                  className="h-16 max-w-[45mm] object-contain shrink-0"
+                />
 
                 <div className="flex-1 text-center min-w-0 px-2">
                   <h1 className="font-extrabold text-[13px] sm:text-[14px] tracking-tight uppercase leading-snug break-words max-w-[140mm] mx-auto">
@@ -496,16 +677,12 @@ export function BalanceteMensalModal({
                   </div>
                 </div>
 
-                {churchLogo ? (
-                  <img
-                    src={churchLogo}
-                    alt=""
-                    className="h-16 max-w-[45mm] object-contain shrink-0 opacity-0 pointer-events-none"
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <div className="w-14 h-14 opacity-0 shrink-0 pointer-events-none" aria-hidden="true" />
-                )}
+                <img
+                  src={churchLogo || getRegisteredChurchLogo(selectedBranchId)}
+                  alt=""
+                  className="h-16 max-w-[45mm] object-contain shrink-0 opacity-0 pointer-events-none"
+                  aria-hidden="true"
+                />
               </div>
             </div>
 
@@ -517,7 +694,7 @@ export function BalanceteMensalModal({
               </div>
               <div>
                 <span className="font-bold">Congregação / Unidade: </span>
-                <span className="font-semibold">{activeBranchName}</span>
+                <span className="font-semibold">{currentBranchLabel}</span>
               </div>
               <div>
                 <span className="font-bold">Emissão Oficial: </span>
@@ -684,9 +861,9 @@ export function BalanceteMensalModal({
               <div className="pt-3">
                 <div className="grid grid-cols-2 gap-6 text-center text-[9px] mb-4">
                   <div className="flex flex-col items-center justify-end min-h-[64px]">
-                    {churchConfig?.pastorTitularSignatureUrl && (
+                    {pastorSignatureUrl && (
                       <img 
-                        src={churchConfig.pastorTitularSignatureUrl} 
+                        src={pastorSignatureUrl} 
                         alt="Assinatura Pastor" 
                         className="h-14 sm:h-16 w-auto max-w-[220px] object-contain mb-0.5 filter contrast-125" 
                       />
@@ -696,9 +873,9 @@ export function BalanceteMensalModal({
                     <span className="text-gray-600 text-[8.5px]">Pastor Titular / Presidente</span>
                   </div>
                   <div className="flex flex-col items-center justify-end min-h-[64px]">
-                    {churchConfig?.tesoureiroSignatureUrl && (
+                    {tesoureiroSignatureUrl && (
                       <img 
-                        src={churchConfig.tesoureiroSignatureUrl} 
+                        src={tesoureiroSignatureUrl} 
                         alt="Assinatura Tesoureiro" 
                         className="h-14 sm:h-16 w-auto max-w-[220px] object-contain mb-0.5 filter contrast-125" 
                       />
@@ -715,37 +892,40 @@ export function BalanceteMensalModal({
 
                 <div className="grid grid-cols-3 gap-4 text-center text-[8.5px]">
                   <div className="flex flex-col items-center justify-end min-h-[56px]">
-                    {churchConfig?.conselhoFiscal1SignatureUrl && (
+                    {conselhoFiscal1SignatureUrl && (
                       <img 
-                        src={churchConfig.conselhoFiscal1SignatureUrl} 
+                        src={conselhoFiscal1SignatureUrl} 
                         alt="Assinatura Conselho 1" 
                         className="h-12 w-auto max-w-[160px] object-contain mb-0.5 filter contrast-125" 
                       />
                     )}
                     <div className="w-44 border-b border-black mb-1"></div>
-                    <span className="font-medium">{churchConfig?.conselhoFiscal1 || "1º Conselheiro(a) Fiscal"}</span>
+                    <span className="font-bold uppercase text-[9px]">{conselhoFiscal1Name}</span>
+                    <span className="text-gray-500 text-[8px]">1º Conselheiro(a) Fiscal</span>
                   </div>
                   <div className="flex flex-col items-center justify-end min-h-[56px]">
-                    {churchConfig?.conselhoFiscal2SignatureUrl && (
+                    {conselhoFiscal2SignatureUrl && (
                       <img 
-                        src={churchConfig.conselhoFiscal2SignatureUrl} 
+                        src={conselhoFiscal2SignatureUrl} 
                         alt="Assinatura Conselho 2" 
                         className="h-12 w-auto max-w-[160px] object-contain mb-0.5 filter contrast-125" 
                       />
                     )}
                     <div className="w-44 border-b border-black mb-1"></div>
-                    <span className="font-medium">{churchConfig?.conselhoFiscal2 || "2º Conselheiro(a) Fiscal"}</span>
+                    <span className="font-bold uppercase text-[9px]">{conselhoFiscal2Name}</span>
+                    <span className="text-gray-500 text-[8px]">2º Conselheiro(a) Fiscal</span>
                   </div>
                   <div className="flex flex-col items-center justify-end min-h-[56px]">
-                    {churchConfig?.conselhoFiscal3SignatureUrl && (
+                    {conselhoFiscal3SignatureUrl && (
                       <img 
-                        src={churchConfig.conselhoFiscal3SignatureUrl} 
+                        src={conselhoFiscal3SignatureUrl} 
                         alt="Assinatura Conselho 3" 
                         className="h-12 w-auto max-w-[160px] object-contain mb-0.5 filter contrast-125" 
                       />
                     )}
                     <div className="w-44 border-b border-black mb-1"></div>
-                    <span className="font-medium">{churchConfig?.conselhoFiscal3 || "3º Conselheiro(a) Fiscal"}</span>
+                    <span className="font-bold uppercase text-[9px]">{conselhoFiscal3Name}</span>
+                    <span className="text-gray-500 text-[8px]">3º Conselheiro(a) Fiscal</span>
                   </div>
                 </div>
               </div>

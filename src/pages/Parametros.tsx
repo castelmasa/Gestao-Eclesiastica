@@ -12,6 +12,7 @@ import { cnpj as cnpjValidator } from "cpf-cnpj-validator"
 import { useNavigate } from "react-router-dom"
 import { Building2, Palette, Sparkles } from "lucide-react"
 import { DigitalSignatureField } from "@/components/common/DigitalSignatureField"
+import { getRegisteredChurchLogo } from "@/lib/churchLogoHelper"
 
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
@@ -108,12 +109,29 @@ export function Parametros() {
 
     let base = { ...defaultConfig }
     if (globalSaved) {
-      try { base = { ...base, ...JSON.parse(globalSaved) } } catch (e) {}
+      try { 
+        const parsedG = JSON.parse(globalSaved)
+        base = { ...base, ...parsedG } 
+      } catch (e) {}
+    }
+
+    if (!base.logoDataUrl) {
+      base.logoDataUrl = getRegisteredChurchLogo(bId)
     }
 
     if (specificSaved) {
       try {
-        setChurchData({ ...base, ...JSON.parse(specificSaved) })
+        const parsedSpecific = JSON.parse(specificSaved)
+        const merged: any = { ...base }
+        for (const [k, v] of Object.entries(parsedSpecific)) {
+          if (v !== "" && v !== null && v !== undefined) {
+            merged[k] = v
+          }
+        }
+        if (!merged.logoDataUrl) {
+          merged.logoDataUrl = base.logoDataUrl || getRegisteredChurchLogo(bId)
+        }
+        setChurchData(merged)
         return
       } catch (e) {}
     }
@@ -127,7 +145,8 @@ export function Parametros() {
         endereco: branchObj.address || base.endereco,
         bairro: branchObj.bairro || base.bairro,
         cidade: branchObj.cidade || base.cidade,
-        pastorTitular: branchObj.pastor || base.pastorTitular
+        pastorTitular: branchObj.pastor || base.pastorTitular,
+        logoDataUrl: base.logoDataUrl || getRegisteredChurchLogo(bId)
       })
     } else {
       setChurchData(base)
@@ -183,8 +202,22 @@ export function Parametros() {
     const key = getBranchConfigKey(selectedBranchId)
     localStorage.setItem(key, JSON.stringify(churchData))
 
+    if (churchData.logoDataUrl) {
+      localStorage.setItem("churchLogoDataUrl", churchData.logoDataUrl)
+      localStorage.setItem("church_logo", churchData.logoDataUrl)
+    }
+
     if (selectedBranchId === 'sede' || selectedBranchId === 'all') {
       localStorage.setItem("churchConfig", JSON.stringify(churchData))
+    } else {
+      try {
+        const globalRaw = localStorage.getItem("churchConfig")
+        let globalObj = globalRaw ? JSON.parse(globalRaw) : {}
+        if (!globalObj.logoDataUrl && churchData.logoDataUrl) {
+          globalObj.logoDataUrl = churchData.logoDataUrl
+          localStorage.setItem("churchConfig", JSON.stringify(globalObj))
+        }
+      } catch {}
     }
 
     if (selectedBranchId && selectedBranchId !== 'all') {

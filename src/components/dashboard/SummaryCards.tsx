@@ -28,9 +28,16 @@ import { parseFirestoreDate } from "@/lib/dateUtils";
 interface SummaryCardsProps {
   activeBranch?: string;
   className?: string;
+  selectedMonth?: number;
+  selectedYear?: number;
 }
 
-export function SummaryCards({ activeBranch: propActiveBranch, className = "" }: SummaryCardsProps) {
+export function SummaryCards({ 
+  activeBranch: propActiveBranch, 
+  className = "",
+  selectedMonth,
+  selectedYear
+}: SummaryCardsProps) {
   const navigate = useNavigate();
   const { activeBranch: contextActiveBranch, branches, activeBranchName } = useBranch();
   const activeBranch = propActiveBranch || contextActiveBranch;
@@ -133,12 +140,14 @@ export function SummaryCards({ activeBranch: propActiveBranch, className = "" }:
     const branchEvents = events.filter((e) => matchesBranch(e, activeBranch, branches));
 
     const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
+    const currentYear = selectedYear ?? now.getFullYear();
+    const currentMonth = selectedMonth ?? now.getMonth();
     const currentYearMonth = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}`;
 
     const prevMonthDate = new Date(currentYear, currentMonth - 1, 1);
     const prevYearMonth = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
+    const targetDate = new Date(currentYear, currentMonth, 1);
+    const monthLabel = targetDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
     // --- 1. MEMBERS METRICS ---
     const totalMembers = branchMembers.length;
@@ -235,9 +244,10 @@ export function SummaryCards({ activeBranch: propActiveBranch, className = "" }:
       pendingToReceiveAmount,
       overdueBillsCount,
       upcomingEventsCount,
-      totalPendingTasks
+      totalPendingTasks,
+      monthLabel
     };
-  }, [members, transactions, events, activeBranch, branches]);
+  }, [members, transactions, events, activeBranch, branches, selectedMonth, selectedYear]);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -325,7 +335,7 @@ export function SummaryCards({ activeBranch: propActiveBranch, className = "" }:
               <div>
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  Receitas do Mês Atual
+                  Receitas de {metrics.monthLabel}
                 </span>
                 <div className="mt-2 flex items-baseline gap-2 flex-wrap">
                   <span className="text-3xl font-black tracking-tight text-foreground">

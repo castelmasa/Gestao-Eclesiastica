@@ -22,7 +22,6 @@ import {
   Edit2,
   Printer,
   Download,
-  Share2,
   Save,
   Users,
   FileText,
@@ -31,7 +30,8 @@ import {
   ListMusic,
   AlertTriangle,
   Settings2,
-  X
+  X,
+  Image as ImageIcon
 } from "lucide-react";
 import { toast } from "sonner";
 import { db } from "@/lib/firebase";
@@ -43,7 +43,7 @@ import {
   doc,
   serverTimestamp
 } from "firebase/firestore";
-import { printDocument, downloadElementAsPdf } from "@/lib/printUtils";
+import { printDocument, downloadElementAsPdf, downloadElementAsImage } from "@/lib/printUtils";
 import { getRegisteredChurchLogo } from "@/lib/churchLogoHelper";
 
 export interface MusicoEscalaItem {
@@ -371,37 +371,18 @@ export function EscalaMusicosModal({
     }
   };
 
-  // WhatsApp
-  const handleShareWhatsApp = () => {
-    if (escalas.length === 0) {
-      toast.error("Não há escalas de músicos para compartilhar.");
-      return;
+  // Download Imagem (PNG)
+  const handleDownloadImage = async () => {
+    const toastId = toast.loading("Gerando imagem PNG da escala...");
+    const success = await downloadElementAsImage(
+      "escala-musicos-print",
+      `Escala_Musicos_Louvor_${activeBranchName.replace(/\s+/g, '_')}.png`
+    );
+    if (success) {
+      toast.success("Imagem (PNG) baixada com sucesso!", { id: toastId });
+    } else {
+      toast.error("Não foi possível gerar a imagem.", { id: toastId });
     }
-    let msg = `🎵 *ESCALA DE MÚSICOS & MINISTÉRIO DE LOUVOR*\n`;
-    msg += `⛪ *${churchName}*\n\n`;
-
-    escalas.forEach((e) => {
-      msg += `📅 *${formatBrazilianDate(e.data)}*\n`;
-      msg += `⏰ Culto: *${e.horarioCulto}* | Passagem de Som: *${e.horarioEnsaio}*\n`;
-      msg += `📖 *${e.cultoTipo}*\n`;
-      msg += `🎤 *Ministro:* ${e.ministro}\n`;
-      if (e.vocais) msg += `🗣️ *Vocais:* ${e.vocais}\n`;
-      if (e.teclado) msg += `🎹 *Teclado:* ${e.teclado}\n`;
-      if (e.violao) msg += `🎸 *Violão:* ${e.violao}\n`;
-      if (e.guitarra) msg += `🎸 *Guitarra:* ${e.guitarra}\n`;
-      if (e.baixo) msg += `🎸 *Baixo:* ${e.baixo}\n`;
-      if (e.bateria) msg += `🥁 *Bateria:* ${e.bateria}\n`;
-      if (e.sonoplastia) msg += `🎚️ *Mesa de Som:* ${e.sonoplastia}\n`;
-      if (e.midiaProjecao) msg += `💻 *Mídia / Live:* ${e.midiaProjecao}\n`;
-      if (e.repertorio) msg += `🎼 *Repertório:* ${e.repertorio}\n`;
-      msg += `────────────────────\n`;
-    });
-
-    msg += `\n✍️ *Liderança de Louvor:* ${liderLouvor}\n`;
-    msg += `_“Tudo quanto tem fôlego, louve ao Senhor!”_`;
-
-    navigator.clipboard.writeText(msg);
-    toast.success("Escala de louvor copiada para o WhatsApp!");
   };
 
   return (
@@ -428,8 +409,8 @@ export function EscalaMusicosModal({
               </div>
 
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleShareWhatsApp} className="h-8 text-xs">
-                  <Share2 className="w-3.5 h-3.5 mr-1 text-emerald-600" /> WhatsApp
+                <Button variant="outline" size="sm" onClick={handleDownloadImage} className="h-8 text-xs font-semibold text-emerald-700 border-emerald-300 bg-emerald-50 hover:bg-emerald-100">
+                  <ImageIcon className="w-3.5 h-3.5 mr-1" /> Salvar Imagem
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleDownloadPdf} className="h-8 text-xs">
                   <Download className="w-3.5 h-3.5 mr-1" /> PDF A4

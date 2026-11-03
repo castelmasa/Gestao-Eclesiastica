@@ -59,6 +59,8 @@ import { EscalaLimpezaModal } from "@/components/secretaria/EscalaLimpezaModal"
 import { EscalaMusicosModal } from "@/components/secretaria/EscalaMusicosModal"
 import { CrachaVoluntariosModal } from "@/components/secretaria/CrachaVoluntariosModal"
 import { FormulariosFinanceirosSecretariaModal } from "@/components/secretaria/FormulariosFinanceirosSecretariaModal"
+import { CertificadosCartasOficiaisModal } from "@/components/secretaria/CertificadosCartasOficiaisModal"
+import { IaSecretariaModal } from "@/components/secretaria/IaSecretariaModal"
 import { DigitalSignatureField } from "@/components/common/DigitalSignatureField"
 import { printDocument, downloadElementAsPdf } from "@/lib/printUtils"
 import { getRegisteredChurchLogo, drawChurchLogoInPdf, drawSafeChurchReportHeader } from "@/lib/churchLogoHelper"
@@ -140,6 +142,7 @@ export function Secretaria() {
   const [isCelulaModalOpen, setIsCelulaModalOpen] = useState(false);
   const [isIrpfModalOpen, setIsIrpfModalOpen] = useState(false);
   const [isFormulariosFinanceirosModalOpen, setIsFormulariosFinanceirosModalOpen] = useState(false);
+  const [isIaSecretariaModalOpen, setIsIaSecretariaModalOpen] = useState(false);
   const [selectedIrpfMember, setSelectedIrpfMember] = useState<any>(null);
 
   useEffect(() => {
@@ -280,6 +283,7 @@ export function Secretaria() {
   const [isEscalaLimpezaModalOpen, setIsEscalaLimpezaModalOpen] = useState(false)
   const [isEscalaMusicosModalOpen, setIsEscalaMusicosModalOpen] = useState(false)
   const [isCrachaVoluntariosModalOpen, setIsCrachaVoluntariosModalOpen] = useState(false)
+  const [isCertificadosModalOpen, setIsCertificadosModalOpen] = useState(false)
   const [memberSignatureUrl, setMemberSignatureUrl] = useState("")
   const [memberSignatureFileName, setMemberSignatureFileName] = useState("")
 
@@ -2652,6 +2656,14 @@ export function Secretaria() {
               <Camera className="mr-1.5 h-4 w-4 text-blue-600" /> Digitalizar Doc
             </Button>
             <Button 
+              onClick={() => setIsIaSecretariaModalOpen(true)} 
+              variant="outline"
+              className="border-purple-300 dark:border-purple-800 bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 dark:hover:bg-purple-900/60 font-semibold shadow-xs text-xs sm:text-sm h-9 sm:h-10 px-3.5" 
+              title="Gerar cartas oficiais, atas de assembleia e análises pastorais com IA"
+            >
+              <Sparkles className="mr-1.5 h-4 w-4 text-purple-600 dark:text-purple-400" /> Assistente IA
+            </Button>
+            <Button 
               onClick={() => setIsPdfExportModalOpen(true)} 
               variant="outline"
               className="border-primary/40 text-primary hover:bg-primary/10 font-semibold shadow-xs text-xs sm:text-sm h-9 sm:h-10 px-3.5" 
@@ -4292,6 +4304,39 @@ export function Secretaria() {
                   <div className="text-xs text-muted-foreground font-normal truncate w-full">Entradas, Saídas & Caixa</div>
                 </div>
               </Button>
+
+              {/* 7. Certificados & Cartas Oficiais A4 (Batismo, Apresentação, Membrasia, Transferência) */}
+              <Button 
+                variant="outline" 
+                onClick={() => setIsCertificadosModalOpen(true)} 
+                className="h-auto flex-col items-start p-3.5 gap-1.5 border-amber-200 dark:border-amber-900/60 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all text-left w-full overflow-hidden shadow-xs"
+              >
+                <div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-lg text-amber-700 dark:text-amber-400 shrink-0">
+                  <Award className="h-5 w-5" />
+                </div>
+                <div className="w-full overflow-hidden">
+                  <div className="font-semibold text-sm truncate w-full">Certificados & Cartas</div>
+                  <div className="text-xs text-muted-foreground font-normal truncate w-full">Batismo, Bebês & Cartas A4</div>
+                </div>
+              </Button>
+
+              {/* 8. Assistente IA da Secretaria (Cartas, Atas de Assembleia & Perfil Ministerial) */}
+              <Button 
+                variant="outline" 
+                onClick={() => setIsIaSecretariaModalOpen(true)} 
+                className="h-auto flex-col items-start p-3.5 gap-1.5 border-purple-200 dark:border-purple-900/60 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all text-left w-full overflow-hidden shadow-xs"
+              >
+                <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-lg text-purple-700 dark:text-purple-400 shrink-0">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div className="w-full overflow-hidden">
+                  <div className="font-semibold text-sm truncate w-full flex items-center gap-1">
+                    Assistente IA
+                    <span className="text-[9px] bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 font-bold px-1 rounded">PRO</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground font-normal truncate w-full">Cartas, Atas & Resumos</div>
+                </div>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -5694,6 +5739,26 @@ export function Secretaria() {
         churchData={churchData}
         activeBranchName={activeBranchName}
         activeBranchId={activeBranch}
+      />
+
+      {/* Modal de Certificados & Cartas Oficiais A4 Ornamental */}
+      <CertificadosCartasOficiaisModal
+        isOpen={isCertificadosModalOpen}
+        onClose={() => setIsCertificadosModalOpen(false)}
+        members={members}
+        churchData={churchData}
+        activeBranchName={activeBranchName}
+        responsiblePastorName={churchData?.pastorName || "Pr. Samuel de Oliveira"}
+        secretaryName={churchData?.secretaryName || "Secretária Geral"}
+      />
+
+      {/* Modal do Assistente Inteligente de IA da Secretaria */}
+      <IaSecretariaModal
+        isOpen={isIaSecretariaModalOpen}
+        onClose={() => setIsIaSecretariaModalOpen(false)}
+        members={branchMembers}
+        activeBranchName={activeBranchName}
+        churchData={churchData}
       />
     </motion.div>
     </TooltipProvider>

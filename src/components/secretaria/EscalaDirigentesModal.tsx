@@ -23,7 +23,6 @@ import {
   Edit2,
   Printer,
   Download,
-  Share2,
   Check,
   Save,
   Search,
@@ -35,7 +34,8 @@ import {
   RotateCcw,
   Settings2,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Image as ImageIcon
 } from "lucide-react";
 import { toast } from "sonner";
 import { db } from "@/lib/firebase";
@@ -47,12 +47,14 @@ import {
   doc,
   serverTimestamp
 } from "firebase/firestore";
-import { printDocument, downloadElementAsPdf } from "@/lib/printUtils";
+import { printDocument, downloadElementAsPdf, downloadElementAsImage } from "@/lib/printUtils";
 import { getRegisteredChurchLogo } from "@/lib/churchLogoHelper";
 
 export interface DirigenteCultoItem {
   id: string;
   data: string; // YYYY-MM-DD
+  dataAlternativa?: string; // e.g. "07/11/2026 ou 14/11/2026"
+  dataTextoPersonalizado?: string; // e.g. "Todos os Domingos / Vários Dias"
   horario: string; // HH:MM
   tipoCulto: string; // Culto da Família, Culto de Ensino, etc.
   dirigente: string;
@@ -360,10 +362,12 @@ export function EscalaDirigentesModal({
     setActiveTab('editor');
   };
 
-  // Formatação de data em PT-BR
-  const formatBrazilianDate = (dateStr: string) => {
-    if (!dateStr) return "";
-    const [year, month, day] = dateStr.split("-");
+  // Formatação de data em PT-BR (suporta datas alternativas "Dia X ou Dia Y" e texto personalizado)
+  const formatBrazilianDate = (item: DirigenteCultoItem) => {
+    if (item.dataTextoPersonalizado) return item.dataTextoPersonalizado;
+    if (item.dataAlternativa) return item.dataAlternativa;
+    if (!item.data) return "";
+    const [year, month, day] = item.data.split("-");
     const d = new Date(Number(year), Number(month) - 1, Number(day));
     const weekdays = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
     return `${day}/${month}/${year} (${weekdays[d.getDay()]})`;
@@ -391,30 +395,18 @@ export function EscalaDirigentesModal({
     }
   };
 
-  // WhatsApp
-  const handleShareWhatsApp = () => {
-    if (escalas.length === 0) {
-      toast.error("Não há cultos escalados para compartilhar.");
-      return;
+  // Download Imagem (PNG)
+  const handleDownloadImage = async () => {
+    const toastId = toast.loading("Gerando imagem PNG da escala...");
+    const success = await downloadElementAsImage(
+      "escala-dirigentes-print",
+      `Escala_Dirigentes_${activeBranchName.replace(/\s+/g, '_')}.png`
+    );
+    if (success) {
+      toast.success("Imagem (PNG) baixada com sucesso!", { id: toastId });
+    } else {
+      toast.error("Não foi possível gerar a imagem.", { id: toastId });
     }
-    let msg = `🎙️ *ESCALA OFICIAL DE DIRIGENTES E PREGADORES*\n`;
-    msg += `⛪ *${churchName}*\n\n`;
-
-    escalas.forEach((e) => {
-      msg += `📅 *${formatBrazilianDate(e.data)} às ${e.horario}*\n`;
-      msg += `📖 *${e.tipoCulto}*\n`;
-      msg += `🎤 *Dirigente:* ${e.dirigente}\n`;
-      if (e.pregador) msg += `🔥 *Pregador:* ${e.pregador}\n`;
-      if (e.leituraPalavra) msg += `📜 *Leitura:* ${e.leituraPalavra}\n`;
-      if (e.oracaoInicial) msg += `🙏 *Oração:* ${e.oracaoInicial}\n`;
-      msg += `────────────────────\n`;
-    });
-
-    msg += `\n✍️ *Pastor Responsável:* ${pastorResponsavel}\n`;
-    msg += `_Favor confirmar escala com antecedência na Secretaria da Igreja._`;
-
-    navigator.clipboard.writeText(msg);
-    toast.success("Escala copiada para o WhatsApp!");
   };
 
   return (
@@ -441,8 +433,8 @@ export function EscalaDirigentesModal({
               </div>
 
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleShareWhatsApp} className="h-8 text-xs">
-                  <Share2 className="w-3.5 h-3.5 mr-1 text-emerald-600" /> WhatsApp
+                <Button variant="outline" size="sm" onClick={handleDownloadImage} className="h-8 text-xs font-semibold text-emerald-700 border-emerald-300 bg-emerald-50 hover:bg-emerald-100">
+                  <ImageIcon className="w-3.5 h-3.5 mr-1" /> Salvar Imagem
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleDownloadPdf} className="h-8 text-xs">
                   <Download className="w-3.5 h-3.5 mr-1" /> PDF A4
@@ -539,7 +531,7 @@ export function EscalaDirigentesModal({
 
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Data do Culto</Label>
+                      <Label className="text-xs font-semibold">Data Principal</Label>
                       <Input
                         type="date"
                         value={formData.data}
@@ -554,6 +546,32 @@ export function EscalaDirigentesModal({
                         value={formData.horario}
                         onChange={(e) => setFormData(p => ({ ...p, horario: e.target.value }))}
                         className="h-8 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* ANEXO 2 / ANEXO 3: Datas Alternativas ou Múltiplos Dias */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                        Data Alternativa (ex: Dia 07 ou 14)
+                      </Label>
+                      <Input
+                        placeholder="Ex: 07/11/2026 ou 14/11/2026"
+                        value={formData.dataAlternativa || ""}
+                        onChange={(e) => setFormData(p => ({ ...p, dataAlternativa: e.target.value }))}
+                        className="h-7 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                        Texto Personalizado (Vários Dias)
+                      </Label>
+                      <Input
+                        placeholder="Ex: Todos os Domingos"
+                        value={formData.dataTextoPersonalizado || ""}
+                        onChange={(e) => setFormData(p => ({ ...p, dataTextoPersonalizado: e.target.value }))}
+                        className="h-7 text-xs"
                       />
                     </div>
                   </div>
@@ -726,7 +744,7 @@ export function EscalaDirigentesModal({
                             <div className="space-y-1 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-xs font-bold text-primary">
-                                  {formatBrazilianDate(item.data)} • {item.horario}
+                                  {formatBrazilianDate(item)} {item.horario ? `• ${item.horario}` : ""}
                                 </span>
                                 <Badge variant="secondary" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
                                   {item.tipoCulto}
@@ -885,8 +903,8 @@ export function EscalaDirigentesModal({
                             {escalas.map((item, idx) => (
                               <tr key={item.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
                                 <td className="py-2 px-2 border-r border-slate-300 font-bold text-[10px]">
-                                  <div>{formatBrazilianDate(item.data)}</div>
-                                  <span className="text-blue-800 font-mono text-[9px]">às {item.horario}</span>
+                                  <div>{formatBrazilianDate(item)}</div>
+                                  {item.horario && <span className="text-blue-800 font-mono text-[9px]">às {item.horario}</span>}
                                 </td>
                                 <td className="py-2 px-2 border-r border-slate-300 font-semibold text-[10px] text-slate-800">
                                   {item.tipoCulto}

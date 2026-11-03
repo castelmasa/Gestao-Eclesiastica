@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import {  Plus, Search, Download, Eye, FilterX, Check, ChevronsUpDown, FileText, X, Settings, Trash2, Printer, Activity, Info , RefreshCw, Paperclip, ExternalLink, Leaf, CloudUpload, Building2, Calendar, AlertTriangle, BarChart2, FileSpreadsheet } from "lucide-react"
+import { Plus, Search, Download, Eye, FilterX, Check, ChevronsUpDown, FileText, X, Settings, Trash2, Printer, Activity, Info, RefreshCw, Paperclip, ExternalLink, Leaf, CloudUpload, Building2, Calendar, AlertTriangle, BarChart2, FileSpreadsheet } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { validateForm } from "@/lib/validation"
@@ -393,6 +393,8 @@ export function Financeiro() {
     setIsTransactionModalOpen(true);
   };
 
+
+
   const handleImportFile = (file: File) => {
     toast.success("Arquivo importado com sucesso!");
     setIsImportModalOpen(false);
@@ -503,7 +505,9 @@ export function Financeiro() {
       });
 
       const summaryEndY = (doc as any).lastAutoTable?.finalY || 190;
-      drawFinancialReportSignatures(doc, churchData, summaryEndY + 12);
+      const targetBranchId = activeBranch !== 'all' ? activeBranch : 'sede';
+      const freshChurchConfig = getResolvedBranchChurchConfig(targetBranchId);
+      drawFinancialReportSignatures(doc, freshChurchConfig, summaryEndY + 8);
       drawStandardLetterFooter(doc, new Date().toLocaleDateString('pt-BR'));
 
       doc.save(`extrato-financeiro-${activeBranchName.toLowerCase().replace(/\s+/g, '-')}.pdf`);
@@ -579,17 +583,52 @@ export function Financeiro() {
     return `${String(lastDay).padStart(2, '0')} de ${monthNames[eM - 1]} de ${eYear}`;
   };
 
+  // Recupera com precisão os parâmetros e assinaturas específicos da igreja/congregação selecionada
+  const getResolvedBranchChurchConfig = (branchId?: string) => {
+    let resolved = { ...churchData };
+    try {
+      const globalRaw = localStorage.getItem("churchConfig");
+      if (globalRaw) resolved = { ...resolved, ...JSON.parse(globalRaw) };
+
+      const bId = branchId && branchId !== "all" ? branchId : (activeBranch !== "all" ? activeBranch : null);
+      if (bId && bId !== "sede") {
+        const branchKey = `churchConfig_${bId}`;
+        const branchRaw = localStorage.getItem(branchKey);
+        if (branchRaw) {
+          resolved = { ...resolved, ...JSON.parse(branchRaw) };
+        }
+
+        const branchObj = branches.find(b => b.id === bId);
+        if (branchObj) {
+          if (branchObj.pastor && !resolved.pastorTitular) resolved.pastorTitular = branchObj.pastor;
+          if (branchObj.name) resolved.nomeCongregacao = branchObj.name;
+          if (branchObj.address && !resolved.endereco) resolved.endereco = branchObj.address;
+          if (branchObj.cnpj && !resolved.cnpj) resolved.cnpj = branchObj.cnpj;
+        }
+      }
+    } catch (e) {
+      console.warn("Erro ao carregar parâmetros da congregação:", e);
+    }
+    return resolved;
+  };
+
   const drawStandardLetterHeader = (
     doc: jsPDF,
     title: string,
-    subtitle: string
+    subtitle: string,
+    branchIdOverride?: string
   ) => {
+    const targetBranchId = branchIdOverride || activeBranch;
+    const branchObj = branches.find(b => b.id === targetBranchId);
+    const bName = branchObj ? branchObj.name : activeBranchName;
+    const config = getResolvedBranchChurchConfig(targetBranchId);
+
     return drawSafeChurchReportHeader(doc, {
       title,
       subtitle,
-      churchData,
-      activeBranchId: activeBranch,
-      activeBranchName: activeBranchName,
+      churchData: config,
+      activeBranchId: targetBranchId,
+      activeBranchName: bName,
       leftMargin: 14,
       rightMargin: 14,
       topY: 10
@@ -644,14 +683,17 @@ export function Financeiro() {
   const generatePDF = (reportType: "Entradas" | "Saídas" | "Dizimistas" | "Ausentes") => {
     try {
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const branchLabel = activeBranchName;
+      const targetBranchId = activeBranch !== 'all' ? activeBranch : 'sede';
+      const branchObj = branches.find(b => b.id === targetBranchId);
+      const branchLabel = branchObj?.name || activeBranchName;
       const { startDate, endDate, monthLabel } = getReportMonthRange();
       const closingDateStr = getClosingDateFormatted();
 
       drawStandardLetterHeader(
         doc,
         `RELATÓRIO OFICIAL DE ${reportType.toUpperCase()}`,
-        `Mês de Apuração: ${monthLabel} | Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+        `Mês de Apuração: ${monthLabel} | Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+        targetBranchId
       );
 
       let list = branchTransactions.filter(t => {
@@ -667,22 +709,57 @@ export function Financeiro() {
       if (reportType === "Entradas") {
         list = list.filter(t => t.type === 'entrada');
         let total = 0;
-        // Coluna Categoria removida da listagem analítica conforme Anexo 4
         const rows = list.map(t => {
           total += t.amount;
+
+          // Oculta nomes de dizimistas do relatório oficial geral de entradas
+          const isTithe = ((t.category?.toLowerCase() || '').includes('dízimo') || 
+                           (t.category?.toLowerCase() || '').includes('dizimo') || 
+                           Boolean(t.memberId));
+          const isMemberName = members.some(
+            (m: any) => m.name && m.name.trim().toLowerCase() === (t.description || '').trim().toLowerCase()
+          );
+
+          let displayDesc = t.description || 'Entrada';
+          if (isTithe || isMemberName) {
+            displayDesc = t.category || 'Dízimo';
+          }
+
+          const docNum = t.documentNumber && t.documentNumber !== '-' ? t.documentNumber : 'S/N';
+
           return [
             t.date ? new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-',
-            t.documentNumber && t.documentNumber !== '-' ? t.documentNumber : 'S/N',
-            t.description || '-',
+            docNum,
+            displayDesc,
             `R$ ${t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
           ];
         });
         autoTable(doc, {
           startY: tableStartY,
-          head: [['Data', 'Nº Doc', 'Descrição / Histórico', 'Valor (R$)']],
+          head: [['Data', 'Nº Doc', 'Descrição da Entrada', 'Valor (R$)']],
           body: rows,
+          foot: [
+            [
+              {
+                content: `TOTAL GERAL DE ENTRADAS (${list.length} ${list.length === 1 ? 'lançamento' : 'lançamentos'}):`,
+                colSpan: 3,
+                styles: { halign: 'right', fontStyle: 'bold', fontSize: 9, textColor: [15, 23, 42] }
+              },
+              {
+                content: `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+                styles: { halign: 'right', fontStyle: 'bold', fontSize: 9.5, textColor: [15, 23, 42] }
+              }
+            ]
+          ],
           theme: 'striped',
           headStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+          footStyles: {
+            fillColor: [241, 245, 249],
+            textColor: [15, 23, 42],
+            fontStyle: 'bold',
+            lineWidth: { top: 0.6, bottom: 0.6 },
+            lineColor: [50, 50, 50]
+          },
           styles: { fontSize: 8.5, cellPadding: 2.5 },
           columnStyles: {
             0: { cellWidth: 28 },
@@ -692,50 +769,11 @@ export function Financeiro() {
           }
         });
 
-        // Somatória por Tipo de Categoria ao final do relatório de entrada (Anexo 3)
-        const catMap: Record<string, { total: number; count: number }> = {};
-        list.forEach(t => {
-          const cat = t.category || "Sem Categoria";
-          if (!catMap[cat]) catMap[cat] = { total: 0, count: 0 };
-          catMap[cat].total += t.amount;
-          catMap[cat].count += 1;
-        });
-
-        const categoryRows = Object.entries(catMap)
-          .sort((a, b) => b[1].total - a[1].total)
-          .map(([catName, data]) => [
-            catName,
-            data.count.toString(),
-            total > 0 ? `${((data.total / total) * 100).toFixed(1)}%` : "0.0%",
-            `R$ ${data.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-          ]);
-
         const finalY = (doc as any).lastAutoTable?.finalY || 100;
-        doc.setFontSize(9.5);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(30, 41, 59);
-        doc.text("SOMATÓRIA POR TIPO DE CATEGORIA:", 14, finalY + 8);
-
-        autoTable(doc, {
-          startY: finalY + 11,
-          head: [['Categoria', 'Qtd Lançamentos', 'Participação (%)', 'Subtotal (R$)']],
-          body: categoryRows,
-          theme: 'grid',
-          headStyles: { fillColor: [51, 65, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
-          styles: { fontSize: 8, cellPadding: 2 },
-          columnStyles: {
-            0: { cellWidth: 80 },
-            1: { cellWidth: 35, halign: 'center' },
-            2: { cellWidth: 35, halign: 'center' },
-            3: { cellWidth: 32, halign: 'right', fontStyle: 'bold' }
-          }
-        });
-
-        const finalCatY = (doc as any).lastAutoTable?.finalY || (finalY + 30);
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(0, 0, 0);
-        doc.text(`TOTAL GERAL DE ENTRADAS: R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${list.length} lançamentos)`, 14, finalCatY + 8);
+        // Traço de fechamento da tabela conectando as margens de 14mm a 196mm
+        doc.setDrawColor(50, 50, 50);
+        doc.setLineWidth(0.5);
+        doc.line(14, finalY, 196, finalY);
       } else if (reportType === "Saídas") {
         list = list.filter(t => t.type === 'saida');
         let total = 0;
@@ -753,8 +791,28 @@ export function Financeiro() {
           startY: tableStartY,
           head: [['Data', 'Nº Doc', 'Fornecedor / Descrição', 'Valor (R$)']],
           body: rows,
+          foot: [
+            [
+              {
+                content: `TOTAL GERAL DE SAÍDAS (${list.length} ${list.length === 1 ? 'lançamento' : 'lançamentos'}):`,
+                colSpan: 3,
+                styles: { halign: 'right', fontStyle: 'bold', fontSize: 9, textColor: [15, 23, 42] }
+              },
+              {
+                content: `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+                styles: { halign: 'right', fontStyle: 'bold', fontSize: 9.5, textColor: [15, 23, 42] }
+              }
+            ]
+          ],
           theme: 'striped',
           headStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+          footStyles: {
+            fillColor: [241, 245, 249],
+            textColor: [15, 23, 42],
+            fontStyle: 'bold',
+            lineWidth: { top: 0.6, bottom: 0.6 },
+            lineColor: [50, 50, 50]
+          },
           styles: { fontSize: 8.5, cellPadding: 2.5 },
           columnStyles: {
             0: { cellWidth: 28 },
@@ -764,50 +822,11 @@ export function Financeiro() {
           }
         });
 
-        // Somatória por Tipo de Categoria ao final do relatório de saída
-        const catMap: Record<string, { total: number; count: number }> = {};
-        list.forEach(t => {
-          const cat = t.category || "Sem Categoria";
-          if (!catMap[cat]) catMap[cat] = { total: 0, count: 0 };
-          catMap[cat].total += t.amount;
-          catMap[cat].count += 1;
-        });
-
-        const categoryRows = Object.entries(catMap)
-          .sort((a, b) => b[1].total - a[1].total)
-          .map(([catName, data]) => [
-            catName,
-            data.count.toString(),
-            total > 0 ? `${((data.total / total) * 100).toFixed(1)}%` : "0.0%",
-            `R$ ${data.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-          ]);
-
         const finalY = (doc as any).lastAutoTable?.finalY || 100;
-        doc.setFontSize(9.5);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(30, 41, 59);
-        doc.text("SOMATÓRIA POR TIPO DE CATEGORIA:", 14, finalY + 8);
-
-        autoTable(doc, {
-          startY: finalY + 11,
-          head: [['Categoria', 'Qtd Lançamentos', 'Participação (%)', 'Subtotal (R$)']],
-          body: categoryRows,
-          theme: 'grid',
-          headStyles: { fillColor: [51, 65, 85], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
-          styles: { fontSize: 8, cellPadding: 2 },
-          columnStyles: {
-            0: { cellWidth: 80 },
-            1: { cellWidth: 35, halign: 'center' },
-            2: { cellWidth: 35, halign: 'center' },
-            3: { cellWidth: 32, halign: 'right', fontStyle: 'bold' }
-          }
-        });
-
-        const finalCatY = (doc as any).lastAutoTable?.finalY || (finalY + 30);
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(0, 0, 0);
-        doc.text(`TOTAL GERAL DE SAÍDAS: R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${list.length} lançamentos)`, 14, finalCatY + 8);
+        // Traço de fechamento da tabela conectando as margens de 14mm a 196mm
+        doc.setDrawColor(50, 50, 50);
+        doc.setLineWidth(0.5);
+        doc.line(14, finalY, 196, finalY);
       } else if (reportType === "Dizimistas") {
         list = list.filter(t => t.type === 'entrada' && ((t.category?.toLowerCase() || '').includes('dízimo') || (t.category?.toLowerCase() || '').includes('dizimo')));
         let total = 0;
@@ -825,8 +844,28 @@ export function Financeiro() {
           startY: tableStartY,
           head: [['Data', 'Membro / Contribuinte', 'Valor (R$)']],
           body: rows,
+          foot: [
+            [
+              {
+                content: `TOTAL DE DÍZIMOS (${list.length} ${list.length === 1 ? 'contribuição' : 'contribuições'}):`,
+                colSpan: 2,
+                styles: { halign: 'right', fontStyle: 'bold', fontSize: 9, textColor: [15, 23, 42] }
+              },
+              {
+                content: `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+                styles: { halign: 'right', fontStyle: 'bold', fontSize: 9.5, textColor: [15, 23, 42] }
+              }
+            ]
+          ],
           theme: 'striped',
           headStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+          footStyles: {
+            fillColor: [241, 245, 249],
+            textColor: [15, 23, 42],
+            fontStyle: 'bold',
+            lineWidth: { top: 0.6, bottom: 0.6 },
+            lineColor: [50, 50, 50]
+          },
           styles: { fontSize: 8.5, cellPadding: 2.5 },
           columnStyles: {
             0: { cellWidth: 30 },
@@ -835,10 +874,9 @@ export function Financeiro() {
           }
         });
         const finalY = (doc as any).lastAutoTable?.finalY || 100;
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(0, 0, 0);
-        doc.text(`Total de Dízimos: R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${list.length} contribuições)`, 14, finalY + 8);
+        doc.setDrawColor(50, 50, 50);
+        doc.setLineWidth(0.5);
+        doc.line(14, finalY, 196, finalY);
       } else if (reportType === "Ausentes") {
         const ninetyDaysAgo = new Date();
         ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
@@ -872,21 +910,58 @@ export function Financeiro() {
           startY: tableStartY,
           head: [['Nome do Membro', 'Contato / Telefone', 'Cargo Eclesiástico', 'Status']],
           body: rows,
+          foot: [
+            [
+              {
+                content: `TOTAL DE MEMBROS AUSENTES: ${ausentes.length}`,
+                colSpan: 4,
+                styles: { halign: 'right', fontStyle: 'bold', fontSize: 9, textColor: [15, 23, 42] }
+              }
+            ]
+          ],
           theme: 'striped',
           headStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+          footStyles: {
+            fillColor: [241, 245, 249],
+            textColor: [15, 23, 42],
+            fontStyle: 'bold',
+            lineWidth: { top: 0.6, bottom: 0.6 },
+            lineColor: [50, 50, 50]
+          },
           styles: { fontSize: 8.5, cellPadding: 2.5 }
         });
         const finalY = (doc as any).lastAutoTable?.finalY || 100;
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(0, 0, 0);
-        doc.text(`Membros sem contribuição nos últimos 3 meses: ${ausentes.length} membros`, 14, finalY + 8);
+        doc.setDrawColor(50, 50, 50);
+        doc.setLineWidth(0.5);
+        doc.line(14, finalY, 196, finalY);
       }
 
       const lastReportTableY = (doc as any).lastAutoTable?.finalY || 140;
-      drawFinancialReportSignatures(doc, churchData, lastReportTableY + 14);
+
+      // Recupera parâmetros atualizados da igreja / congregação
+      const freshChurchConfig = getResolvedBranchChurchConfig(targetBranchId);
+      const cidadeIgreja = freshChurchConfig?.cidade || "Valparaíso - SP";
+
+      let signaturesStartY = lastReportTableY + 8;
+
+      // Legenda oficial com apenas UMA data de fechamento por extenso antes das assinaturas
+      if (reportType === "Saídas" || reportType === "Entradas") {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(50, 50, 50);
+
+        // Apenas UMA data do fechamento referente ao mês
+        doc.text(`Data do Fechamento: ${closingDateStr}`, 14, lastReportTableY + 7);
+
+        signaturesStartY = lastReportTableY + 14;
+      }
+
+      drawFinancialReportSignatures(doc, freshChurchConfig, signaturesStartY, {
+        closingDate: closingDateStr,
+        city: cidadeIgreja
+      });
       drawStandardLetterFooter(doc, closingDateStr);
-      doc.save(`relatorio-${reportType.toLowerCase()}-${activeBranchName.toLowerCase().replace(/\s+/g, '-')}.pdf`);
+      doc.save(`relatorio-${reportType.toLowerCase()}-${branchLabel.toLowerCase().replace(/\s+/g, '-')}.pdf`);
       toast.success(`Relatório de ${reportType} gerado com sucesso!`);
     } catch (err) {
       console.error(err);
@@ -897,14 +972,17 @@ export function Financeiro() {
   const generateFechamentoPDF = () => {
     try {
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const branchLabel = activeBranchName;
+      const targetBranchId = activeBranch !== 'all' ? activeBranch : 'sede';
+      const branchObj = branches.find(b => b.id === targetBranchId);
+      const branchLabel = branchObj?.name || activeBranchName;
       const { startDate, endDate, monthLabel, prevMonthName, nextMonthName, currentPeriodName } = getReportMonthRange();
       const closingDateStr = getClosingDateFormatted();
 
       drawStandardLetterHeader(
         doc,
         `BALANÇO & FECHAMENTO FINANCEIRO OFICIAL`,
-        `Mês de Apuração: ${monthLabel} | Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+        `Mês de Apuração: ${monthLabel} | Emitido em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+        targetBranchId
       );
 
       // Saldo do mês anterior: todas as movimentações antes do início do período de apuração
@@ -953,63 +1031,18 @@ export function Financeiro() {
       });
 
       // Conforme Anexo 4: NÃO exibir lançamentos no final após o total do fechamento!
-      let currentY = (doc as any).lastAutoTable?.finalY || 80;
+      const currentY = (doc as any).lastAutoTable?.finalY || 80;
 
-      // Declaração de conformidade e idoneidade
-      currentY += 16;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9.5);
-      doc.setTextColor(40, 40, 40);
-      doc.text(
-        "Declaramos para os devidos fins que o presente balanço reflete com fidelidade e exatidão todas as receitas e despesas registradas no período de apuração, acompanhadas de seus respectivos comprovantes e arquivadas na tesouraria da igreja.",
-        14,
-        currentY,
-        { maxWidth: 182, align: "justify" }
-      );
+      // Recupera parâmetros atualizados da igreja / congregação
+      const freshChurchConfig = getResolvedBranchChurchConfig(targetBranchId);
 
-      // Data e local do fechamento
-      currentY += 24;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(20, 20, 20);
-      doc.text(`Valparaiso-SP, ${closingDateStr}`, 14, currentY);
-
-      // Espaço para assinaturas do Pastor/Responsável e Tesoureiro(a)
-      currentY += 34;
-
-      const pastorName = churchData?.pastorTitular || "Pr. Samuel de Oliveira";
-      const tesoureiroName = churchData?.tesoureiro1 || "Carlos Roberto";
-
-      // Linha Pastor / Responsável (Sem a última linha)
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.5);
-      doc.line(20, currentY, 92, currentY);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9.5);
-      doc.setTextColor(0, 0, 0);
-      doc.text(pastorName, 56, currentY + 5, { align: "center" });
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.5);
-      doc.setTextColor(60, 60, 60);
-      doc.text("Pastor / Dirigente Responsável", 56, currentY + 10, { align: "center" });
-
-      // Linha Tesoureiro(a) (Sem a última linha)
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.5);
-      doc.line(118, currentY, 190, currentY);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9.5);
-      doc.setTextColor(0, 0, 0);
-      doc.text(tesoureiroName, 154, currentY + 5, { align: "center" });
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.5);
-      doc.setTextColor(60, 60, 60);
-      doc.text("Tesoureiro(a) Responsável", 154, currentY + 10, { align: "center" });
+      // Espaço para assinaturas dos responsáveis conforme os parâmetros do sistema
+      drawFinancialReportSignatures(doc, freshChurchConfig, currentY + 14);
 
       // Rodapé oficial padronizado em A4
       drawStandardLetterFooter(doc, closingDateStr);
 
-      doc.save(`fechamento-financeiro-${activeBranchName.toLowerCase().replace(/\s+/g, '-')}.pdf`);
+      doc.save(`fechamento-financeiro-${branchLabel.toLowerCase().replace(/\s+/g, '-')}.pdf`);
       toast.success("Relatório de Fechamento em A4 gerado com sucesso!");
     } catch (err) {
       console.error(err);
@@ -1522,15 +1555,15 @@ export function Financeiro() {
             <DialogTrigger asChild>
               <Button variant="outline"><FileText className="mr-2 h-4 w-4" /> Relatórios</Button>
             </DialogTrigger>
-            <DialogContent className="w-[95vw] sm:max-w-[480px] max-h-[88vh] overflow-y-auto p-4 sm:p-5 overflow-x-hidden">
+            <DialogContent className="w-[95vw] sm:max-w-[680px] max-h-[88vh] overflow-y-auto p-5 sm:p-6 overflow-x-hidden rounded-2xl">
               <DialogHeader>
-                <DialogTitle>Opções de Relatório</DialogTitle>
+                <DialogTitle className="text-lg sm:text-xl font-bold">Opções de Relatório</DialogTitle>
                 <DialogDescription>
-                  Selecione o tipo de relatório que deseja gerar.
+                  Selecione o período e o tipo de relatório que deseja gerar em formato oficial.
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
                  <div className="grid gap-1.5">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="reportStartMonth" className="text-xs font-semibold">Mês Inicial</Label>
@@ -1619,82 +1652,130 @@ export function Financeiro() {
                  </Select>
               </div>
 
-              <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 py-3">
                 <Button 
                   variant="outline" 
-                  className="justify-start bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 font-semibold" 
+                  className="w-full justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs sm:text-sm font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800" 
                   onClick={() => { setIsReportModalOpen(false); setIsBalanceteModalOpen(true); }}
                 >
-                  <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Balancete para Assembleia (Prestação de Contas Oficial)
+                  <FileSpreadsheet className="mr-2 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" /> 
+                  <span>Balancete para Assembleia</span>
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="justify-start text-blue-700 hover:text-blue-800 hover:bg-blue-50 border-blue-200 font-semibold" 
+                  className="w-full justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs sm:text-sm font-semibold text-blue-700 hover:text-blue-800 hover:bg-blue-50 border-blue-200" 
                   onClick={() => { setIsReportModalOpen(false); setIsBackupModalOpen(true); }}
                 >
-                  <CloudUpload className="mr-2 h-4 w-4 text-blue-600" /> Exportação & Backup em Nuvem (JSON / CSV / Agendamento)
+                  <CloudUpload className="mr-2 h-4 w-4 shrink-0 text-blue-600" /> 
+                  <span>Exportação & Backup em Nuvem</span>
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="justify-start text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border-emerald-300 dark:border-emerald-800 font-semibold" 
+                  className="w-full justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs sm:text-sm font-semibold text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border-emerald-300 dark:border-emerald-800" 
                   onClick={() => { setIsReportModalOpen(false); setIsEcoPrintOpen(true); }}
                 >
-                  <Leaf className="mr-2 h-4 w-4 text-emerald-600" /> Relatório Formatado (Economia de Tinta e Papel)
+                  <Leaf className="mr-2 h-4 w-4 shrink-0 text-emerald-600" /> 
+                  <span>Relatório Econômico (Tinta/Papel)</span>
                 </Button>
-                <Button variant="outline" className="justify-start" onClick={generateFechamentoPDF}>
-                  <FileText className="mr-2 h-4 w-4" /> Relatório de Fechamento (PDF)
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs sm:text-sm font-medium" 
+                  onClick={generateFechamentoPDF}
+                >
+                  <FileText className="mr-2 h-4 w-4 shrink-0 text-slate-700 dark:text-slate-300" /> 
+                  <span>Relatório de Fechamento (PDF)</span>
                 </Button>
-                <Button variant="outline" className="justify-start" onClick={() => generatePDF("Entradas")}>
-                  <FileText className="mr-2 h-4 w-4" /> Relatório de Entradas (PDF)
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs sm:text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border-emerald-200" 
+                  onClick={() => generatePDF("Entradas")}
+                >
+                  <FileText className="mr-2 h-4 w-4 shrink-0 text-emerald-600" /> 
+                  <span>Relatório de Entradas (PDF)</span>
                 </Button>
-                <Button variant="outline" className="justify-start" onClick={() => generatePDF("Saídas")}>
-                  <FileText className="mr-2 h-4 w-4" /> Relatório de Saídas (PDF)
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs sm:text-sm font-medium text-rose-700 hover:text-rose-800 hover:bg-rose-50 border-rose-200" 
+                  onClick={() => generatePDF("Saídas")}
+                >
+                  <FileText className="mr-2 h-4 w-4 shrink-0 text-rose-600" /> 
+                  <span>Relatório de Saídas (PDF)</span>
                 </Button>
-                <Button variant="outline" className="justify-start" onClick={() => generatePDF("Dizimistas")}>
-                  <FileText className="mr-2 h-4 w-4" /> Relatório de Dizimistas (PDF)
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs sm:text-sm font-medium text-blue-700 hover:text-blue-800 hover:bg-blue-50 border-blue-200" 
+                  onClick={() => generatePDF("Dizimistas")}
+                >
+                  <FileText className="mr-2 h-4 w-4 shrink-0 text-blue-600" /> 
+                  <span>Relatório de Dizimistas (PDF)</span>
                 </Button>
-                <Button variant="outline" className="justify-start text-amber-600 hover:text-amber-700 hover:bg-amber-50" onClick={() => generatePDF("Ausentes")}>
-                  <FileText className="mr-2 h-4 w-4" /> Membros s/ Contribuição (3 meses)
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs sm:text-sm font-medium text-amber-700 hover:text-amber-800 hover:bg-amber-50 border-amber-200" 
+                  onClick={() => generatePDF("Ausentes")}
+                >
+                  <FileText className="mr-2 h-4 w-4 shrink-0 text-amber-600" /> 
+                  <span>Membros s/ Contribuição (3 meses)</span>
                 </Button>
 
-                <Button variant="outline" className="justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => { setIsReportModalOpen(false); setIsAnnualReportOpen(true); }}>
-                  <FileText className="mr-2 h-4 w-4" /> Relatório Financeiro Anual (Gráfico)
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs sm:text-sm font-medium text-indigo-700 hover:text-indigo-800 hover:bg-indigo-50 border-indigo-200" 
+                  onClick={() => { setIsReportModalOpen(false); setIsAnnualReportOpen(true); }}
+                >
+                  <FileText className="mr-2 h-4 w-4 shrink-0 text-indigo-600" /> 
+                  <span>Relatório Financeiro Anual (Gráfico)</span>
                 </Button>
 
-                
-                <Button variant="outline" className="justify-start" onClick={generateFilteredListPDF}>
-                  <FileText className="mr-2 h-4 w-4" /> Exportar Lista Atual (PDF)
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs sm:text-sm font-medium" 
+                  onClick={generateFilteredListPDF}
+                >
+                  <FileText className="mr-2 h-4 w-4 shrink-0 text-slate-600" /> 
+                  <span>Exportar Lista Atual (PDF)</span>
                 </Button>
-                <Button variant="outline" className="justify-start" onClick={handleExport}>
-                  <Download className="mr-2 h-4 w-4" /> Exportar CSV (.csv)
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs sm:text-sm font-medium" 
+                  onClick={handleExport}
+                >
+                  <Download className="mr-2 h-4 w-4 shrink-0 text-slate-600" /> 
+                  <span>Exportar Dados em CSV (.csv)</span>
                 </Button>
-                <Button variant="outline" className="justify-start" onClick={handleExportXLSX}>
-                  <Download className="mr-2 h-4 w-4" /> Exportar Excel (.xlsx)
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs sm:text-sm font-medium" 
+                  onClick={handleExportXLSX}
+                >
+                  <Download className="mr-2 h-4 w-4 shrink-0 text-emerald-600" /> 
+                  <span>Exportar Planilha Excel (.xlsx)</span>
                 </Button>
 
-                <div className="pt-2 border-t mt-2 flex flex-col gap-1.5">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Relatórios do Painel D3</span>
+                <div className="col-span-1 sm:col-span-2 pt-3 border-t mt-1 flex flex-col sm:flex-row gap-2">
                   <Button 
                     variant="outline" 
-                    className="justify-start text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-medium" 
+                    className="flex-1 justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200" 
                     onClick={() => { 
                       setIsReportModalOpen(false); 
                       setActiveMainTab("d3-painel"); 
-                      toast.info("Acessando o Painel D3: clique no botão 'Exportar PDF (Gráficos D3)' no topo do painel.");
+                      toast.info("Acessando o Painel D3: clique em 'Exportar PDF (Gráficos D3)' no topo do painel.");
                     }}
                   >
-                    <BarChart2 className="mr-2 h-4 w-4 text-rose-600" /> Exportar Relatório com Gráficos D3 (PDF)
+                    <BarChart2 className="mr-2 h-4 w-4 shrink-0 text-rose-600" /> 
+                    <span>Exportar Gráficos D3 (PDF)</span>
                   </Button>
                   <Button 
                     variant="outline" 
-                    className="justify-start text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 font-medium" 
+                    className="flex-1 justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-200" 
                     onClick={() => { 
                       setIsReportModalOpen(false); 
                       setActiveMainTab("d3-painel"); 
-                      toast.info("Acessando o Painel D3: clique no botão 'Exportar Excel (.xlsx)' para baixar a planilha consolidada.");
+                      toast.info("Acessando o Painel D3: clique em 'Exportar Excel (.xlsx)' para baixar a planilha consolidada.");
                     }}
                   >
-                    <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" /> Exportar Dados Consolidados D3 (Excel .xlsx)
+                    <FileSpreadsheet className="mr-2 h-4 w-4 shrink-0 text-emerald-600" /> 
+                    <span>Exportar Consolidado D3 (.xlsx)</span>
                   </Button>
                 </div>
               </div>
@@ -1772,7 +1853,9 @@ export function Financeiro() {
             </DialogTrigger>
             <DialogContent className="w-[95vw] sm:max-w-[560px] max-h-[92vh] flex flex-col p-3.5 sm:p-6 overflow-x-hidden">
               <DialogHeader>
-                <DialogTitle>{editingTransaction ? "Editar Transação" : "Nova Transação"}</DialogTitle>
+                <div className="flex items-center justify-between gap-2">
+                  <DialogTitle>{editingTransaction ? "Editar Transação" : "Nova Transação"}</DialogTitle>
+                </div>
                 <DialogDescription className="text-xs sm:text-sm">
                   {editingTransaction ? "Altere os dados da movimentação financeira." : "Adicione uma nova entrada ou saída ao caixa da igreja."}
                 </DialogDescription>
@@ -2886,10 +2969,11 @@ export function Financeiro() {
       <BalanceteMensalModal
         isOpen={isBalanceteModalOpen}
         onClose={() => setIsBalanceteModalOpen(false)}
-        transactions={branchTransactions}
-        churchName={churchData?.nome || "Igreja Evangélica Manancial"}
+        transactions={transactions}
+        churchName={churchData?.nome || "Igreja Evangélica Pentecostal O Brasil para Cristo"}
         activeBranchName={activeBranchName}
       />
+
 
       <div className="hidden print:block mt-8 pt-4 border-t text-center text-sm text-slate-500">
         <p>Documento gerado automaticamente pelo Sistema de Gestão de Igrejas.</p>

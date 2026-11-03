@@ -428,3 +428,85 @@ export async function downloadElementAsPdf(
   }
 }
 
+/**
+ * Export any HTML element directly to a clean PNG image file using html-to-image.
+ * Accepts either an element ID (string) or an HTMLElement directly.
+ */
+export async function downloadElementAsImage(
+  target: string | HTMLElement, 
+  fileName: string = 'escala.png'
+): Promise<boolean> {
+  let element: HTMLElement | null = null;
+
+  if (typeof target === 'string') {
+    const elements = Array.from(document.querySelectorAll<HTMLElement>(`#${target}`));
+    const isVisible = (el: HTMLElement) => {
+      try {
+        const style = window.getComputedStyle(el);
+        const rect = el.getBoundingClientRect();
+        return style.display !== 'none' && style.visibility !== 'hidden' && (rect.width > 0 || el.offsetWidth > 0);
+      } catch {
+        return false;
+      }
+    };
+
+    if (elements.length > 0) {
+      element = elements.find(isVisible) || elements[elements.length - 1];
+    }
+
+    if (!element) {
+      element = document.getElementById(target);
+    }
+  } else {
+    element = target;
+  }
+
+  if (!element) {
+    console.error("Element not found for Image export.");
+    toast.error("Elemento para geração de imagem não encontrado.");
+    return false;
+  }
+
+  const toastId = toast.loading("Gerando imagem em alta resolução (PNG)...");
+
+  const originalTransform = element.style.transform;
+  const originalTransformOrigin = element.style.transformOrigin;
+  const parentEl = element.parentElement;
+  const originalParentTransform = parentEl ? parentEl.style.transform : '';
+
+  try {
+    element.style.transform = 'none';
+    element.style.transformOrigin = 'top center';
+    if (parentEl) {
+      parentEl.style.transform = 'none';
+    }
+
+    const dataUrl = await toPng(element, {
+      quality: 0.98,
+      pixelRatio: 2,
+      backgroundColor: '#ffffff'
+    });
+
+    const link = document.createElement('a');
+    link.download = fileName.endsWith('.png') ? fileName : `${fileName}.png`;
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success("Imagem (PNG) baixada com sucesso!", { id: toastId });
+    return true;
+  } catch (err) {
+    console.error("Error generating image:", err);
+    toast.error("Erro ao gerar imagem. Tente baixar em PDF.", { id: toastId });
+    return false;
+  } finally {
+    element.style.transform = originalTransform;
+    element.style.transformOrigin = originalTransformOrigin;
+    if (parentEl) {
+      parentEl.style.transform = originalParentTransform;
+    }
+  }
+}
+
+

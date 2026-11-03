@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import React, { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Users, TrendingUp, TrendingDown, Target, Bell, Calendar, Wallet, Activity, Box, Loader2, Download, Maximize, Building2, ShieldCheck, Send, CheckCircle2, Lock } from "lucide-react"
+import { Users, TrendingUp, TrendingDown, Target, Bell, Calendar, Wallet, Activity, Box, Loader2, Download, Maximize, Building2, ShieldCheck, Send, CheckCircle2, Lock, ChevronLeft, ChevronRight } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
@@ -46,8 +46,41 @@ export function Dashboard() {
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
   const [hasRequested, setHasRequested] = useState(false);
   
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  const MONTH_NAMES = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+  ];
+
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<number>(() => now.getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(() => now.getFullYear());
+  const [hasAutoAdjustedMonth, setHasAutoAdjustedMonth] = useState(false);
+
+  const availableYears = useMemo(() => {
+    const currentY = new Date().getFullYear();
+    const years = [currentY - 2, currentY - 1, currentY, currentY + 1];
+    return Array.from(new Set(years)).sort((a, b) => b - a);
+  }, []);
+
+  const handlePrevMonth = () => {
+    setSelectedMonth((prev) => {
+      if (prev === 0) {
+        setSelectedYear((y) => y - 1);
+        return 11;
+      }
+      return prev - 1;
+    });
+  };
+
+  const handleNextMonth = () => {
+    setSelectedMonth((prev) => {
+      if (prev === 11) {
+        setSelectedYear((y) => y + 1);
+        return 0;
+      }
+      return prev + 1;
+    });
+  };
 
   useEffect(() => {
     if (!user) {
@@ -122,12 +155,39 @@ export function Dashboard() {
     return events.filter(e => matchesBranch(e, activeBranch, branches));
   }, [events, activeBranch, branches]);
 
+  // Auto-ajuste para o mês com movimentações se o mês atual estiver zerado
+  useEffect(() => {
+    if (hasAutoAdjustedMonth || filteredTransactions.length === 0) return;
+    const realMonth = new Date().getMonth();
+    const realYear = new Date().getFullYear();
+    const hasCurrentMonthData = filteredTransactions.some(t => {
+      if (!t.date) return false;
+      const d = t.date.toDate ? t.date.toDate() : new Date(t.date);
+      return d.getMonth() === realMonth && d.getFullYear() === realYear;
+    });
+
+    if (!hasCurrentMonthData) {
+      const sortedDates = filteredTransactions
+        .map(t => (t.date?.toDate ? t.date.toDate() : new Date(t.date)))
+        .filter(d => !isNaN(d.getTime()))
+        .sort((a, b) => b.getTime() - a.getTime());
+      
+      if (sortedDates.length > 0) {
+        setSelectedMonth(sortedDates[0].getMonth());
+        setSelectedYear(sortedDates[0].getFullYear());
+        setHasAutoAdjustedMonth(true);
+      }
+    } else {
+      setHasAutoAdjustedMonth(true);
+    }
+  }, [filteredTransactions, hasAutoAdjustedMonth]);
+
   // Analytics Calculations
   const stats = useMemo(() => {
     const monthTrans = filteredTransactions.filter(t => {
       if (!t.date) return false;
       const d = t.date.toDate ? t.date.toDate() : new Date(t.date);
-      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
     });
 
     const receitas = monthTrans
@@ -169,7 +229,7 @@ export function Dashboard() {
       .slice(0, 4);
 
     return { receitas, despesas, saldo, progress, pieData, upcomingEvents };
-  }, [filteredTransactions, filteredEvents, currentMonth, currentYear]);
+  }, [filteredTransactions, filteredEvents, selectedMonth, selectedYear]);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -303,10 +363,10 @@ export function Dashboard() {
           </div>
         }
         action={
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex flex-col text-left sm:text-right bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-white/20">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <div className="flex flex-col text-left sm:text-right bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-white/20 shrink-0">
               <span className="text-[10px] text-white/70 uppercase tracking-wider font-semibold leading-none mb-0.5">Perfil</span>
-              <span className="text-xs sm:text-sm font-semibold text-white leading-tight">
+              <span className="text-xs sm:text-sm font-semibold text-white leading-tight truncate max-w-[140px]">
                 {user?.role || 'Novo Usuário'}
               </span>
             </div>
@@ -319,11 +379,11 @@ export function Dashboard() {
               } else {
                 document.exitFullscreen();
               }
-            }} variant="outline" className="bg-white/10 text-white hover:bg-white/20 border-white/20 whitespace-nowrap h-10 rounded-xl px-3.5 font-medium text-xs sm:text-sm hidden md:inline-flex">
+            }} variant="outline" className="bg-white/10 text-white hover:bg-white/20 border-white/20 whitespace-nowrap h-9 sm:h-10 rounded-xl px-3 font-medium text-xs sm:text-sm hidden lg:inline-flex shrink-0">
               <Maximize className="w-4 h-4 mr-1.5" /> Tela Cheia
             </Button>
             {canViewFinanceiro && (
-              <Button onClick={handleExportPDF} className="bg-white text-blue-600 hover:bg-slate-100 whitespace-nowrap h-10 rounded-xl px-4 font-semibold text-xs sm:text-sm shadow-xs">
+              <Button onClick={handleExportPDF} className="bg-white text-blue-600 hover:bg-slate-100 whitespace-nowrap h-9 sm:h-10 rounded-xl px-3.5 font-semibold text-xs sm:text-sm shadow-xs shrink-0">
                 <Download className="w-4 h-4 mr-1.5" /> Exportar Relatório
               </Button>
             )}
@@ -427,127 +487,221 @@ export function Dashboard() {
       {/* BLOCO FINANCEIRO E ADMINISTRATIVO (INIBIDO PARA NOVO USUÁRIO) */}
       {canViewFinanceiro && (
         <>
-          {/* 0. Summary Cards Executivo (Firestore Real-time: Membros, Receitas do Mês e Tarefas) */}
-          <SummaryCards activeBranch={activeBranch} />
+          {/* SELETOR DE MÊS / PERÍODO DE COMPETÊNCIA DO DASHBOARD */}
+          <div className="bg-card border border-border/80 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
+                <Calendar className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Período de Competência
+                  </h3>
+                  <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                    {MONTH_NAMES[selectedMonth]} de {selectedYear}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Métricas financeiras calculadas especificamente para o mês selecionado.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap sm:justify-end">
+              <div className="flex items-center bg-muted/60 p-1 rounded-xl border border-border/60">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-lg"
+                  onClick={handlePrevMonth}
+                  title="Mês anterior"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+
+                <Select value={String(selectedMonth)} onValueChange={(val) => setSelectedMonth(Number(val))}>
+                  <SelectTrigger className="h-8 border-none bg-transparent shadow-none text-xs font-semibold px-2 min-w-[110px] focus:ring-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTH_NAMES.map((name, idx) => (
+                      <SelectItem key={idx} value={String(idx)} className="text-xs">
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={String(selectedYear)} onValueChange={(val) => setSelectedYear(Number(val))}>
+                  <SelectTrigger className="h-8 border-none bg-transparent shadow-none text-xs font-semibold px-2 min-w-[80px] focus:ring-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map((yr) => (
+                      <SelectItem key={yr} value={String(yr)} className="text-xs">
+                        {yr}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-lg"
+                  onClick={handleNextMonth}
+                  title="Próximo mês"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {!(selectedMonth === new Date().getMonth() && selectedYear === new Date().getFullYear()) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedMonth(new Date().getMonth());
+                    setSelectedYear(new Date().getFullYear());
+                  }}
+                  className="h-8 text-xs font-medium rounded-xl border-dashed"
+                >
+                  Mês Atual
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* 0. Summary Cards Executivo (Firestore Real-time: Membros, Receitas do Mês Selecionado e Tarefas) */}
+          <SummaryCards 
+            activeBranch={activeBranch} 
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+          />
 
           {/* 1. Cards de Resumo Financeiro (Entradas vs Saídas, Balanço & Taxa de Comprometimento) */}
-          <FinancialSummaryCards transactions={filteredTransactions} activeBranch={activeBranch} />
+          <FinancialSummaryCards 
+            transactions={filteredTransactions} 
+            activeBranch={activeBranch} 
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+          />
 
           {/* 2. Sistema de Alertas Visuais para Contas a Pagar e Receber Próximas ao Vencimento */}
           <PendingBillsAlerts transactions={filteredTransactions} />
 
-          {/* 2.1. Gráfico Visual Recharts: Resumo de Entradas e Saídas Financeiras do Mês Atual */}
-          <MonthlyFinancialComparisonChart transactions={filteredTransactions} activeBranch={activeBranch} />
+          {/* 2.1. Gráfico Visual Recharts: Resumo de Entradas e Saídas Financeiras do Mês Selecionado */}
+          <MonthlyFinancialComparisonChart 
+            transactions={filteredTransactions} 
+            activeBranch={activeBranch} 
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+          />
 
-          {/* 3. Gráficos Principais: Evolução da Arrecadação Mensal e Crescimento de Novos Membros (Recharts) */}
-          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 w-full min-w-0">
-            <div className="w-full min-w-0">
+          {/* 3. Gráficos Financeiros Principais: Evolução da Arrecadação e Distribuição de Despesas */}
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-12 w-full min-w-0">
+            <div className="lg:col-span-7 w-full min-w-0">
               <RevenueEvolutionChart transactions={filteredTransactions} activeBranch={activeBranch} />
             </div>
-            <div className="w-full min-w-0">
-              <MemberGrowthChart members={filteredMembers} activeBranch={activeBranch} />
+            <div className="lg:col-span-5 w-full min-w-0">
+              <Card className="shadow-sm border-border/80 dark:border-border/60 w-full min-w-0 h-full flex flex-col overflow-hidden">
+                <CardHeader className="p-4 sm:p-5 pb-2">
+                  <CardTitle className="text-base sm:text-lg font-semibold flex items-center gap-2 text-foreground truncate">
+                     <Activity className="w-5 h-5 text-primary shrink-0" /> 
+                     <span className="truncate">Distribuição de Despesas</span>
+                  </CardTitle>
+                  <CardDescription className="text-xs">Principais custos e desembolsos deste mês</CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-5 pt-0 flex-1 flex flex-col justify-center">
+                  <div className="h-[250px] w-full min-w-0 overflow-hidden">
+                     {stats.pieData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                          <PieChart>
+                            <Pie
+                              data={stats.pieData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={50}
+                              outerRadius={80}
+                              paddingAngle={5}
+                              dataKey="value"
+                            >
+                              {stats.pieData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                            <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: "11px" }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                     ) : (
+                        <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                          Nenhuma despesa registrada neste mês.
+                        </div>
+                     )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </>
       )}
 
-      {/* 4. Grid: Aniversariantes do Mês & Distribuição de Despesas / Agenda */}
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-12 w-full min-w-0">
-        
-        {/* Aniversariantes do Mês (Left: 5 cols on lg) - Visível para quem tem acesso a membros */}
-        {canViewMembers && (
-          <div className="lg:col-span-5 w-full min-w-0">
+      {/* 4. Grid de Membros: Crescimento e Aniversariantes */}
+      {canViewMembers && (
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 w-full min-w-0">
+          <div className="w-full min-w-0">
+            <MemberGrowthChart members={filteredMembers} activeBranch={activeBranch} />
+          </div>
+          <div className="w-full min-w-0">
             <BirthdaysCard members={filteredMembers} activeBranch={activeBranch} />
           </div>
-        )}
-
-        {/* Despesas Chart & Próximos Eventos (Right: span changes based on canViewMembers) */}
-        <div className={canViewMembers ? "lg:col-span-7 space-y-4 sm:space-y-6 w-full min-w-0" : "lg:col-span-12 space-y-4 sm:space-y-6 w-full min-w-0"}>
-          {/* Despesas Chart (Somente visível com permissão financeira) */}
-          {canViewFinanceiro && (
-            <Card className="shadow-sm border-border/80 dark:border-border/60 w-full min-w-0 overflow-hidden">
-              <CardHeader className="p-3.5 sm:p-6 pb-2">
-                <CardTitle className="text-base sm:text-lg font-semibold flex items-center gap-2 text-foreground truncate">
-                   <Activity className="w-5 h-5 text-primary shrink-0" /> 
-                   <span className="truncate">Distribuição de Despesas por Categoria</span>
-                </CardTitle>
-                <CardDescription className="text-xs">Principais custos e desembolsos deste mês</CardDescription>
-              </CardHeader>
-              <CardContent className="p-3.5 sm:p-6 pt-0">
-                <div className="h-[240px] sm:h-[260px] w-full min-w-0 overflow-hidden">
-                   {stats.pieData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                        <PieChart>
-                          <Pie
-                            data={stats.pieData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={50}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="value"
-                          >
-                            {stats.pieData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                          <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: "11px" }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                   ) : (
-                      <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-                        Nenhuma despesa registrada neste mês.
-                      </div>
-                   )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Agenda Widget - Sempre visível para todos os usuários (incluindo Novo Usuário) */}
-          <Card className="shadow-sm border-border/80 dark:border-border/60 rounded-2xl">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg font-semibold flex items-center gap-2 text-foreground">
-                     <Calendar className="w-5 h-5 text-primary" /> Próximos Eventos & Cultos da Igreja
-                  </CardTitle>
-                  <CardDescription>Acompanhe a programação dos cultos e eventos oficiais</CardDescription>
-                </div>
-                <Link to="/agenda" className="inline-flex items-center text-xs font-semibold text-primary hover:text-primary/80 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors">
-                  Ver Agenda Completa
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-               <div className="space-y-3">
-                 {stats.upcomingEvents.length > 0 ? stats.upcomingEvents.map((evt, idx) => {
-                   const d = parseFirestoreDate(evt.start);
-                   const dateStr = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(d);
-                   const timeStr = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(d);
-                   return (
-                     <div key={idx} className="flex items-start gap-4 p-3.5 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors border border-border/60">
-                       <div className="bg-card border border-border shadow-xs rounded-xl p-2 text-center min-w-[62px]">
-                         <div className="text-[11px] font-bold text-primary uppercase">{dateStr.split(' de ')[1]}</div>
-                         <div className="text-xl font-black text-foreground">{dateStr.split(' ')[0]}</div>
-                       </div>
-                       <div className="min-w-0 flex-1">
-                         <h4 className="font-semibold text-sm text-foreground truncate">{evt.title}</h4>
-                         <p className="text-xs text-muted-foreground mt-0.5">{timeStr} • {evt.location || 'Templo Sede'}</p>
-                       </div>
-                     </div>
-                   )
-                 }) : (
-                   <div className="text-center p-8 text-muted-foreground border border-dashed border-border rounded-xl text-sm">
-                      Não há eventos futuros programados na agenda para este período.
-                   </div>
-                 )}
-               </div>
-            </CardContent>
-          </Card>
         </div>
+      )}
 
+      {/* 5. Agenda & Próximos Eventos */}
+      <div className="w-full min-w-0">
+        <Card className="shadow-sm border-border/80 dark:border-border/60 rounded-2xl overflow-hidden">
+          <CardHeader className="pb-3 border-b border-border/40">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2 text-foreground">
+                   <Calendar className="w-5 h-5 text-primary" /> Próximos Eventos & Cultos da Igreja
+                </CardTitle>
+                <CardDescription>Acompanhe a programação dos cultos e eventos oficiais</CardDescription>
+              </div>
+              <Link to="/agenda" className="inline-flex items-center text-xs font-semibold text-primary hover:text-primary/80 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors">
+                Ver Agenda Completa
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4">
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+               {stats.upcomingEvents.length > 0 ? stats.upcomingEvents.map((evt, idx) => {
+                 const d = parseFirestoreDate(evt.start);
+                 const dateStr = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(d);
+                 const timeStr = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(d);
+                 return (
+                   <div key={idx} className="flex items-start gap-3.5 p-3 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors border border-border/60">
+                     <div className="bg-card border border-border shadow-xs rounded-xl p-2 text-center min-w-[54px]">
+                       <div className="text-[10px] font-bold text-primary uppercase">{dateStr.split(' de ')[1] || ''}</div>
+                       <div className="text-lg font-black text-foreground">{dateStr.split(' ')[0]}</div>
+                     </div>
+                     <div className="min-w-0 flex-1">
+                       <h4 className="font-semibold text-sm text-foreground truncate">{evt.title}</h4>
+                       <p className="text-xs text-muted-foreground mt-0.5">{timeStr} • {evt.location || 'Templo Sede'}</p>
+                     </div>
+                   </div>
+                 )
+               }) : (
+                 <div className="col-span-full text-center p-8 text-muted-foreground border border-dashed border-border rounded-xl text-sm">
+                    Não há eventos futuros programados na agenda para este período.
+                 </div>
+               )}
+             </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* MODAL DE SOLICITAÇÃO DE PERFIL / ACESSO */}

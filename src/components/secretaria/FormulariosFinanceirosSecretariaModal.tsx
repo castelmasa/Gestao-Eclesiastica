@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,9 +7,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   FileText,
   Printer,
@@ -18,13 +23,14 @@ import {
   TrendingDown,
   UserCheck,
   Calculator,
-  Building2,
   Calendar,
-  Sparkles
+  Building2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { printDocument, downloadElementAsPdf } from "@/lib/printUtils";
 import { getRegisteredChurchLogo } from "@/lib/churchLogoHelper";
+import { getChurchLeadershipConfig } from "@/lib/churchConfigHelper";
+import { useBranch } from "@/contexts/BranchContext";
 
 interface FormulariosFinanceirosSecretariaModalProps {
   isOpen: boolean;
@@ -39,28 +45,61 @@ export function FormulariosFinanceirosSecretariaModal({
   onClose,
   churchData,
   activeBranchName = "2ª Congregação",
-  activeBranchId = "sede"
+  activeBranchId = "sede",
 }: FormulariosFinanceirosSecretariaModalProps) {
+  const { branches, userRestrictedBranch } = useBranch();
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(
+    userRestrictedBranch || activeBranchId || "sede"
+  );
   const [activeTab, setActiveTab] = useState<'entradas' | 'saidas' | 'dizimista' | 'fechamento'>('entradas');
 
   // Nomes para os formulários
   const [mesAnoReferencia, setMesAnoReferencia] = useState<string>(() => {
-    const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const months = [
+      "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+      "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    ];
     const now = new Date();
     return `${months[now.getMonth()]} / ${now.getFullYear()}`;
   });
 
-  const churchLogo = getRegisteredChurchLogo(activeBranchId) || churchData?.logoDataUrl || null;
-  const churchName = churchData?.nome || `IGREJA EVANGÉLICA PENTECOSTAL O BRASIL PARA CRISTO - ${activeBranchName.toUpperCase()}`;
-  const churchAddress = churchData?.endereco || "Rua Bartolomeu Bueno, nº 629 - Santa Casa - Valparaíso/SP";
+  // Carrega institucional e liderança com base na congregação selecionada
+  const leadership = useMemo(() => {
+    return getChurchLeadershipConfig(selectedBranchId, branches);
+  }, [selectedBranchId, branches]);
 
-  const nomeTesoureiro = churchData?.tesoureiro || churchData?.tesoureiroGeral || "Tesoureiro Responsável";
-  const nomePastor = churchData?.pastorTitular || churchData?.pastor || "Pastor Titular";
+  // Logotipo prioritário dos parâmetros da igreja
+  const churchLogo = useMemo(() => {
+    return (
+      getRegisteredChurchLogo(selectedBranchId) ||
+      leadership.church.logoUrl ||
+      churchData?.logoDataUrl ||
+      churchData?.logoUrl ||
+      null
+    );
+  }, [selectedBranchId, leadership.church.logoUrl, churchData]);
+
+  const churchName = leadership.church.name || churchData?.nome || `IGREJA EVANGÉLICA PENTECOSTAL O BRASIL PARA CRISTO`;
+  const churchAddress = `${leadership.church.address || churchData?.endereco || "Rua Bartolomeu Bueno, nº 629"}${leadership.church.bairro ? ` - ${leadership.church.bairro}` : ''} - ${leadership.church.cidade || "Valparaíso/SP"}`;
+  const churchCnpj = leadership.church.cnpj || churchData?.cnpj || "51.105.484/0001-74";
+
+  const nomeTesoureiro = leadership.tesoureiro.name || "Carlos Roberto";
+  const tesoureiroSignature = leadership.tesoureiro.signatureUrl;
+
+  const nomePastor = leadership.pastor.name || "Pr. Samuel de Oliveira";
+  const pastorSignature = leadership.pastor.signatureUrl;
+
+  const cf1Name = leadership.conselhoFiscal?.cf1?.name || "";
+  const cf1Signature = leadership.conselhoFiscal?.cf1?.signatureUrl || "";
+  const cf2Name = leadership.conselhoFiscal?.cf2?.name || "";
+  const cf2Signature = leadership.conselhoFiscal?.cf2?.signatureUrl || "";
+  const cf3Name = leadership.conselhoFiscal?.cf3?.name || "";
+  const cf3Signature = leadership.conselhoFiscal?.cf3?.signatureUrl || "";
 
   const handlePrintForm = () => {
     printDocument({
       elementId: `formulario-financeiro-print-${activeTab}`,
-      title: `Formulario_${activeTab.toUpperCase()}_${activeBranchName.replace(/\s+/g, '_')}`
+      title: `Formulario_${activeTab.toUpperCase()}_${selectedBranchId}`,
     });
   };
 
@@ -68,13 +107,139 @@ export function FormulariosFinanceirosSecretariaModal({
     const toastId = toast.loading("Gerando PDF do Formulário Financeiro...");
     const success = await downloadElementAsPdf(
       `formulario-financeiro-print-${activeTab}`,
-      `Formulario_${activeTab.toUpperCase()}_${activeBranchName.replace(/\s+/g, '_')}.pdf`
+      `Formulario_${activeTab.toUpperCase()}_${selectedBranchId}.pdf`
     );
     if (success) {
       toast.success("PDF baixado com sucesso!", { id: toastId });
     } else {
       toast.error("Erro ao gerar PDF. Utilize o botão Imprimir.", { id: toastId });
     }
+  };
+
+  // Render do Logotipo Oficial sem cortes nem badges pretas improvisadas
+  // Render do Logotipo Oficial sem cortes nem badges pretas improvisadas
+  const renderOfficialLogo = () => {
+    const effectiveLogo = churchLogo || getRegisteredChurchLogo(selectedBranchId);
+    return (
+      <img
+        src={effectiveLogo}
+        alt="Logotipo Oficial da Igreja"
+        className="h-14 max-w-[48mm] object-contain block"
+        crossOrigin="anonymous"
+      />
+    );
+  };
+
+  // Render das Assinaturas Oficiais (Pastor, Tesoureiro e Conselho Fiscal)
+  const renderSignaturesBlock = (isFechamento = false) => {
+    return (
+      <div className="pt-6 border-t-2 border-slate-900 mt-auto">
+        <div className="grid grid-cols-2 gap-10 text-center mb-4">
+          {/* Tesoureiro */}
+          <div>
+            <div className="h-12 flex items-end justify-center mb-1">
+              {tesoureiroSignature ? (
+                <img
+                  src={tesoureiroSignature}
+                  alt="Assinatura Tesoureiro"
+                  className="max-h-12 object-contain"
+                  crossOrigin="anonymous"
+                />
+              ) : null}
+            </div>
+            <div className="border-t-2 border-slate-900 w-64 mx-auto pt-1">
+              <p className="text-xs font-black uppercase text-slate-950">{nomeTesoureiro}</p>
+              <p className="text-[10px] text-slate-600 font-bold">1º Tesoureiro(a) / Conferente</p>
+            </div>
+          </div>
+
+          {/* Pastor */}
+          <div>
+            <div className="h-12 flex items-end justify-center mb-1">
+              {pastorSignature ? (
+                <img
+                  src={pastorSignature}
+                  alt="Assinatura Pastor"
+                  className="max-h-12 object-contain"
+                  crossOrigin="anonymous"
+                />
+              ) : null}
+            </div>
+            <div className="border-t-2 border-slate-900 w-64 mx-auto pt-1">
+              <p className="text-xs font-black uppercase text-slate-950">{nomePastor}</p>
+              <p className="text-[10px] text-slate-600 font-bold">Pastor Titular / Presidente</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Se for Fechamento de Caixa, adiciona o Conselho Fiscal */}
+        {isFechamento && (
+          <div className="pt-3 border-t border-dashed border-slate-400">
+            <p className="text-[10px] font-black uppercase text-center tracking-widest text-slate-700 mb-3">
+              COMISSÃO DE EXAME DE CONTAS / CONSELHO FISCAL
+            </p>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <div className="h-10 flex items-end justify-center mb-1">
+                  {cf1Signature ? (
+                    <img
+                      src={cf1Signature}
+                      alt="Assinatura CF1"
+                      className="max-h-10 object-contain"
+                      crossOrigin="anonymous"
+                    />
+                  ) : null}
+                </div>
+                <div className="border-t-2 border-slate-900 w-44 mx-auto pt-1">
+                  <p className="text-[11px] font-black uppercase text-slate-950 truncate">
+                    {cf1Name || "1º Conselheiro(a) Fiscal"}
+                  </p>
+                  <p className="text-[9px] text-slate-600 font-bold">Relator / 1º Membro</p>
+                </div>
+              </div>
+
+              <div>
+                <div className="h-10 flex items-end justify-center mb-1">
+                  {cf2Signature ? (
+                    <img
+                      src={cf2Signature}
+                      alt="Assinatura CF2"
+                      className="max-h-10 object-contain"
+                      crossOrigin="anonymous"
+                    />
+                  ) : null}
+                </div>
+                <div className="border-t-2 border-slate-900 w-44 mx-auto pt-1">
+                  <p className="text-[11px] font-black uppercase text-slate-950 truncate">
+                    {cf2Name || "2º Conselheiro(a) Fiscal"}
+                  </p>
+                  <p className="text-[9px] text-slate-600 font-bold">2º Membro</p>
+                </div>
+              </div>
+
+              <div>
+                <div className="h-10 flex items-end justify-center mb-1">
+                  {cf3Signature ? (
+                    <img
+                      src={cf3Signature}
+                      alt="Assinatura CF3"
+                      className="max-h-10 object-contain"
+                      crossOrigin="anonymous"
+                    />
+                  ) : null}
+                </div>
+                <div className="border-t-2 border-slate-900 w-44 mx-auto pt-1">
+                  <p className="text-[11px] font-black uppercase text-slate-950 truncate">
+                    {cf3Name || "3º Conselheiro(a) Fiscal"}
+                  </p>
+                  <p className="text-[9px] text-slate-600 font-bold">3º Membro</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -94,12 +259,38 @@ export function FormulariosFinanceirosSecretariaModal({
                   </Badge>
                 </DialogTitle>
                 <DialogDescription className="text-xs">
-                  Modelos prontos para impressão com linhas e colunas espaçadas para preenchimento manual da Tesouraria e Secretaria.
+                  Modelos padronizados com o logo e liderança oficial da igreja para preenchimento manual da Tesouraria e Secretaria.
                 </DialogDescription>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Seletor de Congregação */}
+              <div className="flex items-center gap-1.5 bg-muted/60 px-2 py-1 rounded-md border text-xs">
+                <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="font-semibold text-[11px]">Igreja:</span>
+                <Select
+                  value={selectedBranchId}
+                  onValueChange={setSelectedBranchId}
+                  disabled={!!userRestrictedBranch}
+                >
+                  <SelectTrigger className="h-7 text-xs font-semibold w-40 bg-background">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sede">Sede Central</SelectItem>
+                    {branches
+                      .filter((b) => b.id !== "sede")
+                      .map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Mês/Ano */}
               <div className="flex items-center gap-1.5 bg-muted/60 px-2 py-1 rounded-md border text-xs">
                 <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
                 <span className="font-semibold text-[11px]">Mês/Ano:</span>
@@ -107,7 +298,7 @@ export function FormulariosFinanceirosSecretariaModal({
                   type="text"
                   value={mesAnoReferencia}
                   onChange={(e) => setMesAnoReferencia(e.target.value)}
-                  className="bg-background border rounded px-1.5 py-0.5 text-xs font-bold w-32 text-center"
+                  className="bg-background border rounded px-1.5 py-0.5 text-xs font-bold w-28 text-center"
                   placeholder="Mês / Ano"
                 />
               </div>
@@ -179,24 +370,21 @@ export function FormulariosFinanceirosSecretariaModal({
               <div>
                 {/* Cabeçalho Oficial */}
                 <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4 mb-4">
-                  <div className="flex items-center gap-3">
-                    {churchLogo ? (
-                      <img src={churchLogo} alt="Logo" className="w-14 h-14 object-contain" />
-                    ) : (
-                      <div className="w-14 h-14 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xl">
-                        OBPC
-                      </div>
-                    )}
+                  <div className="flex items-center gap-4">
+                    {renderOfficialLogo()}
                     <div>
-                      <h2 className="text-sm font-black uppercase tracking-tight text-slate-950">{churchName}</h2>
-                      <p className="text-[11px] text-slate-600 leading-tight">{churchAddress}</p>
-                      <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest mt-0.5 block">
+                      <h2 className="text-sm font-black uppercase tracking-tight text-slate-950 leading-tight">
+                        {churchName}
+                      </h2>
+                      <p className="text-[11px] text-slate-600 leading-tight mt-0.5">{churchAddress}</p>
+                      <p className="text-[10px] text-slate-500 font-mono leading-tight">CNPJ: {churchCnpj}</p>
+                      <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest mt-1 block">
                         SECRETARIA & TESOURARIA ECLESIÁSTICA
                       </span>
                     </div>
                   </div>
 
-                  <div className="text-right border-l pl-4 border-slate-300">
+                  <div className="text-right border-l pl-4 border-slate-300 shrink-0">
                     <h3 className="text-base font-black uppercase text-emerald-800">
                       FORMULÁRIO DE ENTRADAS
                     </h3>
@@ -246,26 +434,8 @@ export function FormulariosFinanceirosSecretariaModal({
                 </table>
               </div>
 
-              {/* Assinaturas Obrigatórias: Tesoureiro e Pastor */}
-              <div className="pt-6 border-t-2 border-slate-900 mt-auto">
-                <div className="grid grid-cols-2 gap-12 text-center">
-                  <div>
-                    <div className="h-8"></div>
-                    <div className="border-t-2 border-slate-900 w-64 mx-auto pt-1.5">
-                      <p className="text-xs font-black uppercase text-slate-950">{nomeTesoureiro}</p>
-                      <p className="text-[10px] text-slate-600 font-bold">Tesouraria Geral / Conferente</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="h-8"></div>
-                    <div className="border-t-2 border-slate-900 w-64 mx-auto pt-1.5">
-                      <p className="text-xs font-black uppercase text-slate-950">{nomePastor}</p>
-                      <p className="text-[10px] text-slate-600 font-bold">Pastor Titular / Visto Geral</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {/* Assinaturas Oficiais */}
+              {renderSignaturesBlock(false)}
             </div>
           )}
 
@@ -280,24 +450,21 @@ export function FormulariosFinanceirosSecretariaModal({
               <div>
                 {/* Cabeçalho Oficial */}
                 <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4 mb-4">
-                  <div className="flex items-center gap-3">
-                    {churchLogo ? (
-                      <img src={churchLogo} alt="Logo" className="w-14 h-14 object-contain" />
-                    ) : (
-                      <div className="w-14 h-14 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xl">
-                        OBPC
-                      </div>
-                    )}
+                  <div className="flex items-center gap-4">
+                    {renderOfficialLogo()}
                     <div>
-                      <h2 className="text-sm font-black uppercase tracking-tight text-slate-950">{churchName}</h2>
-                      <p className="text-[11px] text-slate-600 leading-tight">{churchAddress}</p>
-                      <span className="text-[10px] font-bold text-rose-800 uppercase tracking-widest mt-0.5 block">
+                      <h2 className="text-sm font-black uppercase tracking-tight text-slate-950 leading-tight">
+                        {churchName}
+                      </h2>
+                      <p className="text-[11px] text-slate-600 leading-tight mt-0.5">{churchAddress}</p>
+                      <p className="text-[10px] text-slate-500 font-mono leading-tight">CNPJ: {churchCnpj}</p>
+                      <span className="text-[10px] font-bold text-rose-800 uppercase tracking-widest mt-1 block">
                         COMPROVANTE DE SAÍDAS & DESPESAS
                       </span>
                     </div>
                   </div>
 
-                  <div className="text-right border-l pl-4 border-slate-300">
+                  <div className="text-right border-l pl-4 border-slate-300 shrink-0">
                     <h3 className="text-base font-black uppercase text-rose-800">
                       FORMULÁRIO DE SAÍDAS
                     </h3>
@@ -344,26 +511,8 @@ export function FormulariosFinanceirosSecretariaModal({
                 </table>
               </div>
 
-              {/* Assinaturas Obrigatórias: Tesoureiro e Pastor */}
-              <div className="pt-6 border-t-2 border-slate-900 mt-auto">
-                <div className="grid grid-cols-2 gap-12 text-center">
-                  <div>
-                    <div className="h-8"></div>
-                    <div className="border-t-2 border-slate-900 w-64 mx-auto pt-1.5">
-                      <p className="text-xs font-black uppercase text-slate-950">{nomeTesoureiro}</p>
-                      <p className="text-[10px] text-slate-600 font-bold">Tesouraria Geral / Emissor</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="h-8"></div>
-                    <div className="border-t-2 border-slate-900 w-64 mx-auto pt-1.5">
-                      <p className="text-xs font-black uppercase text-slate-950">{nomePastor}</p>
-                      <p className="text-[10px] text-slate-600 font-bold">Pastor Titular / Aprovador</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {/* Assinaturas Oficiais */}
+              {renderSignaturesBlock(false)}
             </div>
           )}
 
@@ -378,24 +527,21 @@ export function FormulariosFinanceirosSecretariaModal({
               <div>
                 {/* Cabeçalho Oficial */}
                 <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4 mb-4">
-                  <div className="flex items-center gap-3">
-                    {churchLogo ? (
-                      <img src={churchLogo} alt="Logo" className="w-14 h-14 object-contain" />
-                    ) : (
-                      <div className="w-14 h-14 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xl">
-                        OBPC
-                      </div>
-                    )}
+                  <div className="flex items-center gap-4">
+                    {renderOfficialLogo()}
                     <div>
-                      <h2 className="text-sm font-black uppercase tracking-tight text-slate-950">{churchName}</h2>
-                      <p className="text-[11px] text-slate-600 leading-tight">{churchAddress}</p>
-                      <span className="text-[10px] font-bold text-blue-800 uppercase tracking-widest mt-0.5 block">
+                      <h2 className="text-sm font-black uppercase tracking-tight text-slate-950 leading-tight">
+                        {churchName}
+                      </h2>
+                      <p className="text-[11px] text-slate-600 leading-tight mt-0.5">{churchAddress}</p>
+                      <p className="text-[10px] text-slate-500 font-mono leading-tight">CNPJ: {churchCnpj}</p>
+                      <span className="text-[10px] font-bold text-blue-800 uppercase tracking-widest mt-1 block">
                         FICHA & LISTA DE DIZIMISTAS
                       </span>
                     </div>
                   </div>
 
-                  <div className="text-right border-l pl-4 border-slate-300">
+                  <div className="text-right border-l pl-4 border-slate-300 shrink-0">
                     <h3 className="text-base font-black uppercase text-blue-800">
                       FICHA DE DIZIMISTAS
                     </h3>
@@ -435,26 +581,8 @@ export function FormulariosFinanceirosSecretariaModal({
                 </table>
               </div>
 
-              {/* Assinaturas Obrigatórias: Tesoureiro e Pastor */}
-              <div className="pt-6 border-t-2 border-slate-900 mt-auto">
-                <div className="grid grid-cols-2 gap-12 text-center">
-                  <div>
-                    <div className="h-8"></div>
-                    <div className="border-t-2 border-slate-900 w-64 mx-auto pt-1.5">
-                      <p className="text-xs font-black uppercase text-slate-950">{nomeTesoureiro}</p>
-                      <p className="text-[10px] text-slate-600 font-bold">Tesouraria Geral / Conferente</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="h-8"></div>
-                    <div className="border-t-2 border-slate-900 w-64 mx-auto pt-1.5">
-                      <p className="text-xs font-black uppercase text-slate-950">{nomePastor}</p>
-                      <p className="text-[10px] text-slate-600 font-bold">Pastor Titular / Visto Geral</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {/* Assinaturas Oficiais */}
+              {renderSignaturesBlock(false)}
             </div>
           )}
 
@@ -469,24 +597,21 @@ export function FormulariosFinanceirosSecretariaModal({
               <div>
                 {/* Cabeçalho Oficial */}
                 <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4 mb-6">
-                  <div className="flex items-center gap-3">
-                    {churchLogo ? (
-                      <img src={churchLogo} alt="Logo" className="w-14 h-14 object-contain" />
-                    ) : (
-                      <div className="w-14 h-14 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xl">
-                        OBPC
-                      </div>
-                    )}
+                  <div className="flex items-center gap-4">
+                    {renderOfficialLogo()}
                     <div>
-                      <h2 className="text-sm font-black uppercase tracking-tight text-slate-950">{churchName}</h2>
-                      <p className="text-[11px] text-slate-600 leading-tight">{churchAddress}</p>
-                      <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest mt-0.5 block">
+                      <h2 className="text-sm font-black uppercase tracking-tight text-slate-950 leading-tight">
+                        {churchName}
+                      </h2>
+                      <p className="text-[11px] text-slate-600 leading-tight mt-0.5">{churchAddress}</p>
+                      <p className="text-[10px] text-slate-500 font-mono leading-tight">CNPJ: {churchCnpj}</p>
+                      <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest mt-1 block">
                         DEMONSTRATIVO DE BALANCETE & FECHAMENTO DO CAIXA
                       </span>
                     </div>
                   </div>
 
-                  <div className="text-right border-l pl-4 border-slate-300">
+                  <div className="text-right border-l pl-4 border-slate-300 shrink-0">
                     <h3 className="text-base font-black uppercase text-amber-800">
                       FECHAMENTO DO CAIXA
                     </h3>
@@ -543,26 +668,8 @@ export function FormulariosFinanceirosSecretariaModal({
                 </table>
               </div>
 
-              {/* Assinaturas Obrigatórias: Tesoureiro e Pastor */}
-              <div className="pt-6 border-t-2 border-slate-900 mt-auto">
-                <div className="grid grid-cols-2 gap-12 text-center">
-                  <div>
-                    <div className="h-8"></div>
-                    <div className="border-t-2 border-slate-900 w-64 mx-auto pt-1.5">
-                      <p className="text-xs font-black uppercase text-slate-950">{nomeTesoureiro}</p>
-                      <p className="text-[10px] text-slate-600 font-bold">Tesouraria Geral / Elaborador</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="h-8"></div>
-                    <div className="border-t-2 border-slate-900 w-64 mx-auto pt-1.5">
-                      <p className="text-xs font-black uppercase text-slate-950">{nomePastor}</p>
-                      <p className="text-[10px] text-slate-600 font-bold">Pastor Titular / Aprovador</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {/* Assinaturas Oficiais com Conselho Fiscal */}
+              {renderSignaturesBlock(true)}
             </div>
           )}
 

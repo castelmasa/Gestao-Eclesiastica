@@ -44,6 +44,8 @@ import { valorPorExtenso } from "@/lib/extenso"
 import { FichaMembroPrintable, FichaMembroData } from "@/components/secretaria/FichaMembroPrintable"
 import { FichaCandidatoBatismoModal } from "@/components/secretaria/FichaCandidatoBatismoModal"
 import { FichaVisitasAcompanhamentoModal } from "@/components/secretaria/FichaVisitasAcompanhamentoModal"
+import { CertificadosCartasOficiaisModal } from "@/components/secretaria/CertificadosCartasOficiaisModal"
+import { FormulariosFinanceirosSecretariaModal } from "@/components/secretaria/FormulariosFinanceirosSecretariaModal"
 import { getChurchLeadershipConfig } from "@/lib/churchConfigHelper"
 import { db } from "@/lib/firebase"
 import { collection, onSnapshot, doc, updateDoc } from "firebase/firestore"
@@ -68,6 +70,8 @@ export function Formularios() {
   const [members, setMembers] = useState<any[]>([])
   const [isBatismoModalOpen, setIsBatismoModalOpen] = useState(false)
   const [isVisitasModalOpen, setIsVisitasModalOpen] = useState(false)
+  const [isCertificadosModalOpen, setIsCertificadosModalOpen] = useState(false)
+  const [isFormulariosFinanceirosModalOpen, setIsFormulariosFinanceirosModalOpen] = useState(false)
 
   // Solicitante Manual / Declarações Dinâmicas
   const [solicitanteModo, setSolicitanteModo] = useState<'membro' | 'manual'>('membro')
@@ -3496,6 +3500,14 @@ export function Formularios() {
                     <Select 
                       value={formType} 
                       onValueChange={(val) => {
+                        if (val === 'certificados-oficiais') {
+                          setIsCertificadosModalOpen(true);
+                          return;
+                        }
+                        if (val === 'formularios-financeiros') {
+                          setIsFormulariosFinanceirosModalOpen(true);
+                          return;
+                        }
                         setFormType(val);
                         if (val === 'ficha-cesta-basica-analitica') setCestaVersao('analitica');
                         if (val === 'ficha-cesta-basica-simples') setCestaVersao('simples');
@@ -3505,8 +3517,10 @@ export function Formularios() {
                         <SelectValue placeholder="Selecione o modelo" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="formularios-financeiros">💰 Formulários Financeiros da Secretaria (Entradas, Saídas, Dizimistas & Caixa)</SelectItem>
                         <SelectItem value="relatorio-culto">Relatório de Culto Financeiro (A4)</SelectItem>
                         <SelectItem value="recibo">Recibo Padrão (2 por página - 12cm x 19cm)</SelectItem>
+                        <SelectItem value="certificados-oficiais">📜 Certificados & Cartas Oficiais (Batismo, Bebês, Membrasia A4)</SelectItem>
                         <SelectItem value="ficha-membro">Ficha de Cadastro de Membros (Oficial A4)</SelectItem>
                         <SelectItem value="ficha-cesta-basica-analitica">🧺 Ficha Cesta Básica — Versão Analítica (Completa A4)</SelectItem>
                         <SelectItem value="ficha-cesta-basica-simples">📝 Ficha Cesta Básica — Versão Simplificada (Rápida A4)</SelectItem>
@@ -4983,6 +4997,25 @@ export function Formularios() {
             updateDoc(doc(db, "members", mId), { communications: updated }).catch(console.error);
           }
         }}
+      />
+      {/* Modal de Certificados & Cartas Oficiais A4 Ornamental */}
+      <CertificadosCartasOficiaisModal
+        isOpen={isCertificadosModalOpen}
+        onClose={() => setIsCertificadosModalOpen(false)}
+        members={members}
+        churchData={churchData}
+        activeBranchName={branches.find(b => b.id === activeBranch)?.name || "2ª Congregação"}
+        responsiblePastorName={churchData?.pastorName || (leadership as any)?.pastorPresidente || (leadership as any)?.pastorPrincipal || "Pr. Samuel de Oliveira"}
+        secretaryName={churchData?.secretaryName || (leadership as any)?.secretaria || "Secretária Geral"}
+      />
+
+      {/* Modal de Formulários Financeiros da Secretaria (Entradas, Saídas, Dizimistas, Fechamento de Caixa) */}
+      <FormulariosFinanceirosSecretariaModal
+        isOpen={isFormulariosFinanceirosModalOpen}
+        onClose={() => setIsFormulariosFinanceirosModalOpen(false)}
+        churchData={churchData}
+        activeBranchName={branches.find(b => b.id === activeBranch)?.name || "2ª Congregação"}
+        activeBranchId={activeBranch}
       />
     </div>
   )

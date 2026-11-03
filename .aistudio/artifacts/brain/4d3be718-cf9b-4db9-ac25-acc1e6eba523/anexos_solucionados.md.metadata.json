@@ -1,5 +1,5 @@
 {
-  "summary":  "Registro completo das soluções implementadas:\n1. Reajuste geral responsivo mobile das telas e modais (Financeiro sem rolagem lateral ou compressão).\n2. Aumento expressivo do tamanho das assinaturas digitais na tela, nos crachás e relatórios.\n3. Rebaixamento do furo do crachá para 3.5mm da borda com espaçamento superior ampliado para não cortar o texto do cabeçalho.\n4. Customização completa da cor da parte inferior (rodapé de registro e QR Code) com paletas, inputs hex e auto-contraste.\n5. Visualização geral dos crachás sem cortes com zoom interativo e modo tela cheia.",
-  "updatedAt":  "2026-10-22T11:46:08.883846706Z",
-  "userFacing":  true
+  "summary": "Registro atualizado com a resolução definitiva da duplicidade no nome da igreja e da congregação, a eliminação de termos em inglês como 'Head da Igreja' (substituído por 'Cabeça da Igreja') e a higienização do cabeçalho timbrado sem linhas repetidas.",
+  "updatedAt": "2026-11-03T20:57:19.478062035Z",
+  "userFacing": true
 }
