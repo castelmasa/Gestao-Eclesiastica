@@ -302,28 +302,65 @@ DIRETRIZES DE LINGUAGEM E ESTILO OBRIGAT\xD3RIAS (PORTUGU\xCAS DO BRASIL):
       let userPrompt = "";
       if (type === "carta") {
         const { tipoCarta, membroNome, cargo, membroDesde, dataBatismo, destinoIgreja, cidadeDestino, motivo, pastorName } = payload || {};
+        const letterTypeStr = (tipoCarta || "Carta de Recomenda\xE7\xE3o Eclesi\xE1stica").toLowerCase();
+        let letterSpecificGuidelines = "";
+        if (letterTypeStr.includes("convite")) {
+          letterSpecificGuidelines = `
+ESTA \xC9 UMA CARTA CONVITE OFICIAL:
+- O tom deve ser de honra, alegria crist\xE3 e rever\xEAncia ao convidar o ministro da Palavra, preletor ou minist\xE9rio de louvor/cantor.
+- Mencione a honra de receber o convidado para ministrar a Palavra de Deus ou os louvores no culto especial/evento da igreja.
+- Enfatize a expectativa espiritual da congrega\xE7\xE3o e os votos de ricas b\xEAn\xE7\xE3os na prepara\xE7\xE3o da ministra\xE7\xE3o.`;
+        } else if (letterTypeStr.includes("congresso") || letterTypeStr.includes("encontro")) {
+          letterSpecificGuidelines = `
+ESTA \xC9 UMA CARTA DE CONVOCA\xC7\xC3O / CREDENCIAMENTO PARA CONGRESSO:
+- O tom deve ser solene e entusiasta, oficializando a participa\xE7\xE3o de delega\xE7\xE3o, obreiros, jovens, mulheres (C\xEDrculo de Ora\xE7\xE3o) ou var\xF5es no congresso.
+- Destaque o prop\xF3sito de avivamento espiritual, edifica\xE7\xE3o b\xEDblica e comunh\xE3o entre as congrega\xE7\xF5es irm\xE3s.`;
+        } else if (letterTypeStr.includes("anivers\xE1rio") || letterTypeStr.includes("aniversario")) {
+          letterSpecificGuidelines = `
+ESTA \xC9 UMA CARTA DE FELICITA\xC7\xD5ES DE ANIVERS\xC1RIO (PASTORAL OU MEMBRO):
+- O tom deve ser afetuoso, festivo, pastoral e profundamente b\xEDblico.
+- Agrade\xE7a a Deus pelo dom da vida, celebre a fidelidade do aniversariante na Casa do Senhor e invoque b\xEAn\xE7\xE3os de sa\xFAde, paz, renovo e anos multiplicados.`;
+        } else if (letterTypeStr.includes("transfer\xEAncia") || letterTypeStr.includes("transferencia")) {
+          letterSpecificGuidelines = `
+ESTA \xC9 UMA CARTA DE TRANSFER\xCANCIA DEFINITIVA DE MEMBRO:
+- Formalize a transfer\xEAncia de membresia com respeito can\xF4nico, atestando que o membro deixa esta congrega\xE7\xE3o em plena comunh\xE3o, paz e idoneidade.
+- Transfira os cuidados pastorais e fraternos para a amada igreja de destino.`;
+        } else if (letterTypeStr.includes("apresenta\xE7\xE3o") || letterTypeStr.includes("apresentacao")) {
+          letterSpecificGuidelines = `
+ESTA \xC9 UMA CARTA DE APRESENTA\xC7\xC3O E BOAS-VINDAS:
+- Apresente o irm\xE3o(\xE3) ou fam\xEDlia com carinho crist\xE3o, recomendando acolhimento no Corpo de Cristo.`;
+        } else if (letterTypeStr.includes("consagra\xE7\xE3o") || letterTypeStr.includes("separa\xE7\xE3o") || letterTypeStr.includes("consagracao")) {
+          letterSpecificGuidelines = `
+ESTA \xC9 UMA CARTA DE RECONHECIMENTO E CONSAGRA\xC7\xC3O MINISTERIAL:
+- Celebre a voca\xE7\xE3o sagrada, o testemunho irrepreens\xEDvel e a separa\xE7\xE3o para a obra de Deus no minist\xE9rio designado.`;
+        } else if (letterTypeStr.includes("agradecimento")) {
+          letterSpecificGuidelines = `
+ESTA \xC9 UMA CARTA DE AGRADECIMENTO ECLESI\xC1STICO:
+- Expresse a gratid\xE3o da lideran\xE7a e da igreja pela generosa doa\xE7\xE3o, colabora\xE7\xE3o ou servi\xE7o prestado \xE0 obra de Deus.`;
+        }
         systemPrompt = `Voc\xEA \xE9 o Secret\xE1rio Geral e Assessor Pastoral da ${institutionFullName}.
-Sua fun\xE7\xE3o \xE9 redigir uma carta eclesi\xE1stica formal, reverente, b\xEDblica e com impec\xE1vel padr\xE3o de l\xEDngua portuguesa do Brasil.
+Sua fun\xE7\xE3o \xE9 redigir uma carta eclesi\xE1stica oficial, reverente, b\xEDblica e com impec\xE1vel padr\xE3o de l\xEDngua portuguesa do Brasil.
 ${strictLanguageInstruction}
-Use sauda\xE7\xF5es crist\xE3s tradicionais ("A paz do Senhor Jesus Cristo", "Amados irm\xE3os em Cristo"), declare a idoneidade moral, espiritual e financeira do membro, cite as atividades desempenhadas e conclua com b\xEAn\xE7\xE3os apost\xF3licas e votos fraternos.`;
+${letterSpecificGuidelines}
+Use sauda\xE7\xF5es crist\xE3s tradicionais ("A paz do Senhor Jesus Cristo", "Amados irm\xE3os em Cristo"), desenvolva par\xE1grafos harm\xF4nicos e conclua com b\xEAn\xE7\xE3os apost\xF3licas e votos fraternos.`;
         userPrompt = `Redija uma ${tipoCarta || "Carta de Recomenda\xE7\xE3o Eclesi\xE1stica"} oficial com os seguintes dados:
 - Institui\xE7\xE3o emissora: ${institutionFullName}
-- Nome do(a) Membro: ${membroNome || "Irm\xE3o(\xE3) em Cristo"}
-- Cargo / Minist\xE9rio: ${cargo || "Membro em Plena Comunh\xE3o"}
+- Nome do(a) Destinat\xE1rio(a) / Membro / Convidado: ${membroNome || "Irm\xE3o(\xE3) em Cristo"}
+- Cargo / Minist\xE9rio / Fun\xE7\xE3o: ${cargo || "Membro em Plena Comunh\xE3o"}
 - Membro desde: ${membroDesde || "Data regular de admiss\xE3o"}
 - Batismo nas \xC1guas: ${dataBatismo || "Regularmente batizado(a)"}
-- Igreja / Destino: ${destinoIgreja || "\xC0 amada Igreja coirm\xE3"} ${cidadeDestino ? `em ${cidadeDestino}` : ""}
-- Motivo / Justificativa: ${motivo || "Mudan\xE7a de resid\xEAncia / viagem a trabalho"}
+- Igreja / Destino / Local do Evento: ${destinoIgreja || "\xC0 amada Igreja coirm\xE3"} ${cidadeDestino ? `em ${cidadeDestino}` : ""}
+- Motivo / Justificativa / Tema do Evento: ${motivo || "Conforme solicitado"}
 - Pastor Presidente: ${pastorName || "Pr. Presidente"}
 
 Lembre-se: N\xC3O use estrangeirismos como "Head da Igreja", use "Cabe\xE7a da Igreja". N\xC3O duplique o nome da igreja.
 
 Retorne um JSON com a seguinte estrutura:
 {
-  "titulo": "T\xEDtulo formal do documento",
-  "assunto": "Resumo do assunto",
-  "corpo": "Texto completo da carta formatado em par\xE1grafos claros",
-  "versiculoChave": "Refer\xEAncia b\xEDblica e texto adequado para o encerramento"
+  "titulo": "T\xEDtulo formal do documento em letras mai\xFAsculas",
+  "assunto": "Resumo do assunto do documento",
+  "corpo": "Texto completo da carta formatado em par\xE1grafos claros e elegantes",
+  "versiculoChave": "Refer\xEAncia b\xEDblica e texto adequado para o encerramento da carta"
 }
 Responda APENAS com o JSON v\xE1lido.`;
       } else if (type === "ata") {
