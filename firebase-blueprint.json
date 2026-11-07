@@ -185,6 +185,25 @@
         "updatedBy": { "type": "string" }
       },
       "required": ["name", "category", "branchId"]
+    },
+    "ClosedFinancialMonth": {
+      "title": "ClosedFinancialMonth",
+      "description": "Financial accounting month lock and closure",
+      "type": "object",
+      "properties": {
+        "branchId": { "type": "string" },
+        "yearMonth": { "type": "string" },
+        "monthName": { "type": "string" },
+        "isLocked": { "type": "boolean" },
+        "lockedAt": { "type": "string", "format": "date-time" },
+        "lockedBy": { "type": "string" },
+        "lockedByEmail": { "type": "string" },
+        "totalEntradas": { "type": "number" },
+        "totalSaidas": { "type": "number" },
+        "saldoFinal": { "type": "number" },
+        "notes": { "type": "string" }
+      },
+      "required": ["yearMonth", "isLocked", "lockedAt", "lockedBy"]
     }
   },
   "firestore": {
@@ -227,6 +246,10 @@
     "secretaria_files/{fileId}": {
       "schema": { "$ref": "#/entities/SystemBackup" },
       "description": "Scanned document files uploaded in secretaria"
+    },
+    "closed_financial_months/{id}": {
+      "schema": { "$ref": "#/entities/ClosedFinancialMonth" },
+      "description": "Records of locked and closed financial accounting months"
     }
   }
 }

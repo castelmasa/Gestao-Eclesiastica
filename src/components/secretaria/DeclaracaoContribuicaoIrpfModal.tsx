@@ -51,7 +51,7 @@ export function DeclaracaoContribuicaoIrpfModal({
   onClose,
   members,
   selectedMember: initialMember,
-  churchName = "Igreja Evangélica Manancial",
+  churchName = "Igreja Evangélica Pentecostal O Brasil para Cristo",
 }: DeclaracaoContribuicaoIrpfModalProps) {
   const [selectedMemberId, setSelectedMemberId] = useState<string>(initialMember?.id || "");
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear() - 1));

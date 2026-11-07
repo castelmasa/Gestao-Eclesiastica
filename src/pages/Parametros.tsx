@@ -10,9 +10,11 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useBranch } from "@/contexts/BranchContext"
 import { cnpj as cnpjValidator } from "cpf-cnpj-validator"
 import { useNavigate } from "react-router-dom"
-import { Building2, Palette, Sparkles } from "lucide-react"
+import { Building2, Palette, Sparkles, Zap, History, MessageCircle } from "lucide-react"
 import { DigitalSignatureField } from "@/components/common/DigitalSignatureField"
 import { getRegisteredChurchLogo } from "@/lib/churchLogoHelper"
+import { useAiCredits } from "@/contexts/AiCreditsContext"
+import { AiCreditsBadge } from "@/components/common/AiCreditsBadge"
 
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
@@ -90,6 +92,7 @@ export function Parametros() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { activeBranch, setActiveBranch, branches, activeBranchName, updateBranch } = useBranch()
+  const { credits, remainingCredits, openCreditsModal } = useAiCredits()
   
   const [selectedBranchId, setSelectedBranchId] = useState<string>(() => {
     return activeBranch && activeBranch !== 'all' ? activeBranch : 'sede'
@@ -715,26 +718,101 @@ export function Parametros() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-4 h-fit shadow-sm border border-border/70 rounded-2xl bg-card">
-          <CardHeader>
-            <CardTitle>Painel do Administrativo</CardTitle>
-            <CardDescription>Configure a mensagem de Boas-Vindas ou Avisos Gerais que aparecerão no Dashboard para todos.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="mensagemAvisos">Mensagem / Aviso</Label>
-              <Textarea 
-                id="mensagemAvisos" 
-                rows={5}
-                value={churchData.mensagemAvisos} 
-                onChange={handleChange} 
-                placeholder="Insira a mensagem ou aviso importante para a tela inicial."
-              />
-              <p className="text-xs text-muted-foreground">Esta mensagem ficará em destaque no Dashboard principal.</p>
-            </div>
-            <Button className="w-full sm:w-auto" onClick={handleSave}>Salvar Avisos</Button>
-          </CardContent>
-        </Card>
+        <div className="lg:col-span-4 space-y-6">
+          {/* Card de Créditos e Franquia de IA gravado no Firestore */}
+          <Card className="h-fit shadow-sm border border-purple-300 dark:border-purple-900/70 rounded-2xl bg-gradient-to-br from-card via-card to-purple-500/5">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-purple-600 text-white shadow-xs">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base font-bold">Controle de Créditos IA</CardTitle>
+                    <CardDescription className="text-xs">Gravado em tempo real no Firestore</CardDescription>
+                  </div>
+                </div>
+                <AiCreditsBadge />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-1">
+              <div className="p-3.5 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xs font-medium text-purple-900 dark:text-purple-200">Saldo Atual da Igreja</span>
+                  <span className="text-2xl font-black text-purple-700 dark:text-purple-300">
+                    {remainingCredits} <span className="text-xs font-semibold text-muted-foreground">/ {credits.totalMonthlyLimit + credits.bonusCredits}</span>
+                  </span>
+                </div>
+                <div className="mt-2 h-2 rounded-full bg-purple-200 dark:bg-purple-900 overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-purple-600 to-indigo-600 transition-all duration-500 rounded-full"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, (remainingCredits / Math.max(1, credits.totalMonthlyLimit + credits.bonusCredits)) * 100))}%`
+                    }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Renovação: 1º dia do mês</span>
+                  <span>Usados no mês: {credits.usedCredits}</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 text-xs text-muted-foreground">
+                <div className="flex items-center justify-between py-1 border-b border-border/60">
+                  <span>Leitura OCR de Recibos (Financeiro):</span>
+                  <span className="font-semibold text-foreground">1 crédito</span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b border-border/60">
+                  <span>Cartas & Atas Oficiais (Secretaria):</span>
+                  <span className="font-semibold text-foreground">1 crédito</span>
+                </div>
+                <div className="flex items-center justify-between py-1">
+                  <span>Mensagem Personalizada de Aniversário:</span>
+                  <span className="font-semibold text-foreground">1 crédito</span>
+                </div>
+              </div>
+
+              <div className="pt-2 flex flex-col gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={openCreditsModal}
+                  className="w-full text-xs font-semibold border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+                >
+                  <History className="h-3.5 w-3.5 mr-1.5 text-purple-600" />
+                  Ver Histórico de Auditoria & Detalhes
+                </Button>
+                <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 text-[11px] text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <span>
+                    <strong>Franquia Mensal:</strong> 100 créditos gratuitos renovados automaticamente no 1º dia de cada mês.
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="h-fit shadow-sm border border-border/70 rounded-2xl bg-card">
+            <CardHeader>
+              <CardTitle>Painel do Administrativo</CardTitle>
+              <CardDescription>Configure a mensagem de Boas-Vindas ou Avisos Gerais que aparecerão no Dashboard para todos.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="mensagemAvisos">Mensagem / Aviso</Label>
+                <Textarea 
+                  id="mensagemAvisos" 
+                  rows={5}
+                  value={churchData.mensagemAvisos} 
+                  onChange={handleChange} 
+                  placeholder="Insira a mensagem ou aviso importante para a tela inicial."
+                />
+                <p className="text-xs text-muted-foreground">Esta mensagem ficará em destaque no Dashboard principal.</p>
+              </div>
+              <Button className="w-full sm:w-auto" onClick={handleSave}>Salvar Avisos</Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )

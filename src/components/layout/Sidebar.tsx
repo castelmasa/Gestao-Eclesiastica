@@ -275,6 +275,20 @@ export function Sidebar() {
               </Button>
             </div>
           )}
+          {!isCollapsed && (
+            <div className="pt-2.5 mt-2 border-t border-border/40 text-[10.5px] text-muted-foreground text-center space-y-0.5 select-text">
+              <p className="font-semibold text-foreground/90">Gestão Eclesiástica</p>
+              <p className="text-[10px]">© Carlito Carvalho Rodrigues</p>
+              <a 
+                href="https://wa.me/5518991099608" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline inline-block text-[10.5px]"
+              >
+                WhatsApp: (18) 99109-9608
+              </a>
+            </div>
+          )}
         </div>
       </div>
     </div>

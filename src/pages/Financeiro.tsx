@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Plus, Search, Download, Eye, FilterX, Check, ChevronsUpDown, FileText, X, Settings, Trash2, Printer, Activity, Info, RefreshCw, Paperclip, ExternalLink, Leaf, CloudUpload, Building2, Calendar, AlertTriangle, BarChart2, FileSpreadsheet } from "lucide-react"
+import { Plus, Search, Download, Eye, FilterX, Check, ChevronsUpDown, FileText, X, Settings, Trash2, Printer, Activity, Info, RefreshCw, Paperclip, ExternalLink, Leaf, CloudUpload, Building2, Calendar, AlertTriangle, BarChart2, FileSpreadsheet, Sparkles, Camera, Loader2, Lock, Unlock, ShieldCheck, ShieldAlert, FolderArchive, Tag } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { validateForm } from "@/lib/validation"
@@ -36,7 +36,13 @@ import { FinancialRechartsPanel } from "@/components/financeiro/FinancialRechart
 import { FinancialD3Panel } from "@/components/financeiro/FinancialD3Panel"
 import { CloudBackupAndExportModal } from "@/components/financeiro/CloudBackupAndExportModal"
 import { BalanceteMensalModal } from "@/components/financeiro/BalanceteMensalModal"
+import { ClosedMonthManagerModal } from "@/components/financeiro/ClosedMonthManagerModal"
+import { FolderCoverAndLabelsModal } from "@/components/financeiro/FolderCoverAndLabelsModal"
+import { BankReconciliationModal } from "@/components/financeiro/BankReconciliationModal"
+import { subscribeToClosedMonths, isMonthLockedHelper, getClosedMonthRecord, ClosedFinancialMonth, formatYearMonthDisplay } from "@/lib/closedMonthsHelper"
 import { useAuth } from "@/contexts/AuthContext"
+import { useAiCredits } from "@/contexts/AiCreditsContext"
+import { AiCreditsBadge } from "@/components/common/AiCreditsBadge"
 import { db } from "@/lib/firebase"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { logCriticalError } from "@/lib/errorLogger"
@@ -90,6 +96,7 @@ export function parseCurrencyInput(val: any): number {
 
 export function Financeiro() {
   const { user } = useAuth();
+  const { canUseAi, consumeCredit, openCreditsModal } = useAiCredits();
   const isFinanceiroAdmin = ['administrador', 'tesoureiro'].includes(user?.role?.toLowerCase() || '');
   const canAddTransaction = isFinanceiroAdmin || user?.permissions?.financeiro?.add !== false;
 
@@ -151,6 +158,19 @@ export function Financeiro() {
 
   const [chartCategoryFilter, setChartCategoryFilter] = useState("all");
   const [chartCostCenterFilter, setChartCostCenterFilter] = useState("all");
+
+  // Estados para Fechamento e Trava de Meses Contábeis e Capas de Pasta
+  const [closedMonths, setClosedMonths] = useState<ClosedFinancialMonth[]>([]);
+  const [isLockManagerOpen, setIsLockManagerOpen] = useState(false);
+  const [isFolderCoverModalOpen, setIsFolderCoverModalOpen] = useState(false);
+  const [isReconciliationModalOpen, setIsReconciliationModalOpen] = useState(false);
+
+  useEffect(() => {
+    const unsub = subscribeToClosedMonths((months) => {
+      setClosedMonths(months);
+    });
+    return () => unsub();
+  }, []);
 
   const now = new Date();
   const currentMonthDefault = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -247,6 +267,168 @@ export function Financeiro() {
   const startMonthInputRef = useRef<HTMLInputElement>(null);
   const endMonthInputRef = useRef<HTMLInputElement>(null);
   const tableMonthInputRef = useRef<HTMLInputElement>(null);
+
+  // Estados e referências para IA de Preenchimento Rápido no Financeiro (sem lentidão)
+  const [isScanningReceipt, setIsScanningReceipt] = useState(false);
+  const scanFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Redimensionamento leve da imagem client-side para resposta ultra-rápida na API
+  const resizeImageForFastOcr = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1000;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(e.target?.result as string);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", 0.75));
+        };
+        img.onerror = () => resolve(e.target?.result as string);
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleScanReceiptWithAI = async (file: File) => {
+    if (!file) return;
+
+    if (!canUseAi(1)) {
+      openCreditsModal();
+      toast.warning("Seus créditos de IA deste mês se esgotaram. Recarregue para escanear novos comprovantes.", { id: "receipt-ocr" });
+      if (scanFileInputRef.current) scanFileInputRef.current.value = "";
+      return;
+    }
+
+    setIsScanningReceipt(true);
+    toast.loading("Lendo comprovante com IA e preenchendo automaticamente...", { id: "receipt-ocr" });
+    try {
+      const compressedDataUrl = await resizeImageForFastOcr(file);
+      
+      const res = await fetch("/api/gemini/receipt-ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageBase64: compressedDataUrl,
+          mimeType: "image/jpeg"
+        })
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Erro ao escanear documento");
+      }
+
+      const ocrData = await res.json();
+      
+      // Auto-preenche os dados com agilidade
+      if (ocrData.type === "saida" || ocrData.type === "entrada") {
+        setTransactionType(ocrData.type);
+      }
+      
+      if (ocrData.amount && typeof ocrData.amount === "number") {
+        setFormAmount(ocrData.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+      }
+      
+      if (ocrData.date) {
+        setTransactionOpDate(ocrData.date);
+        setTransactionDueDate(ocrData.date);
+      }
+      
+      if (ocrData.description) {
+        setFormDescription(ocrData.description);
+      }
+      
+      if (ocrData.documentNumber) {
+        const docInput = document.getElementById("documentNumber") as HTMLInputElement;
+        if (docInput) docInput.value = ocrData.documentNumber;
+      }
+      
+      if (ocrData.paymentMethod) {
+        const pm = ocrData.paymentMethod.toLowerCase();
+        if (pm.includes("pix")) setSelectedPaymentMethod("Pix");
+        else if (pm.includes("dinheiro")) setSelectedPaymentMethod("Dinheiro");
+        else if (pm.includes("boleto")) setSelectedPaymentMethod("Boleto");
+        else if (pm.includes("cartão") || pm.includes("cartao")) setSelectedPaymentMethod("Cartão");
+        else if (pm.includes("transf") || pm.includes("ted")) setSelectedPaymentMethod("TED/DOC");
+      }
+
+      // Se encontrou fornecedor
+      if (ocrData.supplier) {
+        const matched = fornecedores.find((f: any) => 
+          f.name?.toLowerCase().includes(ocrData.supplier.toLowerCase()) || 
+          ocrData.supplier.toLowerCase().includes(f.name?.toLowerCase())
+        );
+        if (matched) {
+          setSelectedSupplierId(matched.id);
+        }
+      }
+
+      // Categoria inteligente
+      if (ocrData.category) {
+        const catMatch = availableCategories.find(c => 
+          c.name.toLowerCase().includes(ocrData.category.toLowerCase()) ||
+          ocrData.category.toLowerCase().includes(c.name.toLowerCase())
+        );
+        if (catMatch) {
+          setSelectedCategory(catMatch.name);
+        } else {
+          setSelectedCategory(ocrData.category);
+        }
+      }
+
+      // Já anexa o comprovante automaticamente no formulário
+      setComprovanteName(file.name);
+      setComprovanteData(compressedDataUrl);
+
+      // Consome 1 crédito e grava auditoria no Firestore
+      await consumeCredit("Leitura de Recibo / Comprovante (OCR)", 1);
+
+      toast.success("Documento lido e formulário preenchido com sucesso! (1 crédito de IA)", { id: "receipt-ocr" });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Não foi possível escanear o documento.", { id: "receipt-ocr" });
+    } finally {
+      setIsScanningReceipt(false);
+      if (scanFileInputRef.current) scanFileInputRef.current.value = "";
+    }
+  };
+
+  // Sugestão de categoria contábil eclesiástica em tempo real na digitação da descrição
+  const suggestedCategory = useMemo(() => {
+    if (!formDescription) return null;
+    const desc = formDescription.toLowerCase();
+    if (desc.includes("luz") || desc.includes("energia") || desc.includes("copel") || desc.includes("cpfl") || desc.includes("enel") || desc.includes("cemig") || desc.includes("eletro")) return "Energia Elétrica";
+    if (desc.includes("água") || desc.includes("agua") || desc.includes("sabesp") || desc.includes("sanepar") || desc.includes("copasa") || desc.includes("esgoto")) return "Água e Esgoto";
+    if (desc.includes("limpeza") || desc.includes("detergente") || desc.includes("papel higiênico") || desc.includes("sabão") || desc.includes("cloro")) return "Limpeza e Conservação";
+    if (desc.includes("gasolina") || desc.includes("combustível") || desc.includes("combustivel") || desc.includes("etanol") || desc.includes("diesel") || desc.includes("posto")) return "Combustível";
+    if (desc.includes("dízimo") || desc.includes("dizimo")) return "Dízimos";
+    if (desc.includes("oferta") || desc.includes("missões") || desc.includes("missoes") || desc.includes("missionário") || desc.includes("missionario")) return "Missões e Evangelismo";
+    if (desc.includes("reforma") || desc.includes("manutenção") || desc.includes("manutencao") || desc.includes("pintura") || desc.includes("pedreiro")) return "Manutenção do Templo";
+    if (desc.includes("som") || desc.includes("microfone") || desc.includes("cabo") || desc.includes("caixa") || desc.includes("instrumento") || desc.includes("teclado")) return "Equipamentos de Som";
+    if (desc.includes("ceia") || desc.includes("pão") || desc.includes("uva") || desc.includes("suco") || desc.includes("lanche") || desc.includes("confraternização")) return "Alimentação e Eventos";
+    return null;
+  }, [formDescription]);
 
   const isDateInCurrentMonthYear = (dateStr: string) => {
     if (!dateStr) return false;
@@ -354,6 +536,9 @@ export function Financeiro() {
   }, [activeBranch, branches]);
 
   const handleOpenAddModal = () => {
+    if (isCurrentMonthLocked) {
+      toast.warning(`Atenção: O mês de ${formatYearMonthDisplay(activeSummaryMonth)} está FECHADO e TRAVADO. Se você for lançar uma movimentação referente a outro mês em aberto, continue normalmente alterando a data.`);
+    }
     setEditingTransaction(null);
     setTransactionType("entrada");
     setSelectedCategory("");
@@ -374,6 +559,11 @@ export function Financeiro() {
   };
 
   const handleOpenEditModal = (tx: Transaction) => {
+    const isTxMonthLocked = isMonthLockedHelper(closedMonths, tx.date, tx.branchId);
+    if (isTxMonthLocked) {
+      toast.error(`Edição bloqueada: Esta movimentação pertence ao mês de ${formatYearMonthDisplay(tx.date)}, que está FECHADO e TRAVADO. Destrave o mês para permitir alterações.`);
+      return;
+    }
     setEditingTransaction(tx);
     setTransactionType(tx.type as "entrada" | "saida");
     setSelectedCategory(tx.category || "");
@@ -1072,6 +1262,11 @@ export function Financeiro() {
 
   const executeDeleteTransaction = async () => {
      if(transactionToDelete) {
+        if (isMonthLockedHelper(closedMonths, transactionToDelete.date, transactionToDelete.branchId)) {
+          toast.error(`Exclusão não permitida: A movimentação pertence ao mês de ${formatYearMonthDisplay(transactionToDelete.date)}, que está FECHADO e TRAVADO. Destrave o mês para realizar alterações.`);
+          setTransactionToDelete(null);
+          return;
+        }
         try {
           await logCriticalDeletion(transactionToDelete);
           await deleteDoc(doc(db, 'transactions', transactionToDelete.id));
@@ -1322,6 +1517,17 @@ export function Financeiro() {
     const resolvedBranch = selectedBranch || (activeBranch !== 'all' ? activeBranch : (branches[0]?.id || 'sede'));
     const opDueDate = (formData.get("dueDate") as string) || transactionDueDate || opDate;
 
+    // Trava de segurança: Bloqueia inserção ou edição se o mês estiver fechado
+    if (isMonthLockedHelper(closedMonths, opDate, resolvedBranch)) {
+      toast.error(`Operação não permitida: A data informada (${opDate}) pertence ao mês de ${formatYearMonthDisplay(opDate)}, que está FECHADO e TRAVADO. Destrave o mês se for necessária uma retificação.`);
+      return;
+    }
+
+    if (editingTransaction && isMonthLockedHelper(closedMonths, editingTransaction.date, editingTransaction.branchId)) {
+      toast.error(`Operação não permitida: A data original desta movimentação (${editingTransaction.date}) pertence ao mês de ${formatYearMonthDisplay(editingTransaction.date)}, que está FECHADO e TRAVADO.`);
+      return;
+    }
+
     const txData: any = {
       date: opDate,
       receiptFileName: comprovanteName || null,
@@ -1410,6 +1616,8 @@ export function Financeiro() {
   }
 
   const activeSummaryMonth = monthFilter || currentMonthDefault;
+  const isCurrentMonthLocked = isMonthLockedHelper(closedMonths, activeSummaryMonth, activeBranch);
+  const currentLockRecord = getClosedMonthRecord(closedMonths, activeSummaryMonth, activeBranch);
   const [sumYear, sumMonth] = activeSummaryMonth.split('-').map(Number);
   const ptMonthNames = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -1538,6 +1746,36 @@ export function Financeiro() {
           <p className="text-muted-foreground mt-1">Gerencie entradas, saídas e relatórios.</p>
         </div>
         <div className="flex gap-2 print:hidden flex-wrap">
+          <Button 
+            variant="outline"
+            onClick={() => setIsLockManagerOpen(true)}
+            className={isCurrentMonthLocked 
+              ? "border-amber-400 bg-amber-500/15 text-amber-900 dark:text-amber-200 hover:bg-amber-500/25 font-bold shadow-xs" 
+              : "border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 font-semibold"}
+            title="Travar ou destravar o mês contábil para evitar alterações nos balanços"
+          >
+            {isCurrentMonthLocked ? (
+              <>
+                <Lock className="mr-2 h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <span>Mês Fechado & Travado</span>
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Travar Mês ({summaryCurrentMonthName})</span>
+              </>
+            )}
+          </Button>
+
+          <Button 
+            variant="outline"
+            onClick={() => setIsFolderCoverModalOpen(true)}
+            className="border-emerald-300 text-emerald-800 hover:bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 font-semibold"
+            title="Gerar capa oficial A4 e etiquetas de lombada para pastas e caixas de documentos físicos"
+          >
+            <FolderArchive className="mr-2 h-4 w-4 text-emerald-600" /> Capas & Etiquetas
+          </Button>
+
           <Button 
             onClick={() => setIsEcoPrintOpen(true)}
             className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-xs"
@@ -1679,6 +1917,14 @@ export function Financeiro() {
                 </Button>
                 <Button 
                   variant="outline" 
+                  className="w-full justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs sm:text-sm font-semibold bg-emerald-50/70 hover:bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800" 
+                  onClick={() => { setIsReportModalOpen(false); setIsFolderCoverModalOpen(true); }}
+                >
+                  <FolderArchive className="mr-2 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" /> 
+                  <span>Capas & Etiquetas para Pastas Físicas</span>
+                </Button>
+                <Button 
+                  variant="outline" 
                   className="w-full justify-start text-left h-auto py-2.5 px-3 whitespace-normal text-xs sm:text-sm font-medium" 
                   onClick={generateFechamentoPDF}
                 >
@@ -1815,22 +2061,14 @@ export function Financeiro() {
           </Dialog>
 
           
-          <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="hidden sm:flex" onClick={() => setIsImportModalOpen(true)}>Importar Extrato</Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Importar Extrato (CSV/TXT)</DialogTitle>
-                <DialogDescription>
-                  Selecione um arquivo de extrato bancário. Formato esperado por linha: Data, Descrição, [Ignorado...], Valor.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                 <Input type="file" accept=".csv,.txt" onChange={(e) => { if (e.target.files?.[0]) handleImportFile(e.target.files[0]); }} />
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button 
+            variant="outline" 
+            className="border-emerald-300 text-emerald-800 hover:bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 font-semibold" 
+            onClick={() => setIsReconciliationModalOpen(true)}
+            title="Importe extratos OFX, Excel ou CSV e cruze automaticamente com o caixa da igreja"
+          >
+            <FileSpreadsheet className="mr-1.5 h-4 w-4 text-emerald-600" /> Conciliação Bancária (OFX)
+          </Button>
 
           {/* Modal Reutilizável de Visualização de Anexos (Imagem / PDF) com Portal Dialog */}
           <AttachmentViewerModal
@@ -1863,6 +2101,58 @@ export function Financeiro() {
               <form id="transactionForm" onSubmit={handleSaveTransaction} className="flex flex-col flex-1 overflow-hidden">
                 <div className="grid gap-3.5 py-2 max-h-[68vh] overflow-y-auto px-0.5">
                   
+                  {/* Cartão de Preenchimento Rápido com IA (Sem lentidão) */}
+                  <div className="bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-blue-500/10 border border-purple-200 dark:border-purple-900/50 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-purple-600 text-white rounded-lg shrink-0 shadow-xs">
+                        <Sparkles className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-purple-950 dark:text-purple-200 flex items-center gap-1.5">
+                          Preenchimento Automático com IA
+                          <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-purple-300 text-purple-700 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-300">
+                            Super Rápido
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] text-purple-800/80 dark:text-purple-300/80">
+                          Escaneie comprovante, PIX, nota ou cupom para preencher valores e datas sem digitar.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                      <AiCreditsBadge />
+                      <input
+                        ref={scanFileInputRef}
+                        type="file"
+                        accept="image/*,.pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleScanReceiptWithAI(f);
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isScanningReceipt}
+                        onClick={() => scanFileInputRef.current?.click()}
+                        className="w-full sm:w-auto h-8 text-xs bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow-xs"
+                      >
+                        {isScanningReceipt ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                            Lendo...
+                          </>
+                        ) : (
+                          <>
+                            <Camera className="h-3.5 w-3.5 mr-1.5" />
+                            Escanear Comprovante
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
                   {/* Item pré-cadastrado e Descrição */}
                   <div className="space-y-2 bg-muted/20 p-2.5 rounded-lg border border-border/60">
                     <div className="flex items-center justify-between">
@@ -1921,6 +2211,21 @@ export function Financeiro() {
                         className="bg-background"
                       />
                       <p className="text-[11px] text-muted-foreground">Nome da pessoa, serviço ou título identificador.</p>
+                      {suggestedCategory && selectedCategory !== suggestedCategory && (
+                        <div className="flex items-center justify-between text-xs text-purple-800 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/30 px-2.5 py-1.5 rounded-lg border border-purple-200 dark:border-purple-900/40 mt-1">
+                          <div className="flex items-center gap-1.5">
+                            <Sparkles className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+                            <span>Sugestão inteligente de categoria: <strong>{suggestedCategory}</strong></span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCategory(suggestedCategory)}
+                            className="text-xs font-bold text-purple-700 dark:text-purple-300 underline hover:text-purple-900 ml-2"
+                          >
+                            Usar Categoria
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1989,12 +2294,19 @@ export function Financeiro() {
                           <Calendar className="h-4 w-4 text-primary" />
                         </Button>
                       </div>
-                      {transactionOpDate && !isDateInCurrentMonthYear(transactionOpDate) && (
+                      {transactionOpDate && isMonthLockedHelper(closedMonths, transactionOpDate, selectedBranch || activeBranch) ? (
+                        <div className="rounded-lg bg-amber-500/15 border border-amber-300 dark:border-amber-800 p-2.5 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2 mt-1">
+                          <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold">Mês Travado:</span> A competência ({formatYearMonthDisplay(transactionOpDate.substring(0, 7))}) está fechada e bloqueada para novas movimentações. Destrave o mês nas opções financeiras caso necessite lançar.
+                          </div>
+                        </div>
+                      ) : transactionOpDate && !isDateInCurrentMonthYear(transactionOpDate) ? (
                         <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1 mt-0.5">
                           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                           Competência retroativa/futura ({transactionOpDate}). O lançamento será registrado normalmente.
                         </p>
-                      )}
+                      ) : null}
                     </div>
                   </div>
 
@@ -2318,8 +2630,17 @@ export function Financeiro() {
                   <Button type="button" variant="outline" onClick={() => setIsTransactionModalOpen(false)}>Cancelar</Button>
                   <Button 
                     type="submit"
+                    disabled={isMonthLockedHelper(closedMonths, transactionOpDate, selectedBranch || activeBranch)}
+                    className={isMonthLockedHelper(closedMonths, transactionOpDate, selectedBranch || activeBranch) ? "bg-amber-700/80 hover:bg-amber-700 cursor-not-allowed text-white" : ""}
+                    title={isMonthLockedHelper(closedMonths, transactionOpDate, selectedBranch || activeBranch) ? "Mês fechado e travado contra alterações" : undefined}
                   >
-                    {editingTransaction ? "Salvar Alterações" : "Salvar Transação"}
+                    {isMonthLockedHelper(closedMonths, transactionOpDate, selectedBranch || activeBranch) ? (
+                      <span className="flex items-center gap-1.5">
+                        <Lock className="w-4 h-4" /> Mês Travado (Bloqueado)
+                      </span>
+                    ) : (
+                      editingTransaction ? "Salvar Alterações" : "Salvar Transação"
+                    )}
                   </Button>
                 </DialogFooter>
               </form>
@@ -2658,6 +2979,37 @@ export function Financeiro() {
                   </Button>
                 </div>
 
+                {/* Indicador e Controle de Trava do Mês */}
+                {isCurrentMonthLocked ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Badge className="bg-amber-500/20 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700 py-1.5 px-3 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                      <Lock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                      Mês Travado
+                    </Badge>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsLockManagerOpen(true)}
+                      className="h-9 text-xs border-amber-300 text-amber-900 dark:text-amber-200 hover:bg-amber-50 font-bold"
+                      title="Destravar este mês para edições ou novos lançamentos"
+                    >
+                      <Unlock className="w-3.5 h-3.5 mr-1 text-amber-600" /> Destravar
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsLockManagerOpen(true)}
+                    className="h-9 text-xs border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 font-semibold shrink-0"
+                    title="Travar este mês quando tudo estiver fechado para não permitir alterações"
+                  >
+                    <Lock className="w-3.5 h-3.5 mr-1 text-slate-600 dark:text-slate-400" /> Travar Mês
+                  </Button>
+                )}
+
                 {hasActiveFilters && (
                   <Button 
                     variant="ghost" 
@@ -2672,6 +3024,36 @@ export function Financeiro() {
               </div>
             </div>
           </div>
+
+          {/* Banner de Aviso de Mês Travado */}
+          {isCurrentMonthLocked && (
+            <div className="mx-6 mb-4 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border-l-4 border-amber-500 border-y border-r border-amber-200 dark:border-amber-900/60 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-amber-500/20 text-amber-700 dark:text-amber-300 rounded-xl shrink-0">
+                  <Lock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold text-amber-950 dark:text-amber-200 flex items-center gap-2">
+                    Mês Contábil Fechado e Travado • {summaryCurrentMonthName}
+                    <Badge className="bg-amber-600 text-white text-[10px] font-bold">Alterações Bloqueadas</Badge>
+                  </h4>
+                  <p className="text-xs text-amber-900/80 dark:text-amber-300/80 mt-0.5">
+                    Travado por <strong>{currentLockRecord?.lockedBy || "Administrador"}</strong> em{" "}
+                    {currentLockRecord?.lockedAt ? new Date(currentLockRecord.lockedAt).toLocaleString("pt-BR") : "fechamento"}.
+                    Lançamentos, edições e exclusões estão desabilitados para manter a fidelidade contábil.
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsLockManagerOpen(true)}
+                className="border-amber-300 text-amber-900 dark:text-amber-200 hover:bg-amber-100 text-xs shrink-0 font-bold"
+              >
+                <Unlock className="w-3.5 h-3.5 mr-1 text-amber-600" /> Destravar Mês
+              </Button>
+            </div>
+          )}
           <div className="overflow-x-auto w-full">
             <style>{`
               @media print {
@@ -2802,10 +3184,31 @@ export function Financeiro() {
                       {t.type === 'entrada' ? '+' : '-'} R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell className="text-right print:hidden">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleOpenEditModal(t)}>Editar</Button>
-                        <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600" onClick={() => setTransactionToDelete(t)}>Excluir</Button>
-                      </div>
+                      {isMonthLockedHelper(closedMonths, t.date, t.branchId) ? (
+                        <div className="flex justify-end items-center gap-1.5">
+                          <Badge 
+                            variant="outline" 
+                            className="text-[11px] text-amber-800 dark:text-amber-200 bg-amber-500/10 border-amber-300 dark:border-amber-700 flex items-center gap-1 py-0.5 px-2 font-medium"
+                            title="Mês contábil fechado e travado. Alterações e exclusões estão bloqueadas."
+                          >
+                            <Lock className="w-3 h-3 text-amber-600 dark:text-amber-400" /> Travado
+                          </Badge>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-xs text-muted-foreground hover:text-foreground h-7 px-2"
+                            onClick={() => setIsLockManagerOpen(true)}
+                            title="Ver detalhes da trava do mês"
+                          >
+                            Ver
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => handleOpenEditModal(t)}>Editar</Button>
+                          <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600" onClick={() => setTransactionToDelete(t)}>Excluir</Button>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
@@ -2972,6 +3375,64 @@ export function Financeiro() {
         transactions={transactions}
         churchName={churchData?.nome || "Igreja Evangélica Pentecostal O Brasil para Cristo"}
         activeBranchName={activeBranchName}
+      />
+
+      {/* Modal de Gestão de Fechamento e Trava de Mês Contábil */}
+      <ClosedMonthManagerModal
+        isOpen={isLockManagerOpen}
+        onClose={() => setIsLockManagerOpen(false)}
+        yearMonth={activeSummaryMonth}
+        branchId={activeBranch}
+        branchName={activeBranchName}
+        transactions={branchTransactions}
+        totalEntradas={totalEntradas}
+        totalSaidas={totalSaidas}
+        saldoAnterior={saldoAnterior}
+        saldoAtual={saldoAtual}
+        totalTransacoes={branchTransactions.filter(t => t.date && t.date.substring(0, 7) === activeSummaryMonth).length}
+        userName={user?.name || user?.email || "Administrador / Tesouraria"}
+        userEmail={user?.email || ""}
+        currentLockRecord={currentLockRecord}
+        allClosedMonths={closedMonths}
+        onOpenFolderCovers={(ym) => {
+          setIsLockManagerOpen(false);
+          setIsFolderCoverModalOpen(true);
+        }}
+      />
+
+      {/* Modal de Capas Oficiais A4 e Etiquetas para Pastas e Caixas Físicas */}
+      <FolderCoverAndLabelsModal
+        isOpen={isFolderCoverModalOpen}
+        onClose={() => setIsFolderCoverModalOpen(false)}
+        initialYearMonth={activeSummaryMonth}
+        branchId={activeBranch}
+        branchName={activeBranchName}
+        transactions={branchTransactions}
+        closedMonths={closedMonths}
+      />
+
+      {/* Modal de Conciliação Bancária Inteligente (OFX / Excel / CSV) */}
+      <BankReconciliationModal
+        isOpen={isReconciliationModalOpen}
+        onClose={() => setIsReconciliationModalOpen(false)}
+        branchId={activeBranch}
+        branchName={activeBranchName}
+        churchTransactions={branchTransactions}
+        onAddTransaction={async (newTxData) => {
+          try {
+            await addDoc(collection(db, "transactions"), {
+              ...newTxData,
+              createdAt: serverTimestamp(),
+            });
+            toast.success("Lançamento adicionado ao caixa!");
+          } catch (err) {
+            console.warn("Erro ao gravar no Firestore, salvando localmente:", err);
+            const newTx = { id: `local_${Date.now()}`, ...newTxData };
+            const updated = [newTx, ...transactions];
+            setTransactions(updated);
+            localStorage.setItem("churchTransactions", JSON.stringify(updated));
+          }
+        }}
       />
 
 

@@ -265,18 +265,9 @@ export const printDocument = (
       console.warn("window.print bloqueado ou indisponível:", printErr);
     }
 
-    // 3. Fallback: If inside an iframe sandbox or if beforeprint didn't trigger, guarantee user receives printable PDF
-    const isIframe = typeof window !== 'undefined' && window.self !== window.top;
     setTimeout(() => {
       window.removeEventListener('beforeprint', markPrinted);
-      if (!nativePrintOpened && isIframe) {
-        toast.info("Documento oficial preparado! Abrindo para sua impressora ou download...", { id: "print-toast-fallback" });
-        const targetElement = printableEl || (explicitTargetId ? document.getElementById(explicitTargetId) : null);
-        if (targetElement) {
-          downloadElementAsPdf(targetElement, `formulario-${new Date().toISOString().slice(0, 10)}.pdf`);
-        }
-      }
-    }, 450);
+    }, 500);
 
     if (onAfterPrint) {
       window.addEventListener('afterprint', () => onAfterPrint(), { once: true });
@@ -508,5 +499,129 @@ export async function downloadElementAsImage(
     }
   }
 }
+
+/**
+ * Opens an element in a fresh, clean window/tab to trigger printing
+ * bypassing iframe security restrictions and sandbox blockers.
+ */
+export function openElementInNewTabForPrint(
+  targetId: string,
+  title: string = "Documento para Impressão"
+): boolean {
+  const el = document.getElementById(targetId);
+  if (!el) {
+    toast.error("Elemento para impressão não encontrado.");
+    return false;
+  }
+
+  const headStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+    .map((s) => s.outerHTML)
+    .join("\n");
+
+  try {
+    const win = window.open("", "_blank");
+    if (!win) {
+      // Popups blocked, fallback to PDF download
+      downloadElementAsPdf(targetId, `${title}.pdf`);
+      return true;
+    }
+
+    win.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${title}</title>
+          ${headStyles}
+          <style>
+            @page {
+              size: auto;
+              margin: 8mm;
+            }
+            body {
+              background: #ffffff !important;
+              color: #000000 !important;
+              margin: 0 !important;
+              padding: 10mm !important;
+              display: flex !important;
+              flex-direction: column !important;
+              align-items: center !important;
+              justify-content: flex-start !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .print-action-bar {
+              margin-bottom: 20px;
+              display: flex;
+              gap: 12px;
+              background: #f1f5f9;
+              padding: 12px 20px;
+              border-radius: 12px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            }
+            .print-btn {
+              background: #059669;
+              color: white;
+              border: none;
+              padding: 10px 18px;
+              border-radius: 8px;
+              font-weight: bold;
+              font-size: 13px;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              gap: 6px;
+            }
+            .print-btn:hover {
+              background: #047857;
+            }
+            .close-btn {
+              background: #64748b;
+              color: white;
+              border: none;
+              padding: 10px 18px;
+              border-radius: 8px;
+              font-weight: 600;
+              font-size: 13px;
+              cursor: pointer;
+            }
+            .close-btn:hover {
+              background: #475569;
+            }
+            @media print {
+              .print-action-bar {
+                display: none !important;
+              }
+              body {
+                padding: 0 !important;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-action-bar">
+            <button class="print-btn" onclick="window.print()">🖨️ Abrir Diálogo de Impressão</button>
+            <button class="close-btn" onclick="window.close()">✕ Fechar Aba</button>
+          </div>
+          ${el.outerHTML}
+          <script>
+            // Tenta abrir a caixa de impressão automaticamente após carregar os estilos
+            setTimeout(() => {
+              try { window.print(); } catch (e) {}
+            }, 500);
+          </script>
+        </body>
+      </html>
+    `);
+    win.document.close();
+    return true;
+  } catch (err) {
+    console.warn("Popup blocked or error:", err);
+    downloadElementAsPdf(targetId, `${title}.pdf`);
+    return true;
+  }
+}
+
 
 

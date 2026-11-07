@@ -61,6 +61,8 @@ import { CrachaVoluntariosModal } from "@/components/secretaria/CrachaVoluntario
 import { FormulariosFinanceirosSecretariaModal } from "@/components/secretaria/FormulariosFinanceirosSecretariaModal"
 import { CertificadosCartasOficiaisModal } from "@/components/secretaria/CertificadosCartasOficiaisModal"
 import { IaSecretariaModal } from "@/components/secretaria/IaSecretariaModal"
+import { CarteirinhaDigitalModal } from "@/components/secretaria/CarteirinhaDigitalModal"
+import { EscalaSemanalWhatsAppModal } from "@/components/secretaria/EscalaSemanalWhatsAppModal"
 import { DigitalSignatureField } from "@/components/common/DigitalSignatureField"
 import { printDocument, downloadElementAsPdf } from "@/lib/printUtils"
 import { getRegisteredChurchLogo, drawChurchLogoInPdf, drawSafeChurchReportHeader } from "@/lib/churchLogoHelper"
@@ -284,6 +286,9 @@ export function Secretaria() {
   const [isEscalaMusicosModalOpen, setIsEscalaMusicosModalOpen] = useState(false)
   const [isCrachaVoluntariosModalOpen, setIsCrachaVoluntariosModalOpen] = useState(false)
   const [isCertificadosModalOpen, setIsCertificadosModalOpen] = useState(false)
+  const [isEscalaSemanalWhatsAppOpen, setIsEscalaSemanalWhatsAppOpen] = useState(false)
+  const [isCarteirinhaModalOpen, setIsCarteirinhaModalOpen] = useState(false)
+  const [selectedMemberForCard, setSelectedMemberForCard] = useState<any | null>(null)
   const [memberSignatureUrl, setMemberSignatureUrl] = useState("")
   const [memberSignatureFileName, setMemberSignatureFileName] = useState("")
 
@@ -2749,26 +2754,52 @@ export function Secretaria() {
                 if (parts.length === 3) return parseInt(parts[1], 10) === new Date().getMonth() + 1;
                 return false;
               }).sort((a, b) => parseInt(a.dataNascimento.split('/')[0], 10) - parseInt(b.dataNascimento.split('/')[0], 10))
-                .map(m => (
-                <div key={m.id} className="flex flex-col items-start border rounded-lg p-3 bg-slate-50 dark:bg-slate-900/50 min-w-[200px] flex-1">
-                  <div className="font-semibold text-sm text-foreground">{m.name}</div>
-                  <div className="text-xs text-muted-foreground flex items-center justify-between w-full mt-1">
-                    <span>{m.dataNascimento.substring(0, 5)}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-xs px-2 text-pink-600 hover:text-pink-700 hover:bg-pink-50 dark:hover:bg-pink-950 font-medium"
-                      onClick={() => {
-                        setWhatsAppMemberTarget(m);
-                        setWhatsAppDefaultTemplate("birthday");
-                        setIsMemberWhatsAppModalOpen(true);
-                      }}
+                .map(m => {
+                  const parts = m.dataNascimento?.split('/') || [];
+                  const isToday = parts.length === 3 && 
+                    parseInt(parts[0], 10) === new Date().getDate() && 
+                    parseInt(parts[1], 10) === new Date().getMonth() + 1;
+
+                  return (
+                    <div 
+                      key={m.id} 
+                      className={`flex flex-col items-start border rounded-xl p-3 min-w-[220px] flex-1 transition-all shadow-2xs ${
+                        isToday 
+                          ? "bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 ring-1 ring-emerald-500/30" 
+                          : "bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800"
+                      }`}
                     >
-                      Mensagem
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                      <div className="flex items-center justify-between w-full">
+                        <div className="font-bold text-sm text-foreground truncate max-w-[140px]">{m.name}</div>
+                        {isToday ? (
+                          <Badge className="bg-emerald-600 text-white text-[10px] py-0 px-1.5 font-bold animate-pulse">
+                            É HOJE! 🎂
+                          </Badge>
+                        ) : (
+                          <span className="text-xs font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            Dia {parts[0]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-between w-full mt-2 pt-2 border-t border-border/50">
+                        <span className="text-[11px] font-medium">{m.role || "Membro"}</span>
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg flex items-center gap-1.5 shadow-2xs"
+                          onClick={() => {
+                            setWhatsAppMemberTarget(m);
+                            setWhatsAppDefaultTemplate("birthday");
+                            setIsMemberWhatsAppModalOpen(true);
+                          }}
+                          title="Disparar Mensagem de Feliz Aniversário no WhatsApp"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          Parabenizar
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               {branchMembers.filter(m => {
                 if (!m.dataNascimento) return false;
                 const parts = m.dataNascimento.split('/');
@@ -2791,7 +2822,7 @@ export function Secretaria() {
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 w-full">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 w-full">
               <Dialog open={isDocsModalOpen} onOpenChange={setIsDocsModalOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-primary/5 transition-all text-left w-full shadow-sm">
@@ -4198,6 +4229,28 @@ export function Secretaria() {
               <div className="text-xs text-muted-foreground font-normal">Gerenciar eclesiásticos</div>
             </div>
           </Button>
+
+          {/* 6. Carteirinha Oficial Digital no Celular */}
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              const target = selectedMemberForCard || (branchMembers.length > 0 ? branchMembers[0] : members[0]) || null;
+              setSelectedMemberForCard(target);
+              setIsCarteirinhaModalOpen(true);
+            }} 
+            className="h-auto flex-col items-start p-4 gap-2 border-teal-300 dark:border-teal-800 hover:border-teal-500/60 hover:bg-teal-500/5 transition-all text-left w-full shadow-sm ring-1 ring-teal-500/20"
+          >
+            <div className="bg-teal-100 dark:bg-teal-900/40 p-2 rounded-lg text-teal-700 dark:text-teal-300">
+              <IdCard className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="font-semibold text-sm flex items-center gap-1.5">
+                Carteirinha Digital
+                <span className="text-[9px] bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 font-bold px-1 rounded">NOVO</span>
+              </div>
+              <div className="text-xs text-muted-foreground font-normal">QR Code no Celular</div>
+            </div>
+          </Button>
             </div>
           </CardContent>
         </Card>
@@ -4214,7 +4267,7 @@ export function Secretaria() {
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-4 overflow-hidden">
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-3 w-full">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3 w-full">
               {/* 1. Escala do Mural */}
               <Button 
                 variant="outline" 
@@ -4335,6 +4388,24 @@ export function Secretaria() {
                     <span className="text-[9px] bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 font-bold px-1 rounded">PRO</span>
                   </div>
                   <div className="text-xs text-muted-foreground font-normal truncate w-full">Cartas, Atas & Resumos</div>
+                </div>
+              </Button>
+
+              {/* 9. Disparo de Escala Semanal no WhatsApp */}
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEscalaSemanalWhatsAppOpen(true)} 
+                className="h-auto flex-col items-start p-3.5 gap-1.5 border-emerald-300 dark:border-emerald-800/70 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all text-left w-full overflow-hidden shadow-xs"
+              >
+                <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-lg text-emerald-700 dark:text-emerald-400 shrink-0">
+                  <MessageCircle className="h-5 w-5" />
+                </div>
+                <div className="w-full overflow-hidden">
+                  <div className="font-semibold text-sm truncate w-full flex items-center gap-1">
+                    Escala WhatsApp
+                    <span className="text-[9px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold px-1 rounded">AUTO</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground font-normal truncate w-full">Resumo da semana pronto</div>
                 </div>
               </Button>
             </div>
@@ -5028,6 +5099,23 @@ export function Secretaria() {
                       <Printer className="w-4 h-4 mr-1.5" />
                       Imprimir ({selectedMemberIds.length})
                     </Button>
+                    {selectedMemberIds.length === 1 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 text-xs font-medium rounded-xl text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-teal-950"
+                        onClick={() => {
+                          const singleMem = members.find((m: any) => m.id.toString() === selectedMemberIds[0]);
+                          if (singleMem) {
+                            setSelectedMemberForCard(singleMem);
+                            setIsCarteirinhaModalOpen(true);
+                          }
+                        }}
+                      >
+                        <IdCard className="w-4 h-4 mr-1.5" />
+                        Carteirinha Digital
+                      </Button>
+                    )}
                     <Button 
                       variant="destructive"
                       size="sm"
@@ -5232,6 +5320,18 @@ export function Secretaria() {
                           }}
                         >
                           <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-teal-600 hover:text-teal-700 hover:bg-teal-50 dark:hover:bg-teal-950"
+                          title="Carteirinha Oficial Digital do Membro com QR Code"
+                          onClick={() => {
+                            setSelectedMemberForCard(m);
+                            setIsCarteirinhaModalOpen(true);
+                          }}
+                        >
+                          <IdCard className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -5489,14 +5589,14 @@ export function Secretaria() {
         onClose={() => setIsMemberWhatsAppModalOpen(false)}
         member={whatsAppMemberTarget}
         defaultTemplate={whatsAppDefaultTemplate}
-        churchName={localStorage.getItem("church_name") || "Igreja Evangélica Manancial"}
+        churchName={churchData?.nome || activeBranchName || "Igreja Evangélica Pentecostal O Brasil para Cristo"}
       />
 
       {/* Check-in Seguro de Crianças • Ministério Kids */}
       <CheckinKidsModal
         isOpen={isKidsModalOpen}
         onClose={() => setIsKidsModalOpen(false)}
-        churchName={localStorage.getItem("church_name") || "Igreja Evangélica Manancial"}
+        churchName={churchData?.nome || activeBranchName || "Igreja Evangélica Pentecostal O Brasil para Cristo"}
         activeBranchName={activeBranchName}
       />
 
@@ -5504,7 +5604,7 @@ export function Secretaria() {
       <RelatorioSemanalCelulaModal
         isOpen={isCelulaModalOpen}
         onClose={() => setIsCelulaModalOpen(false)}
-        churchName={localStorage.getItem("church_name") || "Igreja Evangélica Manancial"}
+        churchName={churchData?.nome || activeBranchName || "Igreja Evangélica Pentecostal O Brasil para Cristo"}
         activeBranchName={activeBranchName}
       />
 
@@ -5517,7 +5617,7 @@ export function Secretaria() {
         }}
         members={branchMembers}
         selectedMember={selectedIrpfMember}
-        churchName={localStorage.getItem("church_name") || "Igreja Evangélica Manancial"}
+        churchName={churchData?.nome || activeBranchName || "Igreja Evangélica Pentecostal O Brasil para Cristo"}
       />
 
       {/* Central de Comunicados, Avisos à Comunidade e Mala Direta */}
@@ -5759,6 +5859,24 @@ export function Secretaria() {
         members={branchMembers}
         activeBranchName={activeBranchName}
         churchData={churchData}
+      />
+
+      {/* Modal de Carteirinha Digital do Membro com QR Code no Celular */}
+      <CarteirinhaDigitalModal
+        isOpen={isCarteirinhaModalOpen}
+        onClose={() => setIsCarteirinhaModalOpen(false)}
+        member={selectedMemberForCard}
+        allMembers={branchMembers && branchMembers.length > 0 ? branchMembers : members}
+        onSelectMember={(m: any) => setSelectedMemberForCard(m)}
+        branchName={activeBranchName}
+      />
+
+      {/* Modal de Disparo Rápido da Escala Semanal no WhatsApp */}
+      <EscalaSemanalWhatsAppModal
+        isOpen={isEscalaSemanalWhatsAppOpen}
+        onClose={() => setIsEscalaSemanalWhatsAppOpen(false)}
+        branchId={activeBranch}
+        branchName={activeBranchName}
       />
     </motion.div>
     </TooltipProvider>

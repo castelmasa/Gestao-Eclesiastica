@@ -36,6 +36,8 @@ import { toast } from "sonner";
 import { printDocument, downloadElementAsPdf } from "@/lib/printUtils";
 import { useBranch } from "@/contexts/BranchContext";
 import { getRegisteredChurchLogo } from "@/lib/churchLogoHelper";
+import { useAiCredits } from "@/contexts/AiCreditsContext";
+import { AiCreditsBadge } from "@/components/common/AiCreditsBadge";
 
 interface IaSecretariaModalProps {
   isOpen: boolean;
@@ -53,6 +55,7 @@ export function IaSecretariaModal({
   churchData,
 }: IaSecretariaModalProps) {
   const { activeBranch, activeBranchName: branchCtxName, branches } = useBranch();
+  const { canUseAi, consumeCredit, openCreditsModal } = useAiCredits();
   const currentBranchName = activeBranchName || branchCtxName || "Congregação Sede";
 
   // Carrega parâmetros consolidados da congregação ativa / sede
@@ -362,6 +365,12 @@ export function IaSecretariaModal({
       return;
     }
 
+    if (!canUseAi(1)) {
+      openCreditsModal();
+      toast.warning("Seus créditos de IA deste mês se esgotaram. Recarregue para gerar novos documentos.");
+      return;
+    }
+
     setIsLoading(true);
     setCartaGerada(null);
     try {
@@ -382,7 +391,8 @@ export function IaSecretariaModal({
         }
       });
       setCartaGerada(data);
-      toast.success("Carta eclesiástica redigida com sucesso!");
+      await consumeCredit(`Redação de Carta Oficial (${tipoCarta})`, 1);
+      toast.success("Carta eclesiástica redigida com sucesso! (1 crédito consumido)");
     } catch (err: any) {
       console.error(err);
       toast.error(formatErrorMessage(err));
@@ -393,6 +403,12 @@ export function IaSecretariaModal({
 
   // Gerar Ata com IA
   const handleGerarAta = async () => {
+    if (!canUseAi(1)) {
+      openCreditsModal();
+      toast.warning("Seus créditos de IA deste mês se esgotaram. Recarregue para redigir atas.");
+      return;
+    }
+
     setIsLoading(true);
     setAtaGerada(null);
     try {
@@ -413,7 +429,8 @@ export function IaSecretariaModal({
         }
       });
       setAtaGerada(data);
-      toast.success("Ata formal de assembleia redigida com sucesso!");
+      await consumeCredit("Redação de Ata de Assembleia", 1);
+      toast.success("Ata formal de assembleia redigida com sucesso! (1 crédito consumido)");
     } catch (err: any) {
       console.error(err);
       toast.error(formatErrorMessage(err));
@@ -508,7 +525,7 @@ export function IaSecretariaModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl max-h-[94vh] flex flex-col p-4 sm:p-6 overflow-hidden">
         <DialogHeader className="border-b pb-3 shrink-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2.5">
               <div className="p-2 bg-purple-500/10 text-purple-700 dark:text-purple-300 rounded-lg">
                 <Sparkles className="w-5 h-5" />
@@ -524,6 +541,9 @@ export function IaSecretariaModal({
                   Redação de cartas pastorais, atas de assembleias, análise ministerial de membros e resumos oficiais.
                 </DialogDescription>
               </div>
+            </div>
+            <div className="shrink-0 mr-6">
+              <AiCreditsBadge />
             </div>
           </div>
         </DialogHeader>
@@ -551,18 +571,52 @@ export function IaSecretariaModal({
                 <Label className="text-xs font-semibold">Tipo de Carta Eclesiástica</Label>
                 <select
                   value={tipoCarta}
-                  onChange={(e) => setTipoCarta(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTipoCarta(val);
+                    if (val.toLowerCase().includes("convite")) {
+                      setMotivoCarta("Culto Festivo de Celebração - Tema: 'Grandes coisas fez o Senhor por nós'");
+                    } else if (val.toLowerCase().includes("congresso")) {
+                      setMotivoCarta("Congresso Geral de Obreiros e Departamentos - Convocação Oficial");
+                    } else if (val.toLowerCase().includes("aniversário") || val.toLowerCase().includes("aniversario")) {
+                      setMotivoCarta("Felicitações e oração de gratidão a Deus pela passagem de mais um abençoado ano de vida");
+                    } else if (val.toLowerCase().includes("transferência") || val.toLowerCase().includes("transferencia")) {
+                      setMotivoCarta("Mudança de endereço residencial e congregação");
+                    } else if (val.toLowerCase().includes("agradecimento")) {
+                      setMotivoCarta("Gratidão pela valiosa doação e prestação de serviços à congregação");
+                    } else if (val.toLowerCase().includes("consagração") || val.toLowerCase().includes("consagracao")) {
+                      setMotivoCarta("Consagração ao Santo Ministério com base no testemunho e fidelidade");
+                    }
+                  }}
                   className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs mt-1"
                 >
-                  <option value="Carta de Recomendação Eclesiástica">Carta de Recomendação Eclesiástica</option>
-                  <option value="Carta de Transferência Definitiva de Membro">Carta de Transferência Definitiva</option>
-                  <option value="Carta de Apresentação e Boas-Vindas Pastoral">Carta de Apresentação Pastoral</option>
-                  <option value="Certidão Negativa de Disciplina Eclesiástica">Declaração de Comunhão & Idoneidade</option>
+                  <optgroup label="✨ Cartas Especiais e Eventos">
+                    <option value="Carta Convite Oficial para Pregador / Ministro da Palavra">Carta Convite Oficial para Pregador / Ministro da Palavra</option>
+                    <option value="Carta Convite para Cantor / Grupo de Louvor Convidado">Carta Convite para Cantor / Grupo de Louvor Convidado</option>
+                    <option value="Carta de Convocação e Credenciamento para Congresso">Carta de Congresso / Convocação de Delegação</option>
+                    <option value="Carta de Felicitações pelo Aniversário de Membro / Obreiro">Carta de Aniversário de Membro / Obreiro</option>
+                    <option value="Carta de Felicitações pelo Aniversário do Pastor Titular">Carta de Aniversário do Pastor Titular</option>
+                    <option value="Carta de Felicitações pelo Aniversário da Igreja / Jubileu">Carta de Aniversário da Igreja / Jubileu</option>
+                  </optgroup>
+                  <optgroup label="📋 Cartas Administrativas & Canônicas">
+                    <option value="Carta de Recomendação Eclesiástica">Carta de Recomendação Eclesiástica</option>
+                    <option value="Carta de Transferência Definitiva de Membro">Carta de Transferência Definitiva</option>
+                    <option value="Carta de Apresentação e Boas-Vindas Pastoral">Carta de Apresentação Pastoral</option>
+                    <option value="Certidão Negativa de Disciplina Eclesiástica">Declaração de Comunhão & Idoneidade</option>
+                    <option value="Carta de Consagração / Separação Ministerial">Carta de Consagração / Separação Ministerial</option>
+                    <option value="Carta de Agradecimento Eclesiástico por Doação / Serviço Voluntário">Carta de Agradecimento Eclesiástico</option>
+                  </optgroup>
                 </select>
               </div>
 
               <div>
-                <Label className="text-xs font-semibold">Vincular Membro Cadastrado</Label>
+                <Label className="text-xs font-semibold">
+                  {tipoCarta.toLowerCase().includes("convite") 
+                    ? "Vincular Preletor / Cantor (se cadastrado)" 
+                    : (tipoCarta.toLowerCase().includes("aniversário") || tipoCarta.toLowerCase().includes("aniversario"))
+                    ? "Vincular Aniversariante Cadastrado"
+                    : "Vincular Membro Cadastrado"}
+                </Label>
                 <select
                   value={selectedMemberId}
                   onChange={(e) => {
@@ -582,22 +636,50 @@ export function IaSecretariaModal({
               </div>
 
               <div>
-                <Label className="text-xs font-semibold">Nome Completo do Membro</Label>
+                <Label className="text-xs font-semibold">
+                  {tipoCarta.toLowerCase().includes("convite")
+                    ? "Nome do Preletor / Cantor / Ministério Convidado *"
+                    : (tipoCarta.toLowerCase().includes("aniversário") || tipoCarta.toLowerCase().includes("aniversario"))
+                    ? "Nome do Aniversariante *"
+                    : (tipoCarta.toLowerCase().includes("congresso"))
+                    ? "Nome do Delegado / Representante / Grupo *"
+                    : "Nome Completo do Membro / Destinatário *"}
+                </Label>
                 <Input
                   value={membroNomeManual}
                   onChange={(e) => setMembroNomeManual(e.target.value)}
-                  placeholder="Nome completo..."
+                  placeholder={
+                    tipoCarta.toLowerCase().includes("convite")
+                      ? "Ex: Pr. Carlos Eduardo ou Banda Voz da Esperança"
+                      : tipoCarta.toLowerCase().includes("aniversário")
+                      ? "Ex: Irmã Maria de Lurdes ou Pr. Carlito Rodrigues"
+                      : "Nome completo..."
+                  }
                   className="h-9 text-xs mt-1"
                 />
               </div>
 
               <div>
-                <Label className="text-xs font-semibold">Igreja / Cidade de Destino</Label>
+                <Label className="text-xs font-semibold">
+                  {tipoCarta.toLowerCase().includes("convite")
+                    ? "Igreja de Origem do Convidado / Cidade"
+                    : tipoCarta.toLowerCase().includes("congresso")
+                    ? "Congregação Sede do Congresso / Cidade"
+                    : (tipoCarta.toLowerCase().includes("aniversário") || tipoCarta.toLowerCase().includes("aniversario"))
+                    ? "Congregação / Departamento do Aniversariante"
+                    : "Igreja / Cidade de Destino"}
+                </Label>
                 <div className="grid grid-cols-2 gap-2 mt-1">
                   <Input
                     value={destinoIgreja}
                     onChange={(e) => setDestinoIgreja(e.target.value)}
-                    placeholder="Igreja / Congregação coirmã"
+                    placeholder={
+                      tipoCarta.toLowerCase().includes("convite")
+                        ? "Ex: IEP O Brasil para Cristo Sede"
+                        : tipoCarta.toLowerCase().includes("congresso")
+                        ? "Ex: Templo Central / Convenção"
+                        : "Igreja coirmã"
+                    }
                     className="h-9 text-xs"
                   />
                   <Input
@@ -610,11 +692,25 @@ export function IaSecretariaModal({
               </div>
 
               <div className="md:col-span-2">
-                <Label className="text-xs font-semibold">Motivo / Informações Adicionais</Label>
+                <Label className="text-xs font-semibold">
+                  {tipoCarta.toLowerCase().includes("convite")
+                    ? "Tema do Culto, Data/Horário do Evento & Orientações *"
+                    : tipoCarta.toLowerCase().includes("congresso")
+                    ? "Tema do Congresso, Período e Departamento Convocado *"
+                    : (tipoCarta.toLowerCase().includes("aniversário") || tipoCarta.toLowerCase().includes("aniversario"))
+                    ? "Data de Aniversário, Anos de Vida / Mensagem Fraterna"
+                    : "Motivo / Informações Adicionais *"}
+                </Label>
                 <Input
                   value={motivoCarta}
                   onChange={(e) => setMotivoCarta(e.target.value)}
-                  placeholder="Ex: Mudança de residência a trabalho, transferindo residência para outra cidade..."
+                  placeholder={
+                    tipoCarta.toLowerCase().includes("convite")
+                      ? "Ex: Culto da Vitória em 22/11 às 19:30h. Tema: Filipenses 4:13"
+                      : tipoCarta.toLowerCase().includes("congresso")
+                      ? "Ex: 15º Congresso da Mocidade - Dias 14 a 16 de Novembro"
+                      : "Ex: Mudança de residência a trabalho, transferindo residência para outra cidade..."
+                  }
                   className="h-9 text-xs mt-1"
                 />
               </div>

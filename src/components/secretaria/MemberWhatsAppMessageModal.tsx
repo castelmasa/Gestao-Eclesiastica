@@ -30,6 +30,10 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { logAction } from "@/lib/audit"
+import { useAiCredits } from "@/contexts/AiCreditsContext"
+import { AiCreditsBadge } from "@/components/common/AiCreditsBadge"
+import { useBranch } from "@/contexts/BranchContext"
+import { getChurchLeadershipConfig } from "@/lib/churchConfigHelper"
 
 export type MessageTemplateType = "welcome" | "birthday" | "reminder" | "notice" | "custom"
 
@@ -54,12 +58,23 @@ export function MemberWhatsAppMessageModal({
   onClose,
   member,
   defaultTemplate = "welcome",
-  churchName = "Igreja O Brasil para Cristo - 2ª Congregação",
+  churchName,
 }: MemberWhatsAppMessageModalProps) {
+  const { activeBranch, activeBranchName } = useBranch();
+  const { canUseAi, consumeCredit, setIsCreditsModalOpen } = useAiCredits();
+
+  // Obter Dados Oficiais da Igreja e Pastor do arquivo de Parâmetros
+  const leadership = getChurchLeadershipConfig(activeBranch);
+  const pastorName = leadership.pastor.name || "Pr. Carlito Carvalho Rodrigues";
+  const resolvedChurchName = (churchName && !churchName.includes("Manancial") && churchName !== "Igreja Local")
+    ? churchName
+    : (leadership.church.name || activeBranchName || "Igreja Evangélica Pentecostal O Brasil para Cristo");
+
   const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplateType>(defaultTemplate)
   const [customSubject, setCustomSubject] = useState("")
   const [messageText, setMessageText] = useState("")
   const [copied, setCopied] = useState(false)
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false)
   const [preferredApp, setPreferredApp] = useState<"app" | "web">(() => {
     return (localStorage.getItem("whatsappPreferredMode") as "app" | "web") || "app"
   })
@@ -68,25 +83,29 @@ export function MemberWhatsAppMessageModal({
   const cleanPhone = member?.phone ? member.phone.replace(/\D/g, "") : ""
   const fullPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone
 
+  const getChurchPastorName = () => pastorName;
+
   // Generate dynamic message content based on template
   const generateTemplateText = (tpl: MessageTemplateType, memberName: string, chName: string) => {
-    const firstName = memberName.split(" ")[0] || "irmão(ã)"
+    const pName = getChurchPastorName();
+    const signatureBlock = `\n\nCom todo carinho pastoral e orações,\n*${pName}*\n${chName}`;
+
     switch (tpl) {
       case "welcome":
-        return `A Paz do Senhor, irmão(ã) ${memberName}! 👋🕊️\n\nÉ com imensa alegria e de coração aberto que lhe damos as boas-vindas à ${chName}!\n\nQue este seja um lugar abençoado de crescimento espiritual, acolhimento, oração e comunhão para você e toda a sua família.\n\nSempre que precisar de oração, apoio pastoral ou informações sobre nossos cultos e ministérios, nossa liderança e a secretaria da igreja estão à sua inteira disposição.\n\n"Em tudo dai graças, porque esta é a vontade de Deus em Cristo Jesus para convosco." (1 Tessalonicenses 5:18)\n\nSeja muito bem-vindo(a) à família da fé! ⛪❤️`
+        return `A Paz do Senhor, irmão(ã) ${memberName}! 👋🕊️\n\nÉ com imensa alegria e de coração aberto que lhe damos as boas-vindas à ${chName}!\n\nQue este seja um lugar abençoado de crescimento espiritual, acolhimento, oração e comunhão para você e toda a sua família.\n\nSempre que precisar de oração, apoio pastoral ou informações sobre nossos cultos e ministérios, nossa liderança está à sua inteira disposição.\n\n"Em tudo dai graças, porque esta é a vontade de Deus em Cristo Jesus para convosco." (1 Tessalonicenses 5:18)${signatureBlock}`;
 
       case "birthday":
-        return `A Paz do Senhor, querido(a) ${memberName}! 🎉🎂🎈\n\nEm nome de toda a liderança, ministérios e irmãos da ${chName}, queremos lhe desejar um abençoado e radiante Feliz Aniversário!\n\nCelebramos a sua vida e oramos para que o Senhor Deus derrame ricas bênçãos sobre seus passos, renovando sua saúde, sabedoria, alegria e sonhos neste novo ciclo de vida.\n\n"O Senhor te abençoe e te guarde; o Senhor faça resplandecer o seu rosto sobre ti e tenha misericórdia de ti; o Senhor sobre ti levante o seu rosto e te dê a paz." (Números 6:24-26)\n\nParabéns pelo seu dia tão especial! Parabéns! 🎁✨`
+        return `A Paz do Senhor, querido(a) ${memberName}! 🎉🎂🎈\n\nEm nome de toda a liderança e irmãos da ${chName}, queremos lhe desejar um abençoado e radiante Feliz Aniversário!\n\nCelebramos a sua vida e oramos para que o Senhor Jesus derrame ricas bênçãos sobre seus passos, renovando sua saúde, sabedoria, alegria e sonhos neste novo ciclo.\n\n"O Senhor te abençoe e te guarde; o Senhor faça resplandecer o seu rosto sobre ti e tenha misericórdia de ti; o Senhor sobre ti levante o seu rosto e te dê a paz." (Números 6:24-26)${signatureBlock}`;
 
       case "reminder":
-        return `A Paz do Senhor, amado(a) ${memberName}! ⛪🙌\n\nPassamos para lembrar com muito carinho dos nossos próximos cultos e atividades na ${chName}.\n\nA sua presença e da sua família é fundamental para juntos adorarmos e engrandecermos ao Senhor Jesus. Venha celebrar conosco e receber uma palavra abençoada!\n\n"Alegrei-me quando me disseram: Vamos à casa do Senhor." (Salmos 122:1)\n\nEsperamos por você!`
+        return `A Paz do Senhor, amado(a) ${memberName}! ⛪🙌\n\nPassamos para lembrar com muito carinho dos nossos próximos cultos e atividades na ${chName}.\n\nA sua presença e de sua família é fundamental para juntos adorarmos e engrandecermos ao Senhor Jesus. Venha celebrar conosco e receber uma palavra abençoada!\n\n"Alegrei-me quando me disseram: Vamos à casa do Senhor." (Salmos 122:1)${signatureBlock}`;
 
       case "notice":
-        return `A Paz do Senhor, irmão(ã) ${memberName}! 📢📋\n\nA secretaria e a liderança pastoral da ${chName} trazem este comunicado oficial importante para o seu conhecimento:\n\n[Digite aqui os detalhes do aviso ou evento]\n\nContamos com a sua atenção e apoio. Em caso de dúvidas, estamos à disposição!\n\nAtenciosamente,\nSecretaria da Igreja`
+        return `A Paz do Senhor, irmão(ã) ${memberName}! 📢📋\n\nA liderança pastoral da ${chName} traz este comunicado oficial importante para o seu conhecimento:\n\n[Digite aqui os detalhes do aviso ou evento]\n\nContamos com a sua atenção e apoio. Em caso de dúvidas, estamos à disposição!${signatureBlock}`;
 
       case "custom":
       default:
-        return `A Paz do Senhor, irmão(ã) ${memberName}!\n\n`
+        return `A Paz do Senhor, irmão(ã) ${memberName}!\n\n${signatureBlock}`;
     }
   }
 
@@ -94,16 +113,83 @@ export function MemberWhatsAppMessageModal({
   useEffect(() => {
     if (member && isOpen) {
       setSelectedTemplate(defaultTemplate)
-      setMessageText(generateTemplateText(defaultTemplate, member.name, churchName))
+      setMessageText(generateTemplateText(defaultTemplate, member.name, resolvedChurchName))
     }
-  }, [member, isOpen, defaultTemplate, churchName])
+  }, [member, isOpen, defaultTemplate, resolvedChurchName])
 
   const handleSelectTemplate = (tpl: MessageTemplateType) => {
     setSelectedTemplate(tpl)
     if (member) {
-      setMessageText(generateTemplateText(tpl, member.name, churchName))
+      setMessageText(generateTemplateText(tpl, member.name, resolvedChurchName))
     }
   }
+
+  // Geração ultra-rápida com IA (1 segundo) para personalizar a mensagem pastoral
+  const handleGenerateWithAi = async () => {
+    if (!member) return;
+    if (!canUseAi(1)) {
+      setIsCreditsModalOpen(true);
+      toast.warning("Seus créditos de IA deste mês se esgotaram. Recarregue para gerar mensagens com IA.");
+      return;
+    }
+
+    setIsGeneratingAi(true);
+    const toastId = toast.loading("Redigindo mensagem pastoral de aniversário com IA...");
+
+    try {
+      const activePastor = getChurchPastorName();
+      const prompt = `Você é o Pastor "${activePastor}" da igreja "${resolvedChurchName}".
+Escreva uma mensagem de Feliz Aniversário bíblica, afetuosa e edificante para o aniversariante:
+- Nome: ${member.name}
+- Função na igreja: ${member.role || 'Membro da igreja'}
+
+Diretrizes obrigatórias:
+1. Saudação cristã: "A Paz do Senhor, amado(a) ${member.name}!"
+2. Agradeça a Deus pelo dom da vida e pela presença dele(a) na congregação.
+3. Inclua um versículo bíblico lindo e edificante (ex: Números 6:24-26 ou Jeremias 29:11).
+4. OBRIGATÓRIO: A mensagem deve ser concluída EXATAMENTE com esta assinatura no final (NUNCA repita o nome do pastor):
+Com amor pastoral e orações,
+*${activePastor}*
+${resolvedChurchName}
+5. Em Português do Brasil impecável, formatado para WhatsApp com *negrito*.
+Retorne APENAS o texto pronto da mensagem, sem explicações ou introduções.`;
+
+      const res = await fetch("/api/gemini/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, model: "gemini-flash-lite-latest" })
+      });
+
+      if (!res.ok) {
+        throw new Error("Falha ao comunicar com os serviços de IA.");
+      }
+
+      const data = await res.json();
+      if (data.text) {
+        let cleanText = data.text.trim();
+        // Garantir que não haja qualquer menção incorreta à Igreja Manancial
+        cleanText = cleanText.replace(/Igreja Evangélica Manancial/gi, resolvedChurchName);
+        cleanText = cleanText.replace(/Igreja Manancial/gi, resolvedChurchName);
+
+        // Garantir que a assinatura do pastor esteja presente no final com os dados dos parâmetros
+        if (!cleanText.includes(activePastor)) {
+          cleanText += `\n\nCom amor pastoral e orações,\n*${activePastor}*\n${resolvedChurchName}`;
+        }
+        setMessageText(cleanText);
+        await consumeCredit("Mensagem de Aniversário Personalizada com IA", 1);
+        toast.dismiss(toastId);
+        toast.success("Mensagem personalizada com sucesso!");
+      } else {
+        throw new Error("Resposta de IA vazia.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.dismiss(toastId);
+      toast.error(err.message || "Não foi possível gerar com IA no momento. Usando mensagem padrão.");
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
 
   const handleCopy = () => {
     if (!messageText) return
@@ -221,8 +307,9 @@ export function MemberWhatsAppMessageModal({
     let tagValue = ""
     if (tag === "{nome}") tagValue = member?.name || "irmão(ã)"
     else if (tag === "{primeiro_nome}") tagValue = member?.name?.split(" ")[0] || "irmão(ã)"
-    else if (tag === "{igreja}") tagValue = churchName
+    else if (tag === "{igreja}") tagValue = resolvedChurchName
     else if (tag === "{cargo}") tagValue = member?.role || "Membro"
+    else if (tag === "{pastor}") tagValue = getChurchPastorName()
 
     setMessageText((prev) => prev + " " + tagValue)
   }
@@ -382,12 +469,24 @@ export function MemberWhatsAppMessageModal({
 
           {/* Editor e Pré-visualização da Mensagem */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-1.5">
               <Label htmlFor="whatsappMessageBody" className="text-xs font-semibold">
                 Texto da Mensagem (você pode editar livremente antes de enviar):
               </Label>
-              <div className="flex items-center gap-1">
-                <span className="text-[11px] text-muted-foreground mr-1">Inserir:</span>
+              <div className="flex flex-wrap items-center gap-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={isGeneratingAi}
+                  onClick={handleGenerateWithAi}
+                  className="h-7 px-2.5 text-xs bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-800 hover:bg-purple-100 flex items-center gap-1.5 font-bold shadow-2xs mr-1"
+                  title="Gera uma mensagem calorosa e bíblica personalizada para este membro"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-purple-600 animate-pulse" />
+                  {isGeneratingAi ? "Redigindo..." : "Personalizar com IA (1 crédito)"}
+                </Button>
+                <span className="text-[11px] text-muted-foreground mr-1">Tags:</span>
                 <button
                   type="button"
                   onClick={() => handleInsertTag("{nome}")}
@@ -411,6 +510,14 @@ export function MemberWhatsAppMessageModal({
                   title="Inserir nome da igreja"
                 >
                   Igreja
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleInsertTag("{pastor}")}
+                  className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 font-mono text-emerald-600 font-bold transition-colors"
+                  title="Inserir assinatura do Pastor Titular"
+                >
+                  Pastor
                 </button>
               </div>
             </div>

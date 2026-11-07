@@ -95,7 +95,7 @@ export function GestaoEscalasModal({
   isOpen,
   onClose,
   members,
-  churchName = "Igreja Evangélica Manancial",
+  churchName = "Igreja Evangélica Pentecostal O Brasil para Cristo",
   activeBranchName = "Templo Sede"
 }: GestaoEscalasModalProps) {
   const [scales, setScales] = useState<ScaleRecord[]>([]);

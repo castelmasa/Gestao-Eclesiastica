@@ -349,29 +349,68 @@ DIRETRIZES DE LINGUAGEM E ESTILO OBRIGATÓRIAS (PORTUGUÊS DO BRASIL):
 
       if (type === "carta") {
         const { tipoCarta, membroNome, cargo, membroDesde, dataBatismo, destinoIgreja, cidadeDestino, motivo, pastorName } = payload || {};
+        const letterTypeStr = (tipoCarta || "Carta de Recomendação Eclesiástica").toLowerCase();
+
+        let letterSpecificGuidelines = "";
+        if (letterTypeStr.includes("convite")) {
+          letterSpecificGuidelines = `
+ESTA É UMA CARTA CONVITE OFICIAL:
+- O tom deve ser de honra, alegria cristã e reverência ao convidar o ministro da Palavra, preletor ou ministério de louvor/cantor.
+- Mencione a honra de receber o convidado para ministrar a Palavra de Deus ou os louvores no culto especial/evento da igreja.
+- Enfatize a expectativa espiritual da congregação e os votos de ricas bênçãos na preparação da ministração.`;
+        } else if (letterTypeStr.includes("congresso") || letterTypeStr.includes("encontro")) {
+          letterSpecificGuidelines = `
+ESTA É UMA CARTA DE CONVOCAÇÃO / CREDENCIAMENTO PARA CONGRESSO:
+- O tom deve ser solene e entusiasta, oficializando a participação de delegação, obreiros, jovens, mulheres (Círculo de Oração) ou varões no congresso.
+- Destaque o propósito de avivamento espiritual, edificação bíblica e comunhão entre as congregações irmãs.`;
+        } else if (letterTypeStr.includes("aniversário") || letterTypeStr.includes("aniversario")) {
+          letterSpecificGuidelines = `
+ESTA É UMA CARTA DE FELICITAÇÕES DE ANIVERSÁRIO (PASTORAL OU MEMBRO):
+- O tom deve ser afetuoso, festivo, pastoral e profundamente bíblico.
+- Agradeça a Deus pelo dom da vida, celebre a fidelidade do aniversariante na Casa do Senhor e invoque bênçãos de saúde, paz, renovo e anos multiplicados.`;
+        } else if (letterTypeStr.includes("transferência") || letterTypeStr.includes("transferencia")) {
+          letterSpecificGuidelines = `
+ESTA É UMA CARTA DE TRANSFERÊNCIA DEFINITIVA DE MEMBRO:
+- Formalize a transferência de membresia com respeito canônico, atestando que o membro deixa esta congregação em plena comunhão, paz e idoneidade.
+- Transfira os cuidados pastorais e fraternos para a amada igreja de destino.`;
+        } else if (letterTypeStr.includes("apresentação") || letterTypeStr.includes("apresentacao")) {
+          letterSpecificGuidelines = `
+ESTA É UMA CARTA DE APRESENTAÇÃO E BOAS-VINDAS:
+- Apresente o irmão(ã) ou família com carinho cristão, recomendando acolhimento no Corpo de Cristo.`;
+        } else if (letterTypeStr.includes("consagração") || letterTypeStr.includes("separação") || letterTypeStr.includes("consagracao")) {
+          letterSpecificGuidelines = `
+ESTA É UMA CARTA DE RECONHECIMENTO E CONSAGRAÇÃO MINISTERIAL:
+- Celebre a vocação sagrada, o testemunho irrepreensível e a separação para a obra de Deus no ministério designado.`;
+        } else if (letterTypeStr.includes("agradecimento")) {
+          letterSpecificGuidelines = `
+ESTA É UMA CARTA DE AGRADECIMENTO ECLESIÁSTICO:
+- Expresse a gratidão da liderança e da igreja pela generosa doação, colaboração ou serviço prestado à obra de Deus.`;
+        }
+
         systemPrompt = `Você é o Secretário Geral e Assessor Pastoral da ${institutionFullName}.
-Sua função é redigir uma carta eclesiástica formal, reverente, bíblica e com impecável padrão de língua portuguesa do Brasil.
+Sua função é redigir uma carta eclesiástica oficial, reverente, bíblica e com impecável padrão de língua portuguesa do Brasil.
 ${strictLanguageInstruction}
-Use saudações cristãs tradicionais ("A paz do Senhor Jesus Cristo", "Amados irmãos em Cristo"), declare a idoneidade moral, espiritual e financeira do membro, cite as atividades desempenhadas e conclua com bênçãos apostólicas e votos fraternos.`;
+${letterSpecificGuidelines}
+Use saudações cristãs tradicionais ("A paz do Senhor Jesus Cristo", "Amados irmãos em Cristo"), desenvolva parágrafos harmônicos e conclua com bênçãos apostólicas e votos fraternos.`;
 
         userPrompt = `Redija uma ${tipoCarta || "Carta de Recomendação Eclesiástica"} oficial com os seguintes dados:
 - Instituição emissora: ${institutionFullName}
-- Nome do(a) Membro: ${membroNome || "Irmão(ã) em Cristo"}
-- Cargo / Ministério: ${cargo || "Membro em Plena Comunhão"}
+- Nome do(a) Destinatário(a) / Membro / Convidado: ${membroNome || "Irmão(ã) em Cristo"}
+- Cargo / Ministério / Função: ${cargo || "Membro em Plena Comunhão"}
 - Membro desde: ${membroDesde || "Data regular de admissão"}
 - Batismo nas Águas: ${dataBatismo || "Regularmente batizado(a)"}
-- Igreja / Destino: ${destinoIgreja || "À amada Igreja coirmã"} ${cidadeDestino ? `em ${cidadeDestino}` : ""}
-- Motivo / Justificativa: ${motivo || "Mudança de residência / viagem a trabalho"}
+- Igreja / Destino / Local do Evento: ${destinoIgreja || "À amada Igreja coirmã"} ${cidadeDestino ? `em ${cidadeDestino}` : ""}
+- Motivo / Justificativa / Tema do Evento: ${motivo || "Conforme solicitado"}
 - Pastor Presidente: ${pastorName || "Pr. Presidente"}
 
 Lembre-se: NÃO use estrangeirismos como "Head da Igreja", use "Cabeça da Igreja". NÃO duplique o nome da igreja.
 
 Retorne um JSON com a seguinte estrutura:
 {
-  "titulo": "Título formal do documento",
-  "assunto": "Resumo do assunto",
-  "corpo": "Texto completo da carta formatado em parágrafos claros",
-  "versiculoChave": "Referência bíblica e texto adequado para o encerramento"
+  "titulo": "Título formal do documento em letras maiúsculas",
+  "assunto": "Resumo do assunto do documento",
+  "corpo": "Texto completo da carta formatado em parágrafos claros e elegantes",
+  "versiculoChave": "Referência bíblica e texto adequado para o encerramento da carta"
 }
 Responda APENAS com o JSON válido.`;
       } else if (type === "ata") {

@@ -120,15 +120,27 @@ export function SecretariaAlertsBanner({
     }
     const cleanPhone = member.phone.replace(/\D/g, "")
     const fullPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone
+
+    const churchNameFinal = (() => {
+      try {
+        const conf = localStorage.getItem("churchConfig");
+        if (conf) {
+          const parsed = JSON.parse(conf);
+          if (parsed.nome) return parsed.nome;
+        }
+      } catch {}
+      return "nossa amada Igreja";
+    })();
+
     const message = encodeURIComponent(
-      `A Paz do Senhor, querido(a) ${member.name}! A liderança e a secretaria da Igreja O Brasil para Cristo (2ª Congregação) desejam um Feliz Aniversário abençoado! Que as ricas bênçãos do Senhor estejam sobre você e sua família. "O Senhor te abençoe e te guarde!" (Números 6:24)`
+      `A Paz do Senhor, querido(a) ${member.name}! 🎉🎂🎈\n\nA liderança pastoral e a secretaria de ${churchNameFinal} desejam a você um abençoado e radiante Feliz Aniversário!\n\nCelebramos a sua vida e oramos para que o Senhor Deus derrame ricas bênçãos sobre seus passos, renovando sua saúde, sabedoria, alegria e sonhos neste novo ciclo de vida.\n\n"O Senhor te abençoe e te guarde; o Senhor faça resplandecer o seu rosto sobre ti e tenha misericórdia de ti; o Senhor sobre ti levante o seu rosto e te dê a paz." (Números 6:24-26)\n\nParabéns pelo seu dia tão especial! 🎁✨`
     )
     const pref = localStorage.getItem("whatsappPreferredMode") || "app"
     if (pref === "app") {
       window.location.href = `whatsapp://send?phone=${fullPhone}&text=${message}`
       toast.success(`Abrindo WhatsApp para enviar parabéns a ${member.name}!`)
     } else {
-      window.open(`https://web.whatsapp.com/send?phone=${fullPhone}?text=${message}`, "_blank")
+      window.open(`https://web.whatsapp.com/send/?phone=${fullPhone}&text=${message}`, "_blank")
       toast.success(`Abrindo WhatsApp Web com parabéns pronto!`)
     }
   }
@@ -283,13 +295,17 @@ export function SecretariaAlertsBanner({
                           <div className="flex items-center gap-1 shrink-0">
                             {m.phone && (
                               <Button
-                                size="icon"
-                                variant="outline"
+                                size="sm"
                                 onClick={() => handleSendWhatsApp(m)}
-                                title="Enviar Parabéns no WhatsApp"
-                                className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-300 dark:border-emerald-800"
+                                title="Disparar Mensagem de Feliz Aniversário no WhatsApp"
+                                className={`h-8 px-2.5 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 ${
+                                  m.isToday
+                                    ? "bg-emerald-600 hover:bg-emerald-500 text-white animate-pulse"
+                                    : "bg-emerald-600/90 hover:bg-emerald-600 text-white"
+                                }`}
                               >
                                 <MessageSquare className="w-3.5 h-3.5" />
+                                <span>Parabenizar</span>
                               </Button>
                             )}
 

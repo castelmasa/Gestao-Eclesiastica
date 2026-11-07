@@ -35,7 +35,9 @@ import {
   Settings2,
   X,
   AlertTriangle,
-  Image as ImageIcon
+  Image as ImageIcon,
+  UserPlus,
+  PenTool
 } from "lucide-react";
 import { toast } from "sonner";
 import { db } from "@/lib/firebase";
@@ -164,6 +166,32 @@ export function EscalaDirigentesModal({
     return () => unsub();
   }, []);
 
+  // Responsável pela elaboração da escala (Anexo 7)
+  const [responsavelElaboracao, setResponsavelElaboracao] = useState(() => {
+    return localStorage.getItem("church_escala_responsavel") || "Secretaria de Cultos & Liturgia";
+  });
+
+  // Lista de Dirigentes e Pregadores cadastrados (Anexo 6)
+  const [customDirigentes, setCustomDirigentes] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("church_dirigentes_list");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  const [customPregadores, setCustomPregadores] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("church_pregadores_list");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  const [isManagingOficiaisModal, setIsManagingOficiaisModal] = useState<"dirigente" | "pregador" | null>(null);
+  const [newOficialName, setNewOficialName] = useState("");
+  const [newOficialRole, setNewOficialRole] = useState("Obreiro(a)");
+
   // Lista de obreiros/membros para seleção
   const obreirosList = useMemo(() => {
     if (members && members.length > 0) {
@@ -177,6 +205,70 @@ export function EscalaDirigentesModal({
       { id: "5", name: "Dsa. Maria Francinete", role: "Diaconisa" }
     ];
   }, [members]);
+
+  // Lista combinada de Dirigentes
+  const dirigentesList = useMemo(() => {
+    const list = new Set<string>();
+    obreirosList.forEach(m => {
+      const label = m.role ? `${m.name} (${m.role})` : m.name;
+      list.add(label);
+    });
+    customDirigentes.forEach(d => list.add(d));
+    return Array.from(list);
+  }, [obreirosList, customDirigentes]);
+
+  // Lista combinada de Pregadores
+  const pregadoresList = useMemo(() => {
+    const list = new Set<string>();
+    obreirosList.forEach(m => {
+      const label = m.role ? `${m.name} (${m.role})` : m.name;
+      list.add(label);
+    });
+    customPregadores.forEach(p => list.add(p));
+    return Array.from(list);
+  }, [obreirosList, customPregadores]);
+
+  // Handler para cadastrar novo Dirigente ou Pregador
+  const handleAddOficial = (type: "dirigente" | "pregador") => {
+    const trimmed = newOficialName.trim();
+    if (!trimmed) {
+      toast.error("Informe o nome completo.");
+      return;
+    }
+    const fullName = newOficialRole ? `${trimmed} (${newOficialRole})` : trimmed;
+    if (type === "dirigente") {
+      const updated = Array.from(new Set([...customDirigentes, fullName]));
+      setCustomDirigentes(updated);
+      localStorage.setItem("church_dirigentes_list", JSON.stringify(updated));
+      setFormData(p => ({ ...p, dirigente: fullName }));
+      toast.success(`Dirigente "${fullName}" cadastrado com sucesso!`);
+    } else {
+      const updated = Array.from(new Set([...customPregadores, fullName]));
+      setCustomPregadores(updated);
+      localStorage.setItem("church_pregadores_list", JSON.stringify(updated));
+      setFormData(p => ({ ...p, pregador: fullName }));
+      toast.success(`Pregador "${fullName}" cadastrado com sucesso!`);
+    }
+    setNewOficialName("");
+    setIsManagingOficiaisModal(null);
+  };
+
+  // Anexo 7: Verificação se há pregadores ou oficiantes preenchidos em toda a escala
+  const hasAnyPregador = useMemo(() => {
+    return escalas.some(
+      item => item.pregador && item.pregador.trim() !== "" && item.pregador.trim() !== "—"
+    );
+  }, [escalas]);
+
+  const hasAnyOficiantes = useMemo(() => {
+    return escalas.some(
+      item =>
+        (item.oracaoInicial && item.oracaoInicial.trim() !== "") ||
+        (item.leituraPalavra && item.leituraPalavra.trim() !== "") ||
+        (item.oracaoDizimos && item.oracaoDizimos.trim() !== "") ||
+        (item.bencaoApostolica && item.bencaoApostolica.trim() !== "")
+    );
+  }, [escalas]);
 
   // Carrega escala do Firestore
   useEffect(() => {
@@ -607,11 +699,26 @@ export function EscalaDirigentesModal({
                     </Select>
                   </div>
 
-                  {/* Dirigente */}
+                  {/* Dirigente com botão de cadastro (Anexo 6) */}
                   <div className="space-y-1">
-                    <Label className="text-xs font-bold text-blue-900 dark:text-blue-200">
-                      Dirigente do Culto *
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-bold text-blue-900 dark:text-blue-200">
+                        Dirigente do Culto *
+                      </Label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsManagingOficiaisModal("dirigente");
+                          setNewOficialName("");
+                          setNewOficialRole("Obreiro(a)");
+                        }}
+                        className="text-[11px] font-bold text-blue-700 dark:text-blue-400 hover:underline flex items-center gap-1"
+                        title="Cadastrar novo dirigente para a lista"
+                      >
+                        <UserPlus className="w-3 h-3" />
+                        + Cadastrar Dirigente
+                      </button>
+                    </div>
                     <Select
                       value={formData.dirigente}
                       onValueChange={(val) => setFormData(p => ({ ...p, dirigente: val }))}
@@ -620,9 +727,9 @@ export function EscalaDirigentesModal({
                         <SelectValue placeholder="Selecione o dirigente" />
                       </SelectTrigger>
                       <SelectContent>
-                        {obreirosList.map((m) => (
-                          <SelectItem key={m.id || m.name} value={m.name} className="text-xs">
-                            {m.name} {m.role ? `(${m.role})` : ""}
+                        {dirigentesList.map((dName) => (
+                          <SelectItem key={dName} value={dName} className="text-xs">
+                            {dName}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -635,11 +742,26 @@ export function EscalaDirigentesModal({
                     />
                   </div>
 
-                  {/* Pregador */}
+                  {/* Pregador com botão de cadastro (Anexo 6) */}
                   <div className="space-y-1">
-                    <Label className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                      Pregador / Mensageiro da Palavra
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                        Pregador / Mensageiro da Palavra
+                      </Label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsManagingOficiaisModal("pregador");
+                          setNewOficialName("");
+                          setNewOficialRole("Pregador(a) / Mensageiro");
+                        }}
+                        className="text-[11px] font-bold text-amber-700 dark:text-amber-400 hover:underline flex items-center gap-1"
+                        title="Cadastrar novo pregador para a lista"
+                      >
+                        <UserPlus className="w-3 h-3" />
+                        + Cadastrar Pregador
+                      </button>
+                    </div>
                     <Select
                       value={formData.pregador}
                       onValueChange={(val) => setFormData(p => ({ ...p, pregador: val }))}
@@ -648,9 +770,9 @@ export function EscalaDirigentesModal({
                         <SelectValue placeholder="Selecione o pregador" />
                       </SelectTrigger>
                       <SelectContent>
-                        {obreirosList.map((m) => (
-                          <SelectItem key={m.id || m.name} value={m.name} className="text-xs">
-                            {m.name} {m.role ? `(${m.role})` : ""}
+                        {pregadoresList.map((pName) => (
+                          <SelectItem key={pName} value={pName} className="text-xs">
+                            {pName}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -705,6 +827,23 @@ export function EscalaDirigentesModal({
                         className="h-7 text-xs"
                       />
                     </div>
+                  </div>
+
+                  {/* Responsável pela Elaboração da Escala (Anexo 7) */}
+                  <div className="space-y-1 pt-1.5 border-t border-border mt-1">
+                    <Label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                      <PenTool className="w-3 h-3 text-primary" />
+                      Responsável pela Elaboração da Escala:
+                    </Label>
+                    <Input
+                      placeholder="Ex: Ir. Maria - Secretaria de Cultos"
+                      value={responsavelElaboracao}
+                      onChange={(e) => {
+                        setResponsavelElaboracao(e.target.value);
+                        localStorage.setItem("church_escala_responsavel", e.target.value);
+                      }}
+                      className="h-7 text-xs bg-background"
+                    />
                   </div>
 
                   <Button
@@ -888,48 +1027,64 @@ export function EscalaDirigentesModal({
                           </tbody>
                         </table>
                       ) : (
-                        /* ESCALA COMPLETA DETALHADA */
+                        /* ESCALA COMPLETA DETALHADA (Anexo 7: Colunas dinâmicas sem quebra de linha) */
                         <table className="w-full text-left text-xs border-collapse">
                           <thead>
-                            <tr className="bg-slate-900 text-white uppercase text-[9px] tracking-wider">
-                              <th className="py-2 px-2 border-r border-slate-700 w-28">Data / Hora</th>
-                              <th className="py-2 px-2 border-r border-slate-700 w-36">Culto</th>
-                              <th className="py-2 px-2 border-r border-slate-700">Dirigente Oficial</th>
-                              <th className="py-2 px-2 border-r border-slate-700">Pregador / Mensageiro</th>
-                              <th className="py-2 px-2">Oficiantes / Apoio</th>
+                            <tr className="bg-slate-900 text-white uppercase text-[9px] tracking-wider whitespace-nowrap">
+                              <th className="py-2.5 px-3 border-r border-slate-700 font-black">Data / Horário</th>
+                              <th className="py-2.5 px-3 border-r border-slate-700 font-black">Culto</th>
+                              <th className="py-2.5 px-3 border-r border-slate-700 font-black">Dirigente Oficial</th>
+                              {hasAnyPregador && (
+                                <th className="py-2.5 px-3 border-r border-slate-700 font-black">Pregador / Mensageiro</th>
+                              )}
+                              {hasAnyOficiantes && (
+                                <th className="py-2.5 px-3 font-black">Oficiantes / Apoio</th>
+                              )}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-300">
-                            {escalas.map((item, idx) => (
-                              <tr key={item.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
-                                <td className="py-2 px-2 border-r border-slate-300 font-bold text-[10px]">
-                                  <div>{formatBrazilianDate(item)}</div>
-                                  {item.horario && <span className="text-blue-800 font-mono text-[9px]">às {item.horario}</span>}
-                                </td>
-                                <td className="py-2 px-2 border-r border-slate-300 font-semibold text-[10px] text-slate-800">
-                                  {item.tipoCulto}
-                                </td>
-                                <td className="py-2 px-2 border-r border-slate-300 font-black text-slate-950 text-[11px]">
-                                  {item.dirigente}
-                                </td>
-                                <td className="py-2 px-2 border-r border-slate-300 font-bold text-amber-900 text-[10px]">
-                                  {item.pregador || "—"}
-                                </td>
-                                <td className="py-2 px-2 text-[9px] text-slate-700 leading-tight">
-                                  {item.oracaoInicial && <div>• Oração: <strong>{item.oracaoInicial}</strong></div>}
-                                  {item.leituraPalavra && <div>• Leitura: <strong>{item.leituraPalavra}</strong></div>}
-                                  {item.oracaoDizimos && <div>• Dízimos: <strong>{item.oracaoDizimos}</strong></div>}
-                                  {!item.oracaoInicial && !item.leituraPalavra && !item.oracaoDizimos && "—"}
-                                </td>
-                              </tr>
-                            ))}
+                            {escalas.map((item, idx) => {
+                              const formattedDate = formatBrazilianDate(item);
+                              const dateAndHour = item.horario ? `${formattedDate} às ${item.horario}` : formattedDate;
+
+                              const oficiantesList: string[] = [];
+                              if (item.oracaoInicial && item.oracaoInicial.trim()) oficiantesList.push(`Oração: ${item.oracaoInicial.trim()}`);
+                              if (item.leituraPalavra && item.leituraPalavra.trim()) oficiantesList.push(`Leitura: ${item.leituraPalavra.trim()}`);
+                              if (item.oracaoDizimos && item.oracaoDizimos.trim()) oficiantesList.push(`Dízimos: ${item.oracaoDizimos.trim()}`);
+                              if (item.bencaoApostolica && item.bencaoApostolica.trim()) oficiantesList.push(`Bênção: ${item.bencaoApostolica.trim()}`);
+                              const oficiantesText = oficiantesList.length > 0 ? oficiantesList.join(" • ") : "—";
+
+                              return (
+                                <tr key={item.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                                  <td className="py-2.5 px-3 border-r border-slate-300 font-mono font-bold text-xs text-slate-900 whitespace-nowrap">
+                                    {dateAndHour}
+                                  </td>
+                                  <td className="py-2.5 px-3 border-r border-slate-300 font-semibold text-xs text-slate-800 whitespace-nowrap">
+                                    {item.tipoCulto}
+                                  </td>
+                                  <td className="py-2.5 px-3 border-r border-slate-300 font-black text-slate-950 text-xs whitespace-nowrap">
+                                    {item.dirigente || "—"}
+                                  </td>
+                                  {hasAnyPregador && (
+                                    <td className="py-2.5 px-3 border-r border-slate-300 font-bold text-amber-950 text-xs whitespace-nowrap">
+                                      {item.pregador || "—"}
+                                    </td>
+                                  )}
+                                  {hasAnyOficiantes && (
+                                    <td className="py-2.5 px-3 text-xs text-slate-700 whitespace-nowrap">
+                                      {oficiantesText}
+                                    </td>
+                                  )}
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       )}
                     </div>
                   </div>
 
-                  {/* Rodapé: Versículo Bíblico e Bloco de Assinatura */}
+                  {/* Rodapé: Versículo Bíblico e Bloco de Assinaturas (Anexo 5 e 7) */}
                   <div className="pt-4 border-t-2 border-slate-900">
                     <div className="p-2.5 rounded bg-slate-50 border border-slate-300 text-center mb-6">
                       <p className="text-[11px] italic font-semibold text-slate-800">
@@ -937,22 +1092,34 @@ export function EscalaDirigentesModal({
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-around text-center pt-2">
-                      <div className="w-64 border-t border-slate-900 pt-1">
-                        <p className="text-[10px] font-black uppercase text-slate-900">
-                          PASTOR TITULAR / COORDENAÇÃO
-                        </p>
-                        <p className="text-xs font-bold text-slate-950">
-                          {pastorResponsavel}
-                        </p>
+                    <div className="flex items-end justify-between px-6 pt-6 text-center">
+                      <div className="w-72 flex flex-col items-center">
+                        <div className="w-full border-t-2 border-slate-900 pt-2">
+                          <p className="text-[10px] font-black uppercase text-slate-900 tracking-wider">
+                            RESPONSÁVEL PELA ELABORAÇÃO DA ESCALA
+                          </p>
+                          <p className="text-xs font-bold text-slate-950 mt-0.5">
+                            {responsavelElaboracao || "Secretaria de Cultos & Liturgia"}
+                          </p>
+                        </div>
                       </div>
-                      <div className="w-64 border-t border-slate-900 pt-1">
-                        <p className="text-[10px] font-black uppercase text-slate-900">
-                          SECRETARIA ECLESIÁSTICA
-                        </p>
-                        <p className="text-xs font-bold text-slate-950">
-                          {churchData?.secretario || "Secretaria Geral"}
-                        </p>
+
+                      <div className="w-72 flex flex-col items-center">
+                        {churchData?.pastorSignatureUrl && (
+                          <img
+                            src={churchData.pastorSignatureUrl}
+                            alt="Assinatura Pastor"
+                            className="h-10 object-contain mx-auto mb-1"
+                          />
+                        )}
+                        <div className="w-full border-t-2 border-slate-900 pt-2">
+                          <p className="text-[10px] font-black uppercase text-slate-900 tracking-wider">
+                            PASTOR TITULAR / PRESIDENTE
+                          </p>
+                          <p className="text-xs font-bold text-slate-950 mt-0.5">
+                            {pastorResponsavel}
+                          </p>
+                        </div>
                       </div>
                     </div>
 
@@ -1073,6 +1240,80 @@ export function EscalaDirigentesModal({
               className="bg-red-600 hover:bg-red-700 text-white font-bold"
             >
               {isDeleting ? "Excluindo..." : "Sim, Excluir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL PARA CADASTRAR DIRIGENTE OU PREGADOR (Anexo 6) */}
+      <Dialog open={!!isManagingOficiaisModal} onOpenChange={(open) => !open && setIsManagingOficiaisModal(null)}>
+        <DialogContent className="max-w-md p-6 bg-card border border-border rounded-2xl shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-primary" />
+              {isManagingOficiaisModal === "dirigente"
+                ? "Cadastrar Novo Dirigente de Culto"
+                : "Cadastrar Novo Pregador / Mensageiro"}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Adicione obreiros, pastores convidados ou dirigentes para ficarem salvos na lista oficial da escala.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Nome Completo *</Label>
+              <Input
+                placeholder="Ex: Pr. Marcos Silva ou Ir. João Paulo"
+                value={newOficialName}
+                onChange={(e) => setNewOficialName(e.target.value)}
+                className="h-9 text-sm"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Cargo / Ministério</Label>
+              <Select value={newOficialRole} onValueChange={setNewOficialRole}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Selecione o cargo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pastor Titular">Pastor Titular</SelectItem>
+                  <SelectItem value="Pastor Auxiliar">Pastor Auxiliar</SelectItem>
+                  <SelectItem value="Pastor Convidado">Pastor Convidado</SelectItem>
+                  <SelectItem value="Evangelista">Evangelista</SelectItem>
+                  <SelectItem value="Presbítero">Presbítero</SelectItem>
+                  <SelectItem value="Diácono">Diácono</SelectItem>
+                  <SelectItem value="Diaconisa">Diaconisa</SelectItem>
+                  <SelectItem value="Missionário(a)">Missionário(a)</SelectItem>
+                  <SelectItem value="Líder de Jovens">Líder de Jovens</SelectItem>
+                  <SelectItem value="Líder de Mulheres">Líder de Mulheres</SelectItem>
+                  <SelectItem value="Líder de Homens">Líder de Homens</SelectItem>
+                  <SelectItem value="Obreiro(a)">Obreiro(a)</SelectItem>
+                  <SelectItem value="Irmão(ã)">Irmão(ã)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsManagingOficiaisModal(null)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => isManagingOficiaisModal && handleAddOficial(isManagingOficiaisModal)}
+              className="bg-primary hover:bg-primary/90 text-white font-bold"
+            >
+              <Check className="w-4 h-4 mr-1.5" />
+              Salvar Cadastro
             </Button>
           </DialogFooter>
         </DialogContent>

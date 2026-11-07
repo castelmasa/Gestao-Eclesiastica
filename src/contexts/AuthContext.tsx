@@ -11,7 +11,7 @@ import {
   signInAnonymously,
   updatePassword
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, query, where, limit, onSnapshot } from 'firebase/firestore';
 
 export interface UserPermissions {
   financeiro?: { view: boolean; add: boolean; edit: boolean; delete: boolean };
@@ -107,6 +107,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string;
+  church?: string;
   role: string;
   isDeveloper?: boolean;
   status?: 'trial' | 'active' | 'expired' | 'blocked' | 'exempt';
@@ -123,6 +125,7 @@ interface AuthContextType {
   isDeveloper: boolean;
   loginWithGoogle: () => Promise<boolean>;
   loginWithEmail: (email: string, password?: string) => Promise<{ success: boolean; error?: string; code?: string }>;
+  loginAsTester: (testerData: { name: string; email: string; phone: string; church?: string }) => Promise<{ success: boolean; error?: string }>;
   changePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   loading: boolean;
@@ -572,6 +575,124 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loginAsTester = async (testerData: { name: string; email: string; phone: string; church?: string }) => {
+    try {
+      const cleanEmail = (testerData.email || '').trim().toLowerCase();
+      const cleanName = (testerData.name || '').trim();
+      const cleanPhone = (testerData.phone || '').trim();
+      const cleanChurch = (testerData.church || '').trim();
+
+      if (!cleanName) return { success: false, error: "Por favor, informe seu nome completo." };
+      if (!cleanEmail || !cleanEmail.includes('@')) return { success: false, error: "Por favor, informe um e-mail válido." };
+      if (!cleanPhone || cleanPhone.length < 8) return { success: false, error: "Por favor, informe seu celular / WhatsApp com DDD." };
+
+      let trialDays = 15;
+      try {
+        const savedDefault = localStorage.getItem('system_default_trial_days');
+        if (savedDefault) trialDays = parseInt(savedDefault, 10) || 15;
+      } catch {}
+
+      // Verifica se o testador já havia se cadastrado previamente para manter a contagem de dias
+      let existingCreatedAt: string | null = null;
+      let existingExpDate: string | null = null;
+
+      try {
+        const leadSnap = await getDocs(query(collection(db, 'leads_testadores'), where('email', '==', cleanEmail), limit(1)));
+        if (!leadSnap.empty) {
+          const leadData = leadSnap.docs[0].data();
+          existingCreatedAt = leadData.createdAt || leadData.accessedAt || null;
+          existingExpDate = leadData.expirationDate || null;
+        }
+      } catch (err) {
+        console.warn("Consulta de cadastro prévio:", err);
+      }
+
+      // Fallback local se não conectou
+      if (!existingCreatedAt) {
+        try {
+          const prevLocal = localStorage.getItem(`church_tester_exp_${cleanEmail}`);
+          if (prevLocal) {
+            const parsed = JSON.parse(prevLocal);
+            existingCreatedAt = parsed.createdAt;
+            existingExpDate = parsed.expirationDate;
+          }
+        } catch {}
+      }
+
+      const now = new Date();
+      const createdAtStr = existingCreatedAt || now.toISOString();
+      let expirationDateStr = existingExpDate;
+
+      if (!expirationDateStr) {
+        const trialEnd = new Date(new Date(createdAtStr).getTime() + trialDays * 24 * 60 * 60 * 1000);
+        expirationDateStr = trialEnd.toISOString();
+      }
+
+      const isExpired = new Date(expirationDateStr) < now;
+      const initialStatus: 'trial' | 'expired' = isExpired ? 'expired' : 'trial';
+
+      const leadPayload = {
+        name: cleanName,
+        email: cleanEmail,
+        phone: cleanPhone,
+        church: cleanChurch,
+        createdAt: createdAtStr,
+        expirationDate: expirationDateStr,
+        trialDays,
+        status: initialStatus,
+        lastAccessedAt: now.toISOString(),
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Desconhecido'
+      };
+
+      // Grava no Firestore para que Carlito Carvalho Rodrigues tenha o controle dos contatos de quem testou
+      try {
+        await addDoc(collection(db, 'leads_testadores'), leadPayload);
+      } catch (err) {
+        console.warn("Aviso ao salvar lead de demonstração no Firestore:", err);
+      }
+
+      // Salva no localStorage para persistência local
+      try {
+        const historyRaw = localStorage.getItem('church_leads_history');
+        const history = historyRaw ? JSON.parse(historyRaw) : [];
+        history.unshift(leadPayload);
+        localStorage.setItem('church_leads_history', JSON.stringify(history.slice(0, 50)));
+        localStorage.setItem('church_tester_registered', JSON.stringify(leadPayload));
+        localStorage.setItem(`church_tester_exp_${cleanEmail}`, JSON.stringify({
+          createdAt: createdAtStr,
+          expirationDate: expirationDateStr,
+          trialDays
+        }));
+      } catch {}
+
+      // Cria a sessão de demonstração com controle de prazo de validade
+      const testerUser: User = {
+        id: `tester_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+        name: cleanName,
+        email: cleanEmail,
+        phone: cleanPhone,
+        church: cleanChurch,
+        role: 'Demonstração / Testador',
+        isDeveloper: false,
+        status: initialStatus,
+        trialDays,
+        permissions: ROLE_PRESET_PERMISSIONS['Administrador'],
+        branch: 'all',
+        createdAt: createdAtStr,
+        expirationDate: expirationDateStr
+      };
+
+      setUser(testerUser);
+      localStorage.setItem('church_session_user', JSON.stringify(testerUser));
+      localStorage.setItem('church_authenticated_email', cleanEmail);
+
+      return { success: true };
+    } catch (e: any) {
+      console.error('Erro ao registrar testador:', e);
+      return { success: false, error: e.message || "Erro ao liberar acesso de teste." };
+    }
+  };
+
   const logout = async () => {
     try {
       localStorage.removeItem('church_session_user');
@@ -598,7 +719,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <AuthContext.Provider value={{ user, isDeveloper: isDeveloperUser, loginWithGoogle, loginWithEmail, changePassword, logout, loading }}>
+    <AuthContext.Provider value={{ user, isDeveloper: isDeveloperUser, loginWithGoogle, loginWithEmail, loginAsTester, changePassword, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

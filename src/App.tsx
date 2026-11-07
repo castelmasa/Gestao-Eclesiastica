@@ -18,6 +18,7 @@ import { PaletasCores } from "./pages/PaletasCores";
 import { Login } from "./pages/Login";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { BranchProvider } from "./contexts/BranchContext";
+import { AiCreditsProvider } from "./contexts/AiCreditsContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { ColorThemeProvider } from "./contexts/ColorThemeContext";
 import { ServicoSocial } from "./pages/ServicoSocial";
@@ -25,6 +26,7 @@ import { Formularios } from "./pages/Formularios";
 import { AreaPastoral } from "./pages/AreaPastoral";
 import { AutoBackupRunner } from "./components/AutoBackupRunner";
 import { ValidarCrachaPublico } from "./pages/ValidarCrachaPublico";
+import { CarteirinhaMembroPublica } from "./pages/CarteirinhaMembroPublica";
 import { Button } from "./components/ui/button";
 import { AccessDeniedScreen } from "./components/common/AccessDeniedScreen";
 import { doc, getDocFromServer } from "firebase/firestore";
@@ -145,6 +147,9 @@ function AppRoutes() {
     <Routes>
       <Route path="/validar-cracha" element={<ValidarCrachaPublico />} />
       <Route path="/validar/cracha" element={<ValidarCrachaPublico />} />
+      <Route path="/carteirinha" element={<CarteirinhaMembroPublica />} />
+      <Route path="/carteirinha-digital" element={<CarteirinhaMembroPublica />} />
+      <Route path="/validar-membro" element={<CarteirinhaMembroPublica />} />
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
@@ -179,10 +184,12 @@ export default function App() {
         <TooltipProvider>
           <AuthProvider>
             <BranchProvider>
-              <BrowserRouter>
-                <AppRoutes />
-                <Toaster position="top-right" richColors />
-              </BrowserRouter>
+              <AiCreditsProvider>
+                <BrowserRouter>
+                  <AppRoutes />
+                  <Toaster position="top-right" richColors />
+                </BrowserRouter>
+              </AiCreditsProvider>
             </BranchProvider>
           </AuthProvider>
         </TooltipProvider>

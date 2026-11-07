@@ -3,8 +3,8 @@ import { GlobalShortcuts } from "@/components/GlobalShortcuts"
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom"
 import { Sidebar } from "./Sidebar"
 import { Breadcrumbs } from "./Breadcrumbs"
-import { useState, useEffect } from "react"
-import { Bell, Maximize, Minimize, Eye, Search, FileText, User, Archive, CalendarClock, PlusCircle, Accessibility, Menu, Building2, PanelLeftClose, PanelLeftOpen, Palette, Sparkles, Sun, Moon, Laptop, Check } from "lucide-react"
+import { useState, useEffect, useMemo } from "react"
+import { Bell, Maximize, Minimize, Eye, Search, FileText, User, Archive, CalendarClock, PlusCircle, Accessibility, Menu, Building2, PanelLeftClose, PanelLeftOpen, Palette, Sparkles, Sun, Moon, Laptop, Check, Clock, CheckCircle2 } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { PWAInstallButton } from "@/components/PWAInstallButton"
@@ -16,6 +16,8 @@ import { ChurchBranchSelector } from "./ChurchBranchSelector"
 import { OfflineIndicator } from "@/components/OfflineIndicator"
 import { GlobalSearchCommandPalette } from "@/components/search/GlobalSearchCommandPalette"
 import { ChurchLogo } from "@/components/ChurchLogo"
+import { AiCreditsBadge } from "@/components/common/AiCreditsBadge"
+import { AiCreditsModal } from "@/components/common/AiCreditsModal"
 
 import { db } from "@/lib/firebase"
 import { collection, onSnapshot, query, orderBy, limit, addDoc, serverTimestamp, updateDoc, doc, getDocs } from "firebase/firestore"
@@ -23,8 +25,23 @@ import { collection, onSnapshot, query, orderBy, limit, addDoc, serverTimestamp,
 
 export function Layout() {
 
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const { activeBranch, setActiveBranch, branches, canChangeBranch, activeBranchName } = useBranch();
+
+    // Controle de Período de Testes e Demonstração
+    const isTrial = user?.status === 'trial' || user?.role === 'Demonstração / Testador';
+    const trialDaysRemaining = useMemo(() => {
+      if (!user?.expirationDate) return null;
+      const exp = new Date(user.expirationDate);
+      const now = new Date();
+      const diff = exp.getTime() - now.getTime();
+      return Math.ceil(diff / (1000 * 60 * 60 * 24));
+    }, [user?.expirationDate]);
+
+    const isTrialExpired = Boolean(
+      user?.status === 'expired' || 
+      (isTrial && trialDaysRemaining !== null && trialDaysRemaining <= 0)
+    );
     const { colorTheme, setColorTheme } = useColorTheme();
     const { theme, setTheme } = useTheme();
   
@@ -702,6 +719,29 @@ export function Layout() {
 
       {!hideSidebar && <div className="print:hidden hidden md:block"><Sidebar /></div>}
       <div className="flex-1 flex flex-col min-w-0 print:w-full print:m-0 print:p-0">
+        {/* Banner Indicativo de Período de Testes / Demonstração */}
+        {isTrial && trialDaysRemaining !== null && trialDaysRemaining > 0 && !isTrialExpired && (
+          <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white text-xs px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2 shadow-xs shrink-0 print:hidden border-b border-emerald-800/40">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-bold flex items-center gap-1 shrink-0 bg-black/20 px-2 py-0.5 rounded text-[11px] tracking-wide uppercase">
+                ✨ Demonstração Ativa
+              </span>
+              <span className="truncate">
+                Olá, <strong>{user?.name}</strong>! Restam <strong>{trialDaysRemaining} dia{trialDaysRemaining > 1 ? 's' : ''}</strong> de avaliação gratuita.
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href={`https://wa.me/5518991099608?text=${encodeURIComponent(`Olá Carlito! Estou testando o Gestão Eclesiástica (${user?.name} - ${user?.church || 'Igreja'}) e gostaria de tirar dúvidas ou saber sobre a licença oficial.`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white text-emerald-800 hover:bg-emerald-50 px-2.5 py-1 rounded-md font-bold text-[11px] transition-colors flex items-center gap-1 shadow-xs"
+              >
+                Falar com Carlito Rodrigues (18) 99109-9608
+              </a>
+            </div>
+          </div>
+        )}
         <header className="print:hidden h-16 flex items-center justify-between px-4 sm:px-6 border-b border-border/50 bg-card shrink-0 gap-2 sm:gap-3">
           {/* Left: Mobile Menu & Search */}
           <div className="flex items-center gap-2 flex-1 max-w-sm">
@@ -745,6 +785,7 @@ export function Layout() {
 
           {/* Right: Quick Actions */}
           <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            <AiCreditsBadge />
 
             <Button variant="ghost" size="icon" onClick={() => setIsHighContrast(!isHighContrast)} title="Alto Contraste">
               <Eye className={`h-5 w-5 ${isHighContrast ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -812,8 +853,64 @@ export function Layout() {
           </div>
         </main>
       </div>
+
+      {/* Modal Bloqueante: Período de Testes Finalizado */}
+      {isTrialExpired && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-card border border-border shadow-2xl rounded-2xl max-w-lg w-full p-6 sm:p-8 text-center space-y-5 animate-in fade-in-50 zoom-in-95">
+            <div className="w-16 h-16 rounded-full bg-amber-500/10 text-amber-500 mx-auto flex items-center justify-center">
+              <Clock className="w-8 h-8" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
+                Período de Demonstração Finalizado
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Olá, <strong className="text-foreground">{user?.name}</strong>! O seu período de avaliação gratuita de {user?.trialDays || 15} dias do sistema <strong>Gestão Eclesiástica</strong> chegou ao fim.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl border border-border/80 bg-muted/30 text-left text-xs space-y-2.5">
+              <div className="font-semibold text-foreground flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                Como ativar a licença oficial da sua congregação:
+              </div>
+              <p className="text-muted-foreground leading-relaxed">
+                Para continuar utilizando todas as ferramentas de administração cristã, emissão de cartas com IA, tesouraria e escalas oficiais, fale diretamente com o desenvolvedor responsável:
+              </p>
+              <div className="pt-2 border-t border-border/50 text-foreground">
+                <p className="font-bold text-sm">Carlito Carvalho Rodrigues</p>
+                <p className="text-emerald-600 dark:text-emerald-400 font-semibold text-xs mt-0.5">
+                  WhatsApp Oficial: (18) 99109-9608
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2.5 pt-2">
+              <a
+                href={`https://wa.me/5518991099608?text=${encodeURIComponent(`Olá Carlito! Concluí o período de testes do Gestão Eclesiástica (${user?.name} - ${user?.church || 'Igreja'}) e gostaria de contratar a licença definitiva para minha igreja.`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all text-sm"
+              >
+                Conversar no WhatsApp com Carlito
+              </a>
+              <Button
+                variant="outline"
+                onClick={logout}
+                className="w-full h-10 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Sair do Sistema / Voltar à Tela Inicial
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <OfflineIndicator />
       <GlobalSearchCommandPalette open={isSearchOpen} onOpenChange={setIsSearchOpen} />
+      <AiCreditsModal />
     </div>
   )
 }

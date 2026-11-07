@@ -66,7 +66,7 @@ const DEFAULT_CELULAS = [
 export function RelatorioSemanalCelulaModal({
   isOpen,
   onClose,
-  churchName = "Igreja Evangélica Manancial",
+  churchName = "Igreja Evangélica Pentecostal O Brasil para Cristo",
   activeBranchName = "Templo Sede"
 }: RelatorioSemanalCelulaModalProps) {
   const [reports, setReports] = useState<CelulaMeetingReport[]>([]);

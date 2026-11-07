@@ -134,6 +134,19 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Controle e auditoria de créditos de Inteligência Artificial por igreja
+    match /church_ai_credits/{churchId} {
+      allow read, write: if true;
+    }
+    match /ai_usage_logs/{id} {
+      allow read, write: if true;
+    }
+
+    // Fechamento e trava de meses contábeis no financeiro
+    match /closed_financial_months/{id} {
+      allow read, write: if true;
+    }
+
     // Safety net: deny all other paths by default
     match /{document=**} {
       allow read, write: if false;
