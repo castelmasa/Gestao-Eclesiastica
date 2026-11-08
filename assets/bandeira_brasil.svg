@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700" width="1000" height="700">
+  <defs>
+    <!-- Gradiente de seda ondulada para efeito realista -->
+    <linearGradient id="silkWave" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18" />
+      <stop offset="25%" stop-color="#000000" stop-opacity="0.08" />
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.15" />
+      <stop offset="75%" stop-color="#000000" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.1" />
+    </linearGradient>
+    <radialGradient id="globeShade" cx="45%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#1e3a8a" />
+      <stop offset="60%" stop-color="#002776" />
+      <stop offset="100%" stop-color="#001744" />
+    </radialGradient>
+    <!-- Estrela de 5 pontas -->
+    <g id="star">
+      <polygon points="0,-7 2.16,-2.16 7,-2.16 3.24,0.82 4.54,5.66 0,2.8 -4.54,5.66 -3.24,0.82 -7,-2.16 -2.16,-2.16" fill="#ffffff" />
+    </g>
+    <g id="starSmall">
+      <polygon points="0,-4.5 1.39,-1.39 4.5,-1.39 2.08,0.53 2.92,3.64 0,1.8 -2.92,3.64 -2.08,0.53 -4.5,-1.39 -1.39,-1.39" fill="#ffffff" />
+    </g>
+  </defs>
+
+  <!-- Campo Verde Oficial -->
+  <rect width="1000" height="700" fill="#009b3a" rx="16" />
+
+  <!-- Losango Amarelo Ouro -->
+  <polygon points="500,59.5 915,350 500,640.5 85,350" fill="#ffdf00" />
+
+  <!-- Círculo Azul Celeste -->
+  <circle cx="500" cy="350" r="175" fill="url(#globeShade)" />
+
+  <!-- Faixa Branca com Arco Suave -->
+  <path d="M 333,380 A 240,240 0 0,1 667,320 L 664,295 A 265,265 0 0,0 335,355 Z" fill="#ffffff" />
+
+  <!-- Texto ORDEM E PROGRESSO em Arco -->
+  <path id="textArc" d="M 345,372 A 252,252 0 0,1 655,312" fill="none" stroke="none" />
+  <text font-family="'Arial Black', Arial, sans-serif" font-weight="900" font-size="16" fill="#009b3a" letter-spacing="4">
+    <textPath href="#textArc" startOffset="50%" text-anchor="middle">
+      ORDEM E PROGRESSO
+    </textPath>
+  </text>
+
+  <!-- Constelações Oficiais (Cruzeiro do Sul, Spica, Canopus, etc.) -->
+  <!-- Spica acima da faixa -->
+  <use href="#star" x="500" y="270" />
+  
+  <!-- Cruzeiro do Sul -->
+  <use href="#star" x="500" y="415" /> <!-- Alfa Crucis -->
+  <use href="#starSmall" x="500" y="375" /> <!-- Gama Crucis -->
+  <use href="#starSmall" x="480" y="395" /> <!-- Beta Crucis -->
+  <use href="#starSmall" x="520" y="390" /> <!-- Delta Crucis -->
+  <use href="#starSmall" x="508" y="405" /> <!-- Épsilon Crucis (Intrometida) -->
+
+  <!-- Estrelas Adicionais do Céu do Rio de Janeiro -->
+  <use href="#star" x="430" y="445" /> <!-- Canopus (Sirius) -->
+  <use href="#starSmall" x="400" y="460" />
+  <use href="#starSmall" x="460" y="470" />
+  <use href="#starSmall" x="560" y="440" />
+  <use href="#starSmall" x="590" y="430" />
+  <use href="#starSmall" x="620" y="445" />
+  <use href="#starSmall" x="600" y="470" />
+  <use href="#starSmall" x="380" y="410" />
+  <use href="#starSmall" x="360" y="435" />
+
+  <!-- Textura de Seda Ondulada Translúcida -->
+  <rect width="1000" height="700" fill="url(#silkWave)" rx="16" style="mix-blend-mode: overlay;" />
+</svg>
