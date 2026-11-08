@@ -160,3 +160,69 @@
 - **Anexos 2 e 3 - Correção do Erro "Rendered more hooks than during the previous render"**:
   - **Causa**: Em `src/pages/CarteirinhaMembroPublica.tsx`, hooks `useMemo` (`cardTheme` e `registeredLogo`) estavam posicionados após os retornos condicionais `if (loading)` e `if (!member)`. Quando a página abria ou quando o link copiado era colado no navegador, a renderização inicial registrava menos hooks do que a renderização com os dados carregados, disparando o erro de ciclo de vida do React.
   - **Solução**: Todos os hooks (`churchConfig`, `cardTheme`, `registeredLogo`, `searchTerm`, `searchResults`) foram movidos incondicionalmente para o topo do componente, respeitando estritamente as *Rules of Hooks* do React. A página pública da carteirinha agora abre instantaneamente no celular e em qualquer navegador via link copiado sem nenhuma falha.
+
+## 13. Resolução dos 7 Novos Anexos Solicitados (Alinhamentos, Rolagem, Validade e Selo Superior)
+1. **Anexo 1 - Legenda em Frame no Login (`src/pages/Login.tsx`)**:
+   - Atualizado o subtítulo abaixo de "Sistema Integrado de Administração Cristã & Ministerial" para o texto exato solicitado: **"Plataforma Completa de Administração Eclesiástica"**.
+   - O texto foi posicionado dentro de um elegante container em moldura (`frame`), com borda esmeralda translúcida, fundo escuro estilizado, indicador luminoso pulsante e cantos arredondados, harmonizando com a identidade visual da igreja.
+
+2. **Anexo 2 - Alinhamento Perfeito dos Frames de Documentos (`src/pages/Secretaria.tsx`)**:
+   - No bloco "Documentos, Comunicados & Relatórios Oficiais", os 6 botões/cards (`Documentos`, `Relatórios`, `Comunicados`, `Gestor de Eventos`, `Cargos & Funções`, `Carteirinha Digital`) foram reorganizados.
+   - O selo **NOVO** da Carteirinha Digital foi reposicionado no canto superior direito interno do cartão, eliminando o transbordamento (`overflow`) que cortava a palavra como "NOV".
+   - Aplicada a disciplina de `min-w-0`, `truncate` e proporções simétricas para que todos os títulos e descrições fiquem 100% contidos dentro de suas respectivas molduras sem cortes.
+
+3. **Anexo 3 - Correção da Rolagem e Visualização Completa da Carteirinha (`CarteirinhaDigitalModal.tsx`)**:
+   - **Causa**: O container flex utilizava `justify-center` em conjunto com `overflow-y-auto`. Em viewports menores ou notebooks, o cálculo do flexbox empurrava o topo do cartão para fora da área rolável (posição negativa de scroll), impedindo que o usuário visse o topo do crachá.
+   - **Solução**: Corrigido para alinhamento superior com `justify-start` e margem automática suave (`my-auto`), garantindo que tanto na visualização padrão quanto no modo editor o cartão permaneça 100% visível, rolável e sem nenhum corte.
+
+4. **Anexo 4 - Harmonização e Centralização da Validade da Credencial**:
+   - No Verso da carteirinha (Verso Constitucional, Verso Simples e impressão), a faixa de validade foi redesenhada:
+     - A legenda **"VALIDADE DA CREDENCIAL:"** e a data (ex: `31/12/2028`) agora ficam unidas e próximas (com `gap-2`), em vez de separadas nas extremidades opostas do cartão.
+     - O bloco está perfeitamente centralizado na horizontal e na vertical.
+     - As cores foram harmonizadas com o tema e a cor de destaque (`accentColor` e `borderColor`), garantindo contraste legível e aspecto institucional requintado.
+
+5. **Anexo 5 - Rolagem Completa até a Última Opção no Modo Editor**:
+   - Ajustado o container de edição e adicionado espaçamento inferior de segurança (`pb-36`).
+   - O usuário agora consegue rolar o menu lateral até o fim absoluto, acessando perfeitamente a seção **"Função Ministerial (Obreiro do Altar)"** e suas notas explicativas sem nenhum bloqueio ou ocultação.
+
+6. **Anexo 6 - Alinhamento do Cabeçalho e Selo nos Obreiros do Altar**:
+   - No cabeçalho da carteirinha, foi adicionado espaçamento flexível (`gap-2`) e truncamento inteligente com `min-w-0 flex-1`.
+   - O selo superior recebeu a regra `shrink-0 whitespace-nowrap self-center`, impedindo que textos como `MINISTERIAL` ou `CREDENCIAL MINISTERIAL` sejam comprimidos ou tenham suas letras cortadas.
+   - A legenda "OBREIRO DO ALTAR" foi alinhada com margens simétricas diretamente sobre o nome do ministro e sua credencial.
+
+7. **Anexo 7 - Efeito Imediato da Seleção do "Selo Superior"**:
+   - **Causa**: O código anterior sobrepunha a escolha do dropdown caso o membro fosse detectado como obreiro (`isObreiro ? "CREDENCIAL MINISTERIAL" : badgeLabel`).
+   - **Solução**: Atualizada a precedência para `const activeBadgeLabel = cardTheme.badgeLabel || (isObreiro ? "CREDENCIAL MINISTERIAL" : "OFICIAL")`.
+   - Adicionada também a opção explícita "CREDENCIAL MINISTERIAL" ao dropdown do Selo Superior. Ao selecionar qualquer opção ("MEMBRO ATIVO", "CREDENCIAL", "OFICIAL", "MINISTERIAL", etc.), ela reflete **imediatamente** na carteirinha na tela, na versão impressa e no celular do membro!
+
+## 14. Resolução dos Problemas do Verso Constitucional & CF/88 (Prompt 10)
+1. **Fim do Corte no Canto Superior e Conteúdo Completo**:
+   - **Causa**: O verso utilizava uma imagem bitmap com `background-size: cover` que empurrava o topo para além da borda física do crachá, cortando o cabeçalho "CONSTITUIÇÃO DE 1988/REPÚBLICA FEDERATIVA DO BRASIL". Além disso, a advertência legal ("Esta Credencial é pessoal e intransferível...") ficava sobreposta e oculta pela barra de validade.
+   - **Solução Implementada**:
+     - Removida a imagem raster cortada e implementado o fundo com a bandeira oficial do Brasil vetorizada (`/assets/bandeira_brasil.svg`), posicionada no lado esquerdo com fade suave para branco.
+     - Cabeçalho dotado de padding seguro (`pt-1 sm:pt-1.5 px-1`) que impede qualquer corte nos cantos superiores.
+     - Todos os textos e artigos constitucionais inseridos na íntegra:
+       - `REPÚBLICA FEDERATIVA DO BRASIL • CONSTITUIÇÃO DE 1988`
+       - `Solicitamos às autoridades oficiais, civis e militares que dispensem ao portador todas as facilidades e auxílios no exercício de seu Ministério.`
+       - `ENTRADAS EM HOSPITAIS E PRESÍDIOS` (Art. 5º VII-A / Lei 9.982)
+       - `LIBERDADE DE CULTO` (Art. 5º VI)
+       - `Esta Credencial é pessoal e intransferível. Válida com apresentação de RG/CPF.`
+       - QR Code de Validação Digital (`VALIDAR DIGITAL` e validade).
+       - Barra de Validade centralizada sem colisões.
+       - Assinaturas digitais oficiais do Pastor Presidente e Pastor Local.
+
+2. **Correção da Inversão e Preservação na Seleção do Verso**:
+   - **Causa**: O seletor utilizava valores "sim/nao" e, ao trocar o tema predefinido de cores, o estado do verso era reinicializado para o padrão do tema, gerando a sensação de inversão ou perda da escolha. Além disso, a carteirinha combinada para download móvel forçava o verso com bandeira mesmo quando "Verso Simples" estava selecionado.
+   - **Solução Implementada**:
+     - Seletor atualizado para rótulos e valores diretos:
+       - `🇧🇷 Verso com Bandeira & CF/88 (Constitucional)` (`value="bandeira"`)
+       - `⚪ Verso Simples (Eclesiástico Tradicional)` (`value="simples"`)
+     - `handleSelectPresetTheme` atualizado para preservar a escolha do usuário sobre o modelo do verso, largura de borda e obreiro ao alternar temas de cores.
+     - Sincronização em todos os locais: Modal da Secretaria, página pública móvel (`/carteirinha`) e exportação combinada (Frente + Verso) em PDF/PNG.
+
+3. **Eliminação de Legendas Fracas/Apagadas & Enquadramento em Frames**:
+   - **Causa**: O arquivo PNG original continha textos estáticos que, somados a um degradê branco semitransparente (`rgba(255,255,255,0.72)`), deixavam as legendas acinzentadas, borradas e apagadas, além do conflito de texto duplicado.
+   - **Solução Implementada**:
+     - Fundo 100% limpo, sem textos impressos na arte gráfica da bandeira.
+     - Cada garantia constitucional (`ENTRADAS EM HOSPITAIS E PRESÍDIOS` e `LIBERDADE DE CULTO`) foi emoldurada em seu próprio container/frame com fundo branco translúcido (`bg-white/90`), cantos arredondados e borda sutil.
+     - Cores com contraste máximo: títulos em verde-floresta sólido profundo (`#064e3b` / `text-emerald-950`) em peso ultra-negrito (`font-black`), e artigos legais em ardósia escuro (`#0f172a` / `#1e293b`), garantindo 100% de legibilidade tanto na tela quanto na impressão.

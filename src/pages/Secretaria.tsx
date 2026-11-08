@@ -2825,13 +2825,13 @@ export function Secretaria() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 w-full">
               <Dialog open={isDocsModalOpen} onOpenChange={setIsDocsModalOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-primary/5 transition-all text-left w-full shadow-sm">
-                <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg text-blue-600 dark:text-blue-400">
+              <Button variant="outline" className="h-auto flex-col items-start p-3.5 gap-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-primary/5 transition-all text-left w-full shadow-sm rounded-xl overflow-hidden min-w-0">
+                <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg text-blue-600 dark:text-blue-400 shrink-0">
                   <FileText className="h-5 w-5" />
                 </div>
-                <div>
-                  <div className="font-semibold text-sm">Documentos</div>
-                  <div className="text-xs text-muted-foreground font-normal">Cartas e certificados</div>
+                <div className="w-full min-w-0">
+                  <div className="font-semibold text-sm truncate">Documentos</div>
+                  <div className="text-xs text-muted-foreground font-normal truncate">Cartas e certificados</div>
                 </div>
               </Button>
             </DialogTrigger>
@@ -3575,13 +3575,13 @@ export function Secretaria() {
 
           <Dialog open={isPrintModalOpen} onOpenChange={setIsPrintModalOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-primary/5 transition-all text-left w-full shadow-sm">
-                <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-lg text-emerald-600 dark:text-emerald-400">
+              <Button variant="outline" className="h-auto flex-col items-start p-3.5 gap-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-primary/5 transition-all text-left w-full shadow-sm rounded-xl overflow-hidden min-w-0">
+                <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-lg text-emerald-600 dark:text-emerald-400 shrink-0">
                   <Printer className="h-5 w-5" />
                 </div>
-                <div>
-                  <div className="font-semibold text-sm">Relatórios</div>
-                  <div className="text-xs text-muted-foreground font-normal">Fichas e carteirinhas</div>
+                <div className="w-full min-w-0">
+                  <div className="font-semibold text-sm truncate">Relatórios</div>
+                  <div className="text-xs text-muted-foreground font-normal truncate">Fichas e carteirinhas</div>
                 </div>
               </Button>
             </DialogTrigger>
@@ -4200,33 +4200,33 @@ export function Secretaria() {
             </DialogContent>
           </Dialog>
           
-          <Button variant="outline" onClick={handleSendNotice} className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-primary/5 transition-all text-left w-full shadow-sm">
-            <div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-lg text-amber-600 dark:text-amber-400">
+          <Button variant="outline" onClick={handleSendNotice} className="h-auto flex-col items-start p-3.5 gap-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-primary/5 transition-all text-left w-full shadow-sm rounded-xl overflow-hidden min-w-0">
+            <div className="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-lg text-amber-600 dark:text-amber-400 shrink-0">
               <Mail className="h-5 w-5" />
             </div>
-            <div>
-              <div className="font-semibold text-sm">Comunicados</div>
-              <div className="text-xs text-muted-foreground font-normal">Enviar e-mails/avisos</div>
+            <div className="w-full min-w-0">
+              <div className="font-semibold text-sm truncate">Comunicados</div>
+              <div className="text-xs text-muted-foreground font-normal truncate">Enviar e-mails/avisos</div>
             </div>
           </Button>
           
-          <Button variant="outline" onClick={() => setIsEventPresenceModalOpen(true)} className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-primary/5 transition-all text-left w-full shadow-sm">
-            <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-lg text-purple-600 dark:text-purple-400">
+          <Button variant="outline" onClick={() => setIsEventPresenceModalOpen(true)} className="h-auto flex-col items-start p-3.5 gap-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-primary/5 transition-all text-left w-full shadow-sm rounded-xl overflow-hidden min-w-0">
+            <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-lg text-purple-600 dark:text-purple-400 shrink-0">
               <CalendarDays className="h-5 w-5" />
             </div>
-            <div>
-              <div className="font-semibold text-sm">Gestor de Eventos</div>
-              <div className="text-xs text-muted-foreground font-normal">Listas de presença</div>
+            <div className="w-full min-w-0">
+              <div className="font-semibold text-sm truncate">Gestor de Eventos</div>
+              <div className="text-xs text-muted-foreground font-normal truncate">Listas de presença</div>
             </div>
           </Button>
 
-          <Button variant="outline" onClick={() => setIsRoleDialogOpen(true)} className="h-auto flex-col items-start p-4 gap-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-primary/5 transition-all text-left w-full shadow-sm">
-            <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-lg text-emerald-600 dark:text-emerald-400">
+          <Button variant="outline" onClick={() => setIsRoleDialogOpen(true)} className="h-auto flex-col items-start p-3.5 gap-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-primary/5 transition-all text-left w-full shadow-sm rounded-xl overflow-hidden min-w-0">
+            <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-lg text-emerald-600 dark:text-emerald-400 shrink-0">
               <Award className="h-5 w-5" />
             </div>
-            <div>
-              <div className="font-semibold text-sm">Cargos & Funções</div>
-              <div className="text-xs text-muted-foreground font-normal">Gerenciar eclesiásticos</div>
+            <div className="w-full min-w-0">
+              <div className="font-semibold text-sm truncate">Cargos & Funções</div>
+              <div className="text-xs text-muted-foreground font-normal truncate">Gerenciar eclesiásticos</div>
             </div>
           </Button>
 
@@ -4238,17 +4238,19 @@ export function Secretaria() {
               setSelectedMemberForCard(target);
               setIsCarteirinhaModalOpen(true);
             }} 
-            className="h-auto flex-col items-start p-4 gap-2 border-teal-300 dark:border-teal-800 hover:border-teal-500/60 hover:bg-teal-500/5 transition-all text-left w-full shadow-sm ring-1 ring-teal-500/20"
+            className="h-auto flex-col items-start p-3.5 gap-2 border-teal-300 dark:border-teal-800 hover:border-teal-500/60 hover:bg-teal-500/5 transition-all text-left w-full shadow-sm ring-1 ring-teal-500/20 rounded-xl overflow-hidden min-w-0"
           >
-            <div className="bg-teal-100 dark:bg-teal-900/40 p-2 rounded-lg text-teal-700 dark:text-teal-300">
-              <IdCard className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="font-semibold text-sm flex items-center gap-1.5">
-                Carteirinha Digital
-                <span className="text-[9px] bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 font-bold px-1 rounded">NOVO</span>
+            <div className="flex items-center justify-between w-full">
+              <div className="bg-teal-100 dark:bg-teal-900/40 p-2 rounded-lg text-teal-700 dark:text-teal-300 shrink-0">
+                <IdCard className="h-5 w-5" />
               </div>
-              <div className="text-xs text-muted-foreground font-normal">QR Code no Celular</div>
+              <span className="text-[9px] bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 font-extrabold px-1.5 py-0.5 rounded-full border border-teal-400/30 shrink-0">
+                NOVO
+              </span>
+            </div>
+            <div className="w-full min-w-0">
+              <div className="font-semibold text-sm truncate text-foreground">Carteirinha Digital</div>
+              <div className="text-xs text-muted-foreground font-normal truncate">QR Code no Celular</div>
             </div>
           </Button>
             </div>

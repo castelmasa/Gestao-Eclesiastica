@@ -1,33 +1,82 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { removeImageBackground, getCachedTransparentLogo } from "@/lib/imageBackgroundRemover";
 
 export interface BrasaoWatermarkProps {
   color?: string;
   size?: number | string;
   opacity?: number;
   registeredLogo?: string;
+  customWatermarkUrl?: string;
+  watermarkMode?: "parametros" | "brasao" | "upload";
+  watermarkHarmony?: "accent" | "white" | "blend" | "original";
   className?: string;
 }
 
 /**
  * Brasão d'Água Oficial para Carteirinhas e Credenciais Eclesiásticas.
- * - Fundo 100% transparente.
- * - Ocupa rigorosamente o centro do cartão.
- * - Cor harmonizada automaticamente com o tema/acabamento da carteirinha (sem manchas pretas ou vermelhas).
- * - Selo heráldico circular com anéis de segurança, Cruz, Bíblia e estrelas.
+ * - Puxa automaticamente a Logo da Igreja configurada em Parâmetros SEM o pano de fundo.
+ * - Harmonia cromática com a cor da credencial (dourado / cor dos detalhes, branca ou blend).
+ * - Remove automaticamente fundos brancos/sólidos via canvas flood-fill.
+ * - Suporta também upload de imagem própria ou Brasão Heráldico de Segurança.
+ * - Fundo 100% transparente, centralizado e sem caixas/manchas de fundo.
  */
 export function BrasaoWatermark({
   color = "#ffffff",
   size = 145,
-  opacity = 0.15,
+  opacity = 0.2,
   registeredLogo,
+  customWatermarkUrl,
+  watermarkMode = "parametros",
+  watermarkHarmony = "accent",
   className = "",
 }: BrasaoWatermarkProps) {
-  // Verifica se existe um logo customizado real (PNG/JPG) em vez do SVG com textos escuros
-  const isCustomUploadedLogo =
-    registeredLogo &&
-    !registeredLogo.includes("data:image/svg+xml;utf8,<svg") &&
-    !registeredLogo.includes("%230f172a") &&
-    !registeredLogo.includes("#0f172a");
+  // Determina a imagem ativa com base na preferência do usuário e nos parâmetros
+  let activeImageUrl: string | null = null;
+  if (watermarkMode === "brasao") {
+    activeImageUrl = null;
+  } else if (watermarkMode === "upload") {
+    activeImageUrl = customWatermarkUrl || registeredLogo || null;
+  } else {
+    // "parametros" ou não definido: prioridade máxima para a logo dos Parâmetros
+    activeImageUrl = registeredLogo || customWatermarkUrl || null;
+  }
+
+  // Estado para a logo processada com fundo 100% transparente
+  const [processedUrl, setProcessedUrl] = useState<string | null>(() => {
+    return getCachedTransparentLogo(activeImageUrl) || null;
+  });
+
+  useEffect(() => {
+    if (!activeImageUrl) {
+      setProcessedUrl(null);
+      return;
+    }
+
+    const cached = getCachedTransparentLogo(activeImageUrl);
+    if (cached) {
+      setProcessedUrl(cached);
+      return;
+    }
+
+    let active = true;
+    removeImageBackground(activeImageUrl)
+      .then((transparent) => {
+        if (active) {
+          setProcessedUrl(transparent);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setProcessedUrl(activeImageUrl);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [activeImageUrl]);
+
+  const displayUrl = processedUrl || activeImageUrl;
 
   return (
     <div
@@ -35,21 +84,82 @@ export function BrasaoWatermark({
       aria-hidden="true"
     >
       <div
-        className="relative flex items-center justify-center"
+        className="relative flex items-center justify-center transition-all duration-300"
         style={{
           width: size,
           height: size,
-          opacity: opacity,
           color: color,
         }}
       >
-        {/* Selo Heráldico Circular de Autenticidade (Guilloché / Marca d'Água) */}
-        <svg
-          viewBox="0 0 200 200"
-          className="w-full h-full object-contain"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
+        {displayUrl ? (
+          watermarkHarmony === "accent" || !watermarkHarmony ? (
+            /* HARMONIA OFICIAL DOURADA / COR DOS DETALHES DA CREDENCIAL */
+            <div
+              className="w-full h-full pointer-events-none select-none transition-all duration-300"
+              style={{
+                backgroundColor: color || "#f59e0b",
+                WebkitMaskImage: `url(${displayUrl})`,
+                maskImage: `url(${displayUrl})`,
+                WebkitMaskSize: "contain",
+                maskSize: "contain",
+                WebkitMaskRepeat: "no-repeat",
+                maskRepeat: "no-repeat",
+                WebkitMaskPosition: "center",
+                maskPosition: "center",
+                opacity: opacity ?? 0.22,
+                filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
+              }}
+            />
+          ) : watermarkHarmony === "white" ? (
+            /* FILIGRANA BRANCA TRANSLÚCIDA */
+            <div
+              className="w-full h-full pointer-events-none select-none transition-all duration-300"
+              style={{
+                backgroundColor: "#ffffff",
+                WebkitMaskImage: `url(${displayUrl})`,
+                maskImage: `url(${displayUrl})`,
+                WebkitMaskSize: "contain",
+                maskSize: "contain",
+                WebkitMaskRepeat: "no-repeat",
+                maskRepeat: "no-repeat",
+                WebkitMaskPosition: "center",
+                maskPosition: "center",
+                opacity: (opacity ?? 0.2) * 0.9,
+                filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))",
+              }}
+            />
+          ) : watermarkHarmony === "blend" ? (
+            /* TOM SOBRE TOM / SCREEN BLEND COM O FUNDO DO CARTÃO */
+            <img
+              src={displayUrl}
+              alt="Logo Marca d'Água do Fundo"
+              className="w-full h-full object-contain pointer-events-none select-none bg-transparent"
+              style={{
+                opacity: opacity ?? 0.25,
+                mixBlendMode: "screen",
+                filter: "brightness(1.35) contrast(1.15)",
+              }}
+            />
+          ) : (
+            /* CORES ORIGINAIS SUAVES */
+            <img
+              src={displayUrl}
+              alt="Logo Marca d'Água do Fundo"
+              className="w-full h-full object-contain pointer-events-none select-none bg-transparent"
+              style={{
+                opacity: opacity ?? 0.22,
+                filter: "contrast(105%) brightness(105%)",
+              }}
+            />
+          )
+        ) : (
+          /* Selo Heráldico Circular de Autenticidade (Guilloché / Marca d'Água) */
+          <svg
+            viewBox="0 0 200 200"
+            className="w-full h-full object-contain"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
           {/* Anéis de filigrana e segurança concêntricos */}
           <circle cx="100" cy="100" r="95" stroke="currentColor" strokeWidth="1" strokeDasharray="3 3" />
           <circle cx="100" cy="100" r="91" stroke="currentColor" strokeWidth="2.2" />
@@ -106,18 +216,6 @@ export function BrasaoWatermark({
             opacity="0.9"
           />
         </svg>
-
-        {/* Caso a congregação tenha enviado um arquivo de logo próprio em imagem */}
-        {isCustomUploadedLogo && (
-          <img
-            src={registeredLogo}
-            alt="Logo Customizado"
-            className="absolute inset-0 m-auto w-14 h-14 object-contain pointer-events-none select-none bg-transparent"
-            style={{
-              filter: "brightness(0) invert(1)",
-              opacity: 0.75,
-            }}
-          />
         )}
       </div>
     </div>

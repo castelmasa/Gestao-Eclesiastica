@@ -175,10 +175,13 @@ export function Login() {
             </p>
           </div>
 
-          {/* Apresentação padrão organizada */}
-          <p className="text-xs text-slate-300 max-w-sm leading-relaxed px-2">
-            Plataforma completa de administração cristã, membresia, emissão de cartas timbradas com IA, balancete financeiro, patrimônio e escalas de ministérios.
-          </p>
+          {/* Frame solicitado no Anexo 1 */}
+          <div className="px-4 py-2 rounded-xl bg-slate-900/90 border border-emerald-500/40 shadow-lg shadow-emerald-950/40 backdrop-blur-md inline-flex items-center gap-2 max-w-sm">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="text-xs font-semibold text-slate-200 tracking-wide">
+              Plataforma Completa de Administração Eclesiástica
+            </span>
+          </div>
 
           <div className="h-0.5 w-16 bg-gradient-to-r from-emerald-500 to-teal-400 mx-auto rounded-full"></div>
         </div>

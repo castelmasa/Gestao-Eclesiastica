@@ -8,6 +8,20 @@ export interface LeadershipSignatures {
     phone?: string;
     email?: string;
   };
+  pastorPresidente: {
+    name: string;
+    role: string;
+    signatureUrl?: string;
+  };
+  pastorLocal: {
+    name: string;
+    role: string;
+    signatureUrl?: string;
+  };
+  carteirinha: {
+    validadeMembro: string;
+    validadeObreiro: string;
+  };
   tesoureiro: {
     name: string;
     role: string;
@@ -197,6 +211,20 @@ export function getChurchLeadershipConfig(activeBranchId?: string, branchList: a
       signatureUrl: pastorSig,
       phone: branchObj?.phone || mergedConfig.pastorTelefone || savedConfig.pastorTelefone || "",
       email: mergedConfig.pastorEmail || savedConfig.pastorEmail || "",
+    },
+    pastorPresidente: {
+      name: savedConfig.pastorPresidente || mergedConfig.pastorPresidente || "Pr. Carlito Carvalho Rodrigues",
+      role: "Pastor Presidente / Regional",
+      signatureUrl: branchSpecificConfig.pastorPresidenteSignatureUrl || savedConfig.pastorPresidenteSignatureUrl || mergedConfig.pastorPresidenteSignatureUrl || "",
+    },
+    pastorLocal: {
+      name: branchObj?.pastor || mergedConfig.pastorLocal || mergedConfig.pastorTitular || pastorName,
+      role: "Pastor Local / Dirigente",
+      signatureUrl: branchSpecificConfig.pastorLocalSignatureUrl || savedConfig.pastorLocalSignatureUrl || mergedConfig.pastorLocalSignatureUrl || branchSpecificConfig.pastorSignatureUrl || pastorSig || "",
+    },
+    carteirinha: {
+      validadeMembro: mergedConfig.validadeCarteirinhaMembro || savedConfig.validadeCarteirinhaMembro || "2 Anos",
+      validadeObreiro: mergedConfig.validadeCarteirinhaObreiro || savedConfig.validadeCarteirinhaObreiro || "1 Ano",
     },
     tesoureiro: {
       name: tesoureiroName,

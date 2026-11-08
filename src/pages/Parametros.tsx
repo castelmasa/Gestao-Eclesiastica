@@ -15,6 +15,7 @@ import { DigitalSignatureField } from "@/components/common/DigitalSignatureField
 import { getRegisteredChurchLogo } from "@/lib/churchLogoHelper"
 import { useAiCredits } from "@/contexts/AiCreditsContext"
 import { AiCreditsBadge } from "@/components/common/AiCreditsBadge"
+import { removeImageBackground } from "@/lib/imageBackgroundRemover"
 
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
@@ -85,6 +86,14 @@ const defaultConfig = {
   secretarySignatureFileName: "",
   tesoureiroSignatureUrl: "",
   tesoureiroSignatureFileName: "",
+  pastorPresidente: "Pr. Carlito Carvalho Rodrigues",
+  pastorPresidenteSignatureUrl: "",
+  pastorPresidenteSignatureFileName: "",
+  pastorLocal: "",
+  pastorLocalSignatureUrl: "",
+  pastorLocalSignatureFileName: "",
+  validadeCarteirinhaMembro: "2 Anos",
+  validadeCarteirinhaObreiro: "1 Ano",
   mensagemAvisos: "Bem-vindo ao sistema de Gestão Eclesiástica. Aproveite as novas funcionalidades!"
 }
 
@@ -397,6 +406,117 @@ export function Parametros() {
               </div>
             </div>
 
+            {/* MÓDULO OFICIAL: CARTEIRINHAS, CREDENCIAIS & ASSINATURAS DIGITAIS DOS PASTORES */}
+            <div className="pt-6 mt-6 border-t border-border">
+              <div className="p-4 rounded-2xl border border-emerald-300 dark:border-emerald-800/60 bg-emerald-50/60 dark:bg-emerald-950/20 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl">🪪</span>
+                  <div>
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-200 flex items-center gap-2">
+                      Módulo: Assinaturas Digitais para Credenciais de Obreiros do Altar
+                      <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-600 text-white shadow-2xs">
+                        Vinculação Automática
+                      </span>
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Faça o upload das assinaturas digitais do <strong>Pastor Presidente</strong> e do <strong>Pastor Local</strong>. Elas serão impressas e vinculadas automaticamente no verso das carteirinhas e credenciais de todos os obreiros do altar.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
+                {/* Validade Membro */}
+                <div className="p-4 border rounded-xl bg-card/60 shadow-xs space-y-1.5">
+                  <Label htmlFor="validadeCarteirinhaMembro" className="font-semibold text-xs text-foreground">
+                    Validade da Carteirinha de Membro
+                  </Label>
+                  <Input
+                    id="validadeCarteirinhaMembro"
+                    value={churchData.validadeCarteirinhaMembro || "2 Anos"}
+                    onChange={handleChange}
+                    placeholder="Ex: 2 Anos, 1 Ano, 31/12/2027..."
+                    className="h-10 text-sm"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Padrão exibido nas carteirinhas do rol de membros.
+                  </p>
+                </div>
+
+                {/* Validade Obreiro */}
+                <div className="p-4 border rounded-xl bg-card/60 shadow-xs space-y-1.5">
+                  <Label htmlFor="validadeCarteirinhaObreiro" className="font-semibold text-xs text-foreground">
+                    Validade da Credencial de Obreiro do Altar
+                  </Label>
+                  <Input
+                    id="validadeCarteirinhaObreiro"
+                    value={churchData.validadeCarteirinhaObreiro || "1 Ano"}
+                    onChange={handleChange}
+                    placeholder="Ex: 1 Ano, 2 Anos, 31/12/2026..."
+                    className="h-10 text-sm"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Aplicado para Pastores, Presbíteros, Evangelistas, Missionários e Diáconos.
+                  </p>
+                </div>
+              </div>
+
+              {/* Assinaturas Oficiais para Obreiros do Altar */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Pastor Presidente */}
+                <div className="space-y-3 p-4 border rounded-xl bg-card/60 shadow-xs">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pastorPresidente" className="font-semibold text-xs text-foreground">
+                      Pastor Presidente (Convenção / Regional)
+                    </Label>
+                    <Input
+                      id="pastorPresidente"
+                      value={churchData.pastorPresidente || "Pr. Carlito Carvalho Rodrigues"}
+                      onChange={handleChange}
+                      placeholder="Nome do Pastor Presidente"
+                      className="h-10 text-sm font-medium"
+                    />
+                  </div>
+                  <DigitalSignatureField
+                    label="Assinatura Digital (Pastor Presidente)"
+                    helperText="Assinatura oficial que sai na credencial de obreiros do altar."
+                    value={churchData.pastorPresidenteSignatureUrl}
+                    onChange={(url, fileName) => setChurchData(prev => ({
+                      ...prev,
+                      pastorPresidenteSignatureUrl: url,
+                      pastorPresidenteSignatureFileName: fileName || ""
+                    }))}
+                  />
+                </div>
+
+                {/* Pastor Local */}
+                <div className="space-y-3 p-4 border rounded-xl bg-card/60 shadow-xs">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pastorLocal" className="font-semibold text-xs text-foreground">
+                      Pastor Local (Dirigente da Congregação)
+                    </Label>
+                    <Input
+                      id="pastorLocal"
+                      value={churchData.pastorLocal || churchData.pastorTitular || ""}
+                      onChange={handleChange}
+                      placeholder="Nome do Pastor Local"
+                      className="h-10 text-sm font-medium"
+                    />
+                  </div>
+                  <DigitalSignatureField
+                    label="Assinatura Digital (Pastor Local)"
+                    helperText="Assinatura do pastor local que subscreve a credencial do obreiro."
+                    value={churchData.pastorLocalSignatureUrl || churchData.pastorSignatureUrl}
+                    onChange={(url, fileName) => setChurchData(prev => ({
+                      ...prev,
+                      pastorLocalSignatureUrl: url,
+                      pastorLocalSignatureFileName: fileName || ""
+                    }))}
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="pt-6 mt-6 border-t border-border">
               <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Secretaria</h3>
               
@@ -657,28 +777,106 @@ export function Parametros() {
             <div className="pt-6 mt-6 border-t border-border space-y-4">
               <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Identidade Visual da Igreja</h3>
               <p className="text-xs text-muted-foreground">Insira o logotipo institucional que será exibido em todos os cabeçalhos timbrados de relatórios e documentos.</p>
-              <div className="space-y-2">
-                <Label htmlFor="logo">Logotipo Oficial da Igreja / Congregação</Label>
-                <Input id="logo" type="file" accept="image/*" onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      setChurchData(prev => ({ ...prev, logoFileName: file.name, logoDataUrl: reader.result as string }))
-                      toast.success("Logo selecionada!")
-                    };
-                    reader.readAsDataURL(file);
-                  }
-                }} />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="logo" className="font-semibold text-foreground">
+                    Logotipo Oficial da Igreja / Congregação
+                  </Label>
+                  <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> Sem Pano de Fundo (Transparente)
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <Input
+                    id="logo"
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = async () => {
+                          const rawData = reader.result as string;
+                          toast.info("Processando logotipo e removendo pano de fundo...");
+                          try {
+                            const cleanLogo = await removeImageBackground(rawData);
+                            setChurchData(prev => ({
+                              ...prev,
+                              logoFileName: file.name,
+                              logoDataUrl: cleanLogo,
+                            }));
+                            toast.success("Logotipo importado com fundo 100% transparente!");
+                          } catch {
+                            setChurchData(prev => ({
+                              ...prev,
+                              logoFileName: file.name,
+                              logoDataUrl: rawData,
+                            }));
+                            toast.success("Logotipo importado com sucesso!");
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  {churchData.logoDataUrl && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        toast.info("Removendo pano de fundo da logo atual...");
+                        try {
+                          const cleanLogo = await removeImageBackground(churchData.logoDataUrl);
+                          setChurchData(prev => ({
+                            ...prev,
+                            logoDataUrl: cleanLogo,
+                          }));
+                          toast.success("Pano de fundo removido com sucesso (fundo transparente)!");
+                        } catch (err) {
+                          toast.error("Erro ao processar imagem.");
+                        }
+                      }}
+                      className="shrink-0 text-xs font-bold text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                      Remover Fundo da Logo
+                    </Button>
+                  )}
+                </div>
+
                 {churchData.logoFileName && (
-                  <div className="mt-2">
-                    <p className="text-xs text-muted-foreground mb-2">Arquivo atual: {churchData.logoFileName}</p>
-                    <div className="w-24 h-24 bg-muted rounded-md flex items-center justify-center border border-border overflow-hidden p-2">
-                       {churchData.logoDataUrl ? (
-                         <img src={churchData.logoDataUrl} alt="Logo" className="w-full h-full object-contain" />
-                       ) : (
-                         <span className="text-xs text-muted-foreground text-center px-2">Imagem Selecionada</span>
-                       )}
+                  <div className="mt-2 p-3 rounded-xl border border-border/70 bg-card/50 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Arquivo atual: <strong>{churchData.logoFileName}</strong></span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">
+                        ✓ Pronto para Carteirinha & Relatórios
+                      </span>
+                    </div>
+
+                    {/* Pré-visualização dupla: Fundo Claro Quadriculado e Fundo Escuro para checagem visual de transparência */}
+                    <div className="flex items-center gap-3">
+                      <div className="flex flex-col items-center">
+                        <span className="text-[10px] text-muted-foreground mb-1 font-medium">Fundo Claro</span>
+                        <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center border border-border overflow-hidden p-2 shadow-2xs">
+                          {churchData.logoDataUrl ? (
+                            <img src={churchData.logoDataUrl} alt="Logo Claro" className="w-full h-full object-contain" />
+                          ) : (
+                            <span className="text-xs text-muted-foreground text-center">Sem logo</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-center">
+                        <span className="text-[10px] text-muted-foreground mb-1 font-medium">Fundo Escuro (Carteirinha)</span>
+                        <div className="w-24 h-24 bg-slate-950 rounded-lg flex items-center justify-center border border-slate-800 overflow-hidden p-2 shadow-2xs">
+                          {churchData.logoDataUrl ? (
+                            <img src={churchData.logoDataUrl} alt="Logo Escuro" className="w-full h-full object-contain" />
+                          ) : (
+                            <span className="text-xs text-slate-500 text-center">Sem logo</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
