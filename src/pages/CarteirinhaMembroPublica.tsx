@@ -21,9 +21,11 @@ import {
   Heart,
   Phone,
   Search,
+  Printer,
+  Ruler,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { downloadElementAsImage } from "@/lib/printUtils";
+import { downloadElementAsImage, openElementInNewTabForPrint } from "@/lib/printUtils";
 import { toast } from "sonner";
 import {
   getSavedCardTheme,
@@ -33,6 +35,7 @@ import {
 import { getRegisteredChurchLogo } from "@/lib/churchLogoHelper";
 import { getChurchLeadershipConfig } from "@/lib/churchConfigHelper";
 import { BrasaoWatermark } from "@/components/secretaria/BrasaoWatermark";
+import { formatBaptismDate } from "@/components/secretaria/CarteirinhaDigitalModal";
 
 export function CarteirinhaMembroPublica() {
   const [searchParams] = useSearchParams();
@@ -141,12 +144,22 @@ export function CarteirinhaMembroPublica() {
   const pastorLocalName = leadershipConfig.pastorLocal?.name || churchConfig.pastorTitular;
   const pastorPresidenteSig = leadershipConfig.pastorPresidente?.signatureUrl || "";
   const pastorLocalSig = leadershipConfig.pastorLocal?.signatureUrl || leadershipConfig.pastor?.signatureUrl || "";
+  const pastorPresidenteCodigo = searchParams.get("ppc") || leadershipConfig.pastorPresidente?.codigoCredencial || "";
+  const pastorLocalCodigo = searchParams.get("plc") || leadershipConfig.pastorLocal?.codigoCredencial || "";
 
   const validitySetting = isObreiro
     ? leadershipConfig.carteirinha?.validadeObreiro || "1 Ano"
     : leadershipConfig.carteirinha?.validadeMembro || "2 Anos";
   const formattedValidity = cardTheme.validadeOverride || calculateValidityText(validitySetting);
   const cardBorderWidth = cardTheme.borderWidth || 2;
+  const cardWidthMm = cardTheme.cardWidthMm || 86;
+  const cardHeightMm = cardTheme.cardHeightMm || 54;
+  const cardAspectRatio = `${cardWidthMm} / ${cardHeightMm}`;
+
+  // Dimensões proporcionais para exportação e impressão combinada
+  const exportCardWidth = 380;
+  const exportCardHeight = Math.round(exportCardWidth * (cardHeightMm / cardWidthMm));
+  const exportTotalWidth = exportCardWidth * 2 + 72;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -272,6 +285,16 @@ export function CarteirinhaMembroPublica() {
       toast.success("Carteirinha completa (Frente e Verso) baixada com sucesso!");
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handlePrint = () => {
+    if (!member) return;
+    const filename = `Carteirinha_${member.name.replace(/\s+/g, "_")}`;
+    try {
+      openElementInNewTabForPrint("public-card-combined", filename);
+    } catch {
+      handleDownloadCombined();
     }
   };
 
@@ -404,10 +427,26 @@ export function CarteirinhaMembroPublica() {
 
       {/* Cartão Central (Mobile First com Frente e Verso) */}
       <div className="w-full max-w-md my-auto flex flex-col items-center py-2">
+        {/* Indicador de dimensões físicas ativas do crachá */}
+        <div className="w-full flex items-center justify-between px-2 pb-1.5 text-[11px] text-slate-400">
+          <span className="flex items-center gap-1 font-mono text-emerald-400 font-bold">
+            <Ruler className="w-3.5 h-3.5" />
+            {cardWidthMm} mm (Largura) × {cardHeightMm} mm (Altura)
+          </span>
+          <span className="text-[10px] text-slate-400">
+            {cardSide === "front" ? "Frente (Toque p/ Girar)" : "Verso (Toque p/ Girar)"}
+          </span>
+        </div>
+
         <div
           onClick={() => setCardSide(cardSide === "front" ? "back" : "front")}
           title="Toque no cartão para girar frente/verso"
-          className="w-full aspect-[1.58/1] relative cursor-pointer transition-transform active:scale-95"
+          className="relative cursor-pointer transition-transform active:scale-95 shadow-2xl max-w-full"
+          style={{
+            width: `${Math.round(cardWidthMm * 4.2)}px`,
+            height: `${Math.round(cardHeightMm * 4.2)}px`,
+            maxWidth: "100%",
+          }}
         >
           {cardSide === "front" ? (
             /* FRENTE */
@@ -435,21 +474,22 @@ export function CarteirinhaMembroPublica() {
                 />
               )}
 
+              {/* Topo Frente */}
               <div
-                className="flex items-center justify-between pb-2 border-b z-10"
+                className="flex items-center justify-between pb-2 border-b z-10 gap-3"
                 style={{ borderColor: `${cardTheme.borderColor}40` }}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   {registeredLogo ? (
                     <img
                       src={registeredLogo}
                       alt="Logo da Igreja"
-                      className="h-8 w-8 sm:h-9 sm:w-9 object-contain rounded-full bg-white/10 p-0.5 border"
-                      style={{ borderColor: `${cardTheme.borderColor}60` }}
+                      className="h-12 w-12 sm:h-14 sm:w-14 object-contain rounded-xl bg-white/10 p-1 border shadow-xs shrink-0"
+                      style={{ borderColor: `${cardTheme.borderColor}80` }}
                     />
                   ) : (
                     <div
-                      className="h-8 w-8 rounded-full border flex items-center justify-center font-bold text-xs"
+                      className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl border flex items-center justify-center font-black text-xs sm:text-sm shadow-xs shrink-0"
                       style={{
                         backgroundColor: `${cardTheme.accentColor}25`,
                         borderColor: cardTheme.accentColor,
@@ -459,91 +499,87 @@ export function CarteirinhaMembroPublica() {
                       IEPC
                     </div>
                   )}
-                  <div>
-                    <h2 className="text-[11px] sm:text-xs font-black uppercase tracking-wide leading-tight text-white truncate max-w-[200px] sm:max-w-[230px]">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-xs sm:text-sm font-black uppercase tracking-wide leading-tight text-white truncate drop-shadow-xs">
                       {member.branchName || churchConfig.nome}
                     </h2>
                     <span
-                      className="text-[9px] uppercase block font-semibold truncate"
+                      className="text-[10px] uppercase block font-bold truncate mt-0.5 tracking-wider"
                       style={{ color: cardTheme.accentColor }}
                     >
-                      {isObreiro ? "CORPO DE OBREIROS" : "ROL OFICIAL DE MEMBROS"}
+                      ROL OFICIAL DE MEMBROS
                     </span>
                   </div>
                 </div>
                 <Badge
-                  className="text-slate-950 text-[8px] font-black uppercase px-2 py-0.5 shadow-xs shrink-0 whitespace-nowrap self-center"
+                  className="text-slate-950 text-[9px] font-black uppercase px-2.5 py-1 shadow-xs shrink-0 whitespace-nowrap self-center tracking-wider"
                   style={{ backgroundColor: cardTheme.accentColor }}
                 >
                   {activeBadgeLabel}
                 </Badge>
               </div>
 
-              {/* Meio */}
-              <div className="flex items-center gap-3 my-auto py-1 z-10">
+              {/* Meio (Aproveitando todo o espaço vertical liberado) */}
+              <div className="flex items-center gap-4 my-auto py-1.5 z-10 flex-1">
                 <div
-                  className={`overflow-hidden border-2 bg-slate-950/60 shadow-md shrink-0 flex items-center justify-center ${
+                  className={`overflow-hidden border-2 bg-slate-950/70 shadow-md shrink-0 flex items-center justify-center ${
                     cardTheme.photoShape === "circle"
-                      ? "w-16 h-16 sm:w-20 sm:h-20 rounded-full"
-                      : "w-15 h-19 sm:w-18 sm:h-22 rounded-xl"
+                      ? "w-20 h-20 sm:w-22 sm:h-22 rounded-full"
+                      : "w-20 h-26 sm:w-22 sm:h-28 rounded-xl"
                   }`}
                   style={{ borderColor: cardTheme.borderColor }}
                 >
                   {member.photoUrl ? (
                     <img src={member.photoUrl} alt={member.name} className="w-full h-full object-cover" />
                   ) : (
-                    <User className="w-8 h-8 text-white opacity-60" />
+                    <User className="w-10 h-10 text-white opacity-60" />
                   )}
                 </div>
 
-                <div className="space-y-1 flex-1 overflow-hidden">
+                <div className="space-y-1.5 flex-1 overflow-hidden">
                   <div
-                    className="text-[9px] uppercase font-bold tracking-widest"
+                    className="text-[9.5px] uppercase font-extrabold tracking-widest"
                     style={{ color: cardTheme.accentColor }}
                   >
-                    {isObreiro ? "OBREIRO DO ALTAR" : "MEMBRO TITULAR"}
+                    NOME DO MEMBRO
                   </div>
-                  <div className="text-sm sm:text-base font-extrabold text-white truncate leading-tight">
+                  <div className="text-sm sm:text-base font-black text-white truncate leading-tight drop-shadow-xs">
                     {member.name}
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap pt-0.5">
                     <span
-                      className="px-2 py-0.5 rounded text-[10px] font-bold uppercase border"
+                      className="px-2.5 py-0.5 rounded-md text-[10px] sm:text-xs font-black uppercase border shadow-xs"
                       style={{
                         backgroundColor: cardTheme.tagBg,
                         color: cardTheme.tagText,
-                        borderColor: `${cardTheme.borderColor}60`,
+                        borderColor: `${cardTheme.borderColor}70`,
                       }}
                     >
                       {member.role || "Membro"}
                     </span>
-                    <span className="text-[9px] text-slate-300 font-mono">
+                    <span className="text-[10px] text-slate-200 font-mono font-bold tracking-wider">
                       {registrationNum}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-1 text-[8.5px] text-slate-300 pt-0.5">
-                    <div>
-                      Batismo: <span className="font-semibold text-white">{member.baptismDate ? new Date(member.baptismDate).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "Confirmado"}</span>
+                  <div className="grid grid-cols-2 gap-2 pt-1 text-[9.5px]">
+                    <div className="bg-black/25 rounded-lg p-1.5 border border-white/10 backdrop-blur-xs">
+                      <span className="font-extrabold block uppercase tracking-wider text-[8.5px]" style={{ color: cardTheme.accentColor }}>
+                        DATA DO BATISMO:
+                      </span>
+                      <span className="font-bold text-white tracking-wide block">
+                        {formatBaptismDate(member.baptismDate || member.dataBatismo)}
+                      </span>
                     </div>
-                    <div>
-                      Validade: <span className="font-semibold text-white">{formattedValidity}</span>
+                    <div className="bg-black/25 rounded-lg p-1.5 border border-white/10 backdrop-blur-xs">
+                      <span className="font-extrabold block uppercase tracking-wider text-[8.5px]" style={{ color: cardTheme.accentColor }}>
+                        VALIDADE:
+                      </span>
+                      <span className="font-bold text-white tracking-wide block">
+                        {formattedValidity}
+                      </span>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Rodapé */}
-              <div
-                className="flex items-center justify-between pt-1.5 text-[8px] text-slate-200 border-t z-10"
-                style={{ borderColor: `${cardTheme.borderColor}40` }}
-              >
-                <span>Pastor: <strong className="text-white">{pastorLocalName}</strong></span>
-                <span
-                  className="font-semibold"
-                  style={{ color: cardTheme.accentColor }}
-                >
-                  STATUS: ATIVO
-                </span>
               </div>
             </div>
           ) : (
@@ -693,6 +729,11 @@ export function CarteirinhaMembroPublica() {
                     >
                       {isObreiro ? "Pastor Presidente" : "Pastor Local"}
                     </div>
+                    {((isObreiro && pastorPresidenteCodigo) || (!isObreiro && pastorLocalCodigo)) && (
+                      <div className="text-[5.5px] sm:text-[6px] font-mono font-bold text-slate-600 truncate pt-0.5">
+                        Reg: {isObreiro ? pastorPresidenteCodigo : pastorLocalCodigo}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-col justify-end">
@@ -714,6 +755,11 @@ export function CarteirinhaMembroPublica() {
                     >
                       {isObreiro ? "Pastor Local" : "Secretaria Geral"}
                     </div>
+                    {isObreiro && pastorLocalCodigo && (
+                      <div className="text-[5.5px] sm:text-[6px] font-mono font-bold text-slate-600 truncate pt-0.5">
+                        Reg: {pastorLocalCodigo}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -773,7 +819,7 @@ export function CarteirinhaMembroPublica() {
                   </div>
                 </div>
 
-                {/* Faixa Oficial de Validade antes das Assinaturas (Anexo 4: harmonizada, centralizada verticalmente e data próxima à legenda) */}
+                {/* Faixa Oficial de Validade antes das Assinaturas */}
                 <div className="flex items-center justify-center my-1 z-10 w-full">
                   <div
                     className="py-0.5 px-2.5 rounded-full inline-flex items-center justify-center gap-1.5 text-[7px] sm:text-[8px] font-bold border shadow-xs"
@@ -831,6 +877,11 @@ export function CarteirinhaMembroPublica() {
                     >
                       {isObreiro ? "Pastor Presidente" : "Pastor Local"}
                     </div>
+                    {((isObreiro && pastorPresidenteCodigo) || (!isObreiro && pastorLocalCodigo)) && (
+                      <div className="text-[5.5px] sm:text-[6px] font-mono font-bold text-slate-300 truncate pt-0.5">
+                        Reg: {isObreiro ? pastorPresidenteCodigo : pastorLocalCodigo}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-col justify-end">
@@ -853,6 +904,11 @@ export function CarteirinhaMembroPublica() {
                     >
                       {isObreiro ? "Pastor Local" : "Secretaria Geral"}
                     </div>
+                    {isObreiro && pastorLocalCodigo && (
+                      <div className="text-[5.5px] sm:text-[6px] font-mono font-bold text-slate-300 truncate pt-0.5">
+                        Reg: {pastorLocalCodigo}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -876,7 +932,7 @@ export function CarteirinhaMembroPublica() {
         <div
           id="public-card-combined"
           style={{
-            width: "820px",
+            width: `${exportTotalWidth}px`,
             padding: "24px",
             backgroundColor: "#030712",
             display: "flex",
@@ -891,8 +947,8 @@ export function CarteirinhaMembroPublica() {
           {/* Frente da Carteirinha Combinada */}
           <div
             style={{
-              width: "380px",
-              height: "240px",
+              width: `${exportCardWidth}px`,
+              height: `${exportCardHeight}px`,
               borderRadius: "16px",
               padding: "16px",
               color: "#ffffff",
@@ -916,22 +972,22 @@ export function CarteirinhaMembroPublica() {
               size={130}
             />
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${cardTheme.borderColor}40`, paddingBottom: "6px", zIndex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 {registeredLogo && (
-                  <img src={registeredLogo} alt="Logo" style={{ width: "30px", height: "30px", objectFit: "contain", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.15)", padding: "1px" }} />
+                  <img src={registeredLogo} alt="Logo" style={{ width: "40px", height: "40px", objectFit: "contain", borderRadius: "8px", backgroundColor: "rgba(255,255,255,0.15)", padding: "1px", border: `1px solid ${cardTheme.borderColor}80` }} />
                 )}
                 <div>
-                  <div style={{ fontSize: "10px", fontWeight: "900", textTransform: "uppercase" }}>{churchConfig.nome}</div>
-                  <div style={{ fontSize: "8px", color: cardTheme.accentColor, fontWeight: "bold" }}>{isObreiro ? "CORPO DE OBREIROS" : "ROL DE MEMBROS"}</div>
+                  <div style={{ fontSize: "11px", fontWeight: "900", textTransform: "uppercase" }}>{churchConfig.nome}</div>
+                  <div style={{ fontSize: "8.5px", color: cardTheme.accentColor, fontWeight: "bold" }}>ROL DE MEMBROS</div>
                 </div>
               </div>
-              <div style={{ backgroundColor: cardTheme.accentColor, color: "#020617", fontSize: "8px", fontWeight: "900", padding: "1px 6px", borderRadius: "4px" }}>
+              <div style={{ backgroundColor: cardTheme.accentColor, color: "#020617", fontSize: "8.5px", fontWeight: "900", padding: "2px 8px", borderRadius: "4px" }}>
                 {activeBadgeLabel}
               </div>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "auto 0", zIndex: 1 }}>
-              <div style={{ width: "56px", height: "70px", borderRadius: "8px", border: `1.5px solid ${cardTheme.borderColor}`, overflow: "hidden", backgroundColor: "#020617", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "14px", margin: "auto 0", zIndex: 1, flex: 1, padding: "6px 0" }}>
+              <div style={{ width: "60px", height: "76px", borderRadius: "8px", border: `1.5px solid ${cardTheme.borderColor}`, overflow: "hidden", backgroundColor: "#020617", flexShrink: 0 }}>
                 {member.photoUrl ? (
                   <img src={member.photoUrl} alt="Foto" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
@@ -939,23 +995,19 @@ export function CarteirinhaMembroPublica() {
                 )}
               </div>
               <div style={{ flex: 1, overflow: "hidden" }}>
-                <div style={{ fontSize: "8px", color: cardTheme.accentColor, fontWeight: "bold" }}>{isObreiro ? "OBREIRO DO ALTAR" : "NOME DO MEMBRO"}</div>
-                <div style={{ fontSize: "13px", fontWeight: "900", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{member.name}</div>
+                <div style={{ fontSize: "8px", color: cardTheme.accentColor, fontWeight: "bold" }}>NOME DO MEMBRO</div>
+                <div style={{ fontSize: "14px", fontWeight: "900", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{member.name}</div>
                 <div style={{ marginTop: "3px", display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ backgroundColor: cardTheme.tagBg, color: cardTheme.tagText, padding: "1px 6px", borderRadius: "4px", fontSize: "8px", fontWeight: "bold" }}>
+                  <span style={{ backgroundColor: cardTheme.tagBg, color: cardTheme.tagText, padding: "1px 6px", borderRadius: "4px", fontSize: "8.5px", fontWeight: "bold" }}>
                     {member.role || "Membro"}
                   </span>
-                  <span style={{ fontSize: "8px", fontFamily: "monospace", opacity: 0.8 }}>{registrationNum}</span>
+                  <span style={{ fontSize: "8.5px", fontFamily: "monospace", opacity: 0.9 }}>{registrationNum}</span>
                 </div>
-                <div style={{ fontSize: "7.5px", marginTop: "3px", opacity: 0.9 }}>
-                  Validade: <strong style={{ color: "#ffffff" }}>{formattedValidity}</strong>
+                <div style={{ display: "flex", gap: "10px", fontSize: "8px", marginTop: "5px", opacity: 0.95 }}>
+                  <div>Data Batismo: <strong style={{ color: "#ffffff" }}>{formatBaptismDate(member.baptismDate || member.dataBatismo)}</strong></div>
+                  <div>Validade: <strong style={{ color: "#ffffff" }}>{formattedValidity}</strong></div>
                 </div>
               </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: `1px solid ${cardTheme.borderColor}40`, paddingTop: "4px", fontSize: "7.5px", zIndex: 1 }}>
-              <div>Pastor: <strong>{pastorLocalName}</strong></div>
-              <div style={{ color: cardTheme.accentColor, fontWeight: "bold" }}>CREDENCIAL OFICIAL</div>
             </div>
           </div>
 
@@ -963,8 +1015,8 @@ export function CarteirinhaMembroPublica() {
           {cardTheme.showConstituicaoVerso !== false ? (
             <div
               style={{
-                width: "380px",
-                height: "240px",
+                width: `${exportCardWidth}px`,
+                height: `${exportCardHeight}px`,
                 borderRadius: "16px",
                 padding: "12px 14px",
                 color: "#0f172a",
@@ -983,10 +1035,10 @@ export function CarteirinhaMembroPublica() {
               }}
             >
               <div style={{ borderBottom: `1px solid ${cardTheme.borderColor}45`, paddingBottom: "2px", textAlign: "center" }}>
-                <div style={{ fontSize: "9px", fontWeight: "900", color: "#064e3b", textTransform: "uppercase" }}>
+                <div style={{ fontSize: "7px", fontWeight: "900", color: "#064e3b", textTransform: "uppercase", letterSpacing: "0.2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   REPÚBLICA FEDERATIVA DO BRASIL • CONSTITUIÇÃO DE 1988
                 </div>
-                <div style={{ fontSize: "6.5px", color: "#1e293b", fontWeight: "500" }}>
+                <div style={{ fontSize: "5.5px", color: "#1e293b", fontWeight: "500", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: "1px" }}>
                   Solicitamos às autoridades oficiais e civis facilidades no desempenho ministerial.
                 </div>
               </div>
@@ -1026,12 +1078,17 @@ export function CarteirinhaMembroPublica() {
                       style={{ height: "14px", objectFit: "contain", margin: "0 auto -2px auto", display: "block" }}
                     />
                   )}
-                  <div style={{ borderTop: `1px solid ${cardTheme.borderColor}`, width: "80%", margin: "0 auto", fontSize: "7px", fontWeight: "bold", color: "#0f172a" }}>
+                  <div style={{ borderTop: `1px solid ${cardTheme.borderColor}`, width: "90%", margin: "0 auto", fontSize: "7px", fontWeight: "bold", color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {isObreiro ? pastorPresidenteName : pastorLocalName}
                   </div>
-                  <div style={{ fontSize: "6px", color: "#064e3b", fontWeight: "bold" }}>
+                  <div style={{ fontSize: "6px", color: "#064e3b", fontWeight: "bold", whiteSpace: "nowrap" }}>
                     {isObreiro ? "Pastor Presidente" : "Pastor Local"}
                   </div>
+                  {((isObreiro && pastorPresidenteCodigo) || (!isObreiro && pastorLocalCodigo)) && (
+                    <div style={{ fontSize: "5px", color: "#475569", fontFamily: "monospace", fontWeight: "bold", paddingTop: "0.5px", whiteSpace: "nowrap" }}>
+                      Reg: {isObreiro ? pastorPresidenteCodigo : pastorLocalCodigo}
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
                   {isObreiro && pastorLocalSig && (
@@ -1041,20 +1098,25 @@ export function CarteirinhaMembroPublica() {
                       style={{ height: "14px", objectFit: "contain", margin: "0 auto -2px auto", display: "block" }}
                     />
                   )}
-                  <div style={{ borderTop: `1px solid ${cardTheme.borderColor}`, width: "80%", margin: "0 auto", fontSize: "7px", fontWeight: "bold", color: "#0f172a" }}>
+                  <div style={{ borderTop: `1px solid ${cardTheme.borderColor}`, width: "90%", margin: "0 auto", fontSize: "7px", fontWeight: "bold", color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {isObreiro ? pastorLocalName : "Secretaria Geral"}
                   </div>
-                  <div style={{ fontSize: "6px", color: "#064e3b", fontWeight: "bold" }}>
+                  <div style={{ fontSize: "6px", color: "#064e3b", fontWeight: "bold", whiteSpace: "nowrap" }}>
                     {isObreiro ? "Pastor Local" : "Secretaria Geral"}
                   </div>
+                  {isObreiro && pastorLocalCodigo && (
+                    <div style={{ fontSize: "5px", color: "#475569", fontFamily: "monospace", fontWeight: "bold", paddingTop: "0.5px", whiteSpace: "nowrap" }}>
+                      Reg: {pastorLocalCodigo}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           ) : (
             <div
               style={{
-                width: "380px",
-                height: "240px",
+                width: `${exportCardWidth}px`,
+                height: `${exportCardHeight}px`,
                 borderRadius: "16px",
                 padding: "14px",
                 color: "#ffffff",
@@ -1119,6 +1181,11 @@ export function CarteirinhaMembroPublica() {
                   <div style={{ fontSize: "6px", color: cardTheme.accentColor, fontWeight: "bold" }}>
                     {isObreiro ? "Pastor Presidente" : "Pastor Local"}
                   </div>
+                  {((isObreiro && pastorPresidenteCodigo) || (!isObreiro && pastorLocalCodigo)) && (
+                    <div style={{ fontSize: "5px", color: "#cbd5e1", fontFamily: "monospace", fontWeight: "bold", paddingTop: "0.5px" }}>
+                      Reg: {isObreiro ? pastorPresidenteCodigo : pastorLocalCodigo}
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
                   {isObreiro && pastorLocalSig && (
@@ -1134,6 +1201,11 @@ export function CarteirinhaMembroPublica() {
                   <div style={{ fontSize: "6px", color: cardTheme.accentColor, fontWeight: "bold" }}>
                     {isObreiro ? "Pastor Local" : "Secretaria Geral"}
                   </div>
+                  {isObreiro && pastorLocalCodigo && (
+                    <div style={{ fontSize: "5px", color: "#cbd5e1", fontFamily: "monospace", fontWeight: "bold", paddingTop: "0.5px" }}>
+                      Reg: {pastorLocalCodigo}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1173,14 +1245,26 @@ export function CarteirinhaMembroPublica() {
           </Button>
         </div>
 
-        <Button
-          onClick={handleShare}
-          variant="outline"
-          className="w-full border-slate-700 hover:bg-slate-800 text-white font-semibold text-xs h-10 rounded-xl"
-        >
-          <Share2 className="w-4 h-4 mr-1.5 text-emerald-400" />
-          Compartilhar Link da Carteirinha
-        </Button>
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            onClick={handlePrint}
+            variant="outline"
+            className="w-full border-slate-700 hover:bg-slate-800 text-white font-bold text-xs h-10 rounded-xl"
+            title="Abre a tela de impressão ou gera documento A4"
+          >
+            <Printer className="w-4 h-4 mr-1.5 text-emerald-400" />
+            Imprimir Cartão
+          </Button>
+
+          <Button
+            onClick={handleShare}
+            variant="outline"
+            className="w-full border-slate-700 hover:bg-slate-800 text-white font-semibold text-xs h-10 rounded-xl"
+          >
+            <Share2 className="w-4 h-4 mr-1.5 text-emerald-400" />
+            Compartilhar Link
+          </Button>
+        </div>
 
         <p className="text-[10px] text-center text-slate-400 pt-1 leading-relaxed">
           Dica: No iPhone ou Android, toque em <strong>Compartilhar</strong> e selecione <strong>"Adicionar à Tela de Início"</strong> para usar como aplicativo!

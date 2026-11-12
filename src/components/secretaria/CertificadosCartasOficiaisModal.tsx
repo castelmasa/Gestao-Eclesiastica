@@ -45,12 +45,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { toPng } from "html-to-image";
+import jsPDF from "jspdf";
 import { printDocument, downloadElementAsPdf } from "@/lib/printUtils";
 import { getRegisteredChurchLogo } from "@/lib/churchLogoHelper";
 import { getChurchLeadershipConfig } from "@/lib/churchConfigHelper";
 import { useBranch } from "@/contexts/BranchContext";
 
-export type DocType = "batismo" | "apresentacao" | "membrasia" | "recomendacao" | "transferencia";
+export type DocType = "batismo" | "apresentacao" | "membrasia";
 
 interface CustomBgModel {
   id: string;
@@ -125,9 +126,10 @@ export function CertificadosCartasOficiaisModal({
   // Leadership Config dos Parâmetros do Sistema
   const leadership = useMemo(() => getChurchLeadershipConfig(currentBranch, branches), [currentBranch, branches, isOpen]);
 
-  // Document Type & Core Settings
+  // Document Type & Core Settings (Apenas Certificados Solenes: Batismo, Apresentação e Membrasia)
   const [docType, setDocType] = useState<DocType>("batismo");
-  const [orientation, setOrientation] = useState<"landscape" | "portrait">("landscape");
+  const [orientation, setOrientation] = useState<"landscape">("landscape");
+  const [inputMode, setInputMode] = useState<"member" | "custom">("member");
   const [selectedMemberId, setSelectedMemberId] = useState<string>("none");
 
   // Layout do Cabeçalho: "left_logo" (Logo à esquerda + dados à direita) vs "center" (Centralizado)
@@ -139,14 +141,18 @@ export function CertificadosCartasOficiaisModal({
   const [customTitle, setCustomTitle] = useState<string>("CERTIFICADO DE BATISMO NAS ÁGUAS");
   const [introPhrase, setIntroPhrase] = useState<string>("Certificamos que o(a) amado(a) irmão(ã)");
 
-  // Editable Form Content Fields
+  // Editable Form Content Fields (Digitação Livre ou Puxado do Membro)
   const [candidateName, setCandidateName] = useState<string>("MARIA FRANCINETE DOS SANTOS");
   const [candidateRole, setCandidateRole] = useState<string>("Membro em Plena Comunhão");
   const [eventDate, setEventDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [candidateBirthDate, setCandidateBirthDate] = useState<string>("");
   const [eventLocation, setEventLocation] = useState<string>("Sede da Igreja OBPC");
   const [fatherName, setFatherName] = useState<string>("Manoel Francisco dos Santos");
   const [motherName, setMotherName] = useState<string>("Ana Maria dos Santos");
-  const [destinationChurch, setDestinationChurch] = useState<string>("Igreja O Brasil para Cristo - Campo Limpo / SP");
+  const [celebrantPastor, setCelebrantPastor] = useState<string>("");
+  const [bookNumber, setBookNumber] = useState<string>("01");
+  const [pageNumber, setPageNumber] = useState<string>("42");
+  const [recordNumber, setRecordNumber] = useState<string>("128");
   const [customVerse, setCustomVerse] = useState<string>("\"Quem crer e for batizado será salvo.\" - Marcos 16:16");
   const [customText, setCustomText] = useState<string>(
     "Atestamos para os devidos fins que o(a) irmão(ã) acima nominado(a) foi devidamente batizado(a) nas águas por imersão, conforme o mandamento do Nosso Senhor Jesus Cristo, sendo recebido(a) na comunhão do corpo de Cristo."
@@ -235,6 +241,7 @@ export function CertificadosCartasOficiaisModal({
       setCandidateName(found.name.toUpperCase());
       if (found.role) setCandidateRole(found.role);
       if (found.baptismDate) setEventDate(found.baptismDate);
+      if (found.birthDate) setCandidateBirthDate(found.birthDate);
       if (found.parents) {
         const parts = found.parents.split("/");
         if (parts[0]) setFatherName(parts[0].trim());
@@ -247,8 +254,8 @@ export function CertificadosCartasOficiaisModal({
   // Sync orientation & default preset texts automatically when changing document type
   const handleDocTypeChange = (type: DocType) => {
     setDocType(type);
+    setOrientation("landscape");
     if (type === "batismo") {
-      setOrientation("landscape");
       setCustomTitle("CERTIFICADO DE BATISMO NAS ÁGUAS");
       setIntroPhrase("Certificamos que o(a) amado(a) irmão(ã)");
       setCustomVerse("\"Quem crer e for batizado será salvo.\" - Marcos 16:16");
@@ -258,7 +265,6 @@ export function CertificadosCartasOficiaisModal({
       setColorAccentBorder("#D97706");
       setBgType("pergaminho");
     } else if (type === "apresentacao") {
-      setOrientation("landscape");
       setCustomTitle("CERTIFICADO DE APRESENTAÇÃO DE CRIANÇA");
       setIntroPhrase("Com grande alegria e gratidão a Deus, certificamos que a criança");
       setCustomVerse("\"Por este menino orava eu; e o Senhor ouviu a minha oração.\" - 1 Samuel 1:27");
@@ -268,7 +274,6 @@ export function CertificadosCartasOficiaisModal({
       setColorAccentBorder("#F59E0B");
       setBgType("marfim");
     } else if (type === "membrasia") {
-      setOrientation("landscape");
       setCustomTitle("CERTIFICADO DE MEMBRASIA & COMUNHÃO");
       setIntroPhrase("Atestamos com jubilo que o(a) estimado(a) irmão(ã)");
       setCustomVerse("\"Assim que já não sois estrangeiros, mas concidadãos dos santos, e da família de Deus.\" - Efésios 2:19");
@@ -277,26 +282,6 @@ export function CertificadosCartasOficiaisModal({
       setColorName("#1E3A8A");
       setColorAccentBorder("#2563EB");
       setBgType("pergaminho");
-    } else if (type === "recomendacao") {
-      setOrientation("portrait");
-      setCustomTitle("CARTA DE RECOMENDAÇÃO ECLESIÁSTICA");
-      setIntroPhrase("Aos amados irmãos em Cristo Jesus, apresentamos o(a)");
-      setCustomVerse("\"Acolhei-o no Senhor com toda a alegria, e tende em honra a homens tais.\" - Filipenses 2:29");
-      setCustomText("Recomendamos ao amor e à comunhão dos amados irmãos a pessoa do(a) nosso(a) estimado(a) irmão(ã) acima nominado(a), o(a) qual se acha em plena comunhão e bom testemunho conosco, devendo ser recebido(a) no Senhor.");
-      setColorTitle("#831843");
-      setColorName("#9F1239");
-      setColorAccentBorder("#BE185D");
-      setBgType("white");
-    } else if (type === "transferencia") {
-      setOrientation("portrait");
-      setCustomTitle("CARTA DE TRANSFERÊNCIA DEFINITIVA");
-      setIntroPhrase("Pela presente carta eclesiástica, comunicamos sobre");
-      setCustomVerse("\"O Senhor guardará a tua saída e a tua entrada, desde agora e para sempre.\" - Salmo 121:8");
-      setCustomText("Pela presente CARTA DE TRANSFERÊNCIA, desligamos dos nossos registros de membros o(a) irmão(ã) acima nominado(a) por haver solicitado transferência para a amada igreja acima citada, onde passará a congregar.");
-      setColorTitle("#065F46");
-      setColorName("#047857");
-      setColorAccentBorder("#059669");
-      setBgType("white");
     }
   };
 
@@ -444,22 +429,135 @@ export function CertificadosCartasOficiaisModal({
   };
 
   const churchName = churchHeaderName || "IGREJA EVANGÉLICA PENTECOSTAL O BRASIL PARA CRISTO";
-  const logoUrl = getRegisteredChurchLogo(churchData) || leadership.church.logoUrl;
+  const logoUrl = getRegisteredChurchLogo(currentBranch) || leadership.church.logoUrl || null;
 
-  // Print Document
-  const handlePrint = () => {
-    toast.info("Abrindo impressão em tamanho A4 real...");
-    printDocument({
-      elementId: "certificado-print-container",
-      title: `${docType.toUpperCase()}_${candidateName.replace(/\s+/g, '_')}`
-    });
+  // Print Document A4 Paisagem (297 x 210 mm) - Resolução e enquadramento exatos
+  const handlePrint = async () => {
+    const toastId = toast.loading("Preparando impressão em A4 Paisagem (297 × 210 mm)...");
+    try {
+      const el = document.getElementById("certificado-print-container");
+      if (!el) {
+        toast.error("Certificado não encontrado para impressão.", { id: toastId });
+        return;
+      }
+
+      // Gera imagem nítida com alta densidade de pixels
+      const dataUrl = await toPng(el, {
+        quality: 1,
+        pixelRatio: 2.5,
+        backgroundColor: bgType === "white" ? "#ffffff" : undefined,
+      });
+
+      // Cria iframe oculto isolado com estilização paisagem estrita
+      const iframeId = "__certificate_isolated_print_frame__";
+      let iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
+      if (iframe) iframe.remove();
+
+      iframe = document.createElement("iframe");
+      iframe.id = iframeId;
+      iframe.setAttribute(
+        "style",
+        "position:fixed; top:-9999px; left:-9999px; width:297mm; height:210mm; border:0; opacity:0; pointer-events:none;"
+      );
+      document.body.appendChild(iframe);
+
+      const iDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iDoc) {
+        throw new Error("Contexto de impressão não disponível.");
+      }
+
+      iDoc.open();
+      iDoc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>${customTitle} - ${candidateName}</title>
+            <style>
+              @page {
+                size: A4 landscape;
+                margin: 0mm !important;
+              }
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 297mm !important;
+                height: 210mm !important;
+                background: #ffffff !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                overflow: hidden !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              img {
+                width: 297mm !important;
+                height: 210mm !important;
+                object-fit: contain !important;
+                display: block !important;
+              }
+            </style>
+          </head>
+          <body>
+            <img id="cert-img-node" src="${dataUrl}" alt="Certificado" />
+          </body>
+        </html>
+      `);
+      iDoc.close();
+
+      const imgNode = iDoc.getElementById("cert-img-node") as HTMLImageElement;
+      const doPrint = () => {
+        try {
+          iframe?.contentWindow?.focus();
+          iframe?.contentWindow?.print();
+          toast.success("Diálogo de impressão aberto!", { id: toastId });
+        } catch (printErr) {
+          console.warn("Direct iframe print blocked by sandbox:", printErr);
+          handleDownloadPdf();
+          toast.info("Impressão direta bloqueada. Baixando PDF A4 Paisagem oficial...", { id: toastId });
+        }
+      };
+
+      if (imgNode.complete) {
+        setTimeout(doPrint, 200);
+      } else {
+        imgNode.onload = () => setTimeout(doPrint, 200);
+      }
+    } catch (err) {
+      console.error("Erro na impressão:", err);
+      handleDownloadPdf();
+      toast.info("Baixando PDF A4 Paisagem de alta definição...", { id: toastId });
+    }
   };
 
-  // Download PDF
+  // Download PDF A4 Paisagem (297 x 210 mm)
   const handleDownloadPdf = async () => {
-    const success = await downloadElementAsPdf("certificado-print-container", `${docType.toUpperCase()}_${candidateName.replace(/\s+/g, '_')}.pdf`);
-    if (success) {
-      toast.success("Certificado baixado em PDF com alta resolução!");
+    const toastId = toast.loading("Gerando PDF oficial em A4 Paisagem (297 × 210 mm)...");
+    try {
+      const el = document.getElementById("certificado-print-container");
+      if (!el) {
+        toast.error("Certificado não encontrado.", { id: toastId });
+        return;
+      }
+      const dataUrl = await toPng(el, {
+        quality: 1,
+        pixelRatio: 3,
+        backgroundColor: bgType === "white" ? "#ffffff" : undefined,
+      });
+
+      const pdf = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+
+      pdf.addImage(dataUrl, "PNG", 0, 0, 297, 210, undefined, "FAST");
+      pdf.save(`CERTIFICADO_${docType.toUpperCase()}_${candidateName.replace(/\s+/g, "_")}.pdf`);
+      toast.success("Certificado baixado em PDF A4 Paisagem com sucesso!", { id: toastId });
+    } catch (e) {
+      console.error("Erro ao gerar PDF:", e);
+      toast.error("Erro ao gerar PDF do certificado.", { id: toastId });
     }
   };
 
@@ -508,13 +606,13 @@ export function CertificadosCartasOficiaisModal({
             </div>
             <div>
               <DialogTitle className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-                Emissão de Certificados & Cartas Oficiais
+                Emissão de Certificados Eclesiásticos Solenes
                 <Badge variant="outline" className="text-[10px] bg-amber-100 text-amber-900 border-amber-300 font-bold uppercase">
-                  Padrão Solene Editável A4
+                  A4 Paisagem • Alta Resolução
                 </Badge>
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                Cabeçalho oficial com logo à esquerda, assinaturas direto dos parâmetros e upload de modelos de fundo.
+                Certificados solenes de Batismo, Apresentação de Crianças e Membrasia com cabeçalho oficial e assinaturas diretas dos parâmetros.
               </DialogDescription>
             </div>
           </div>
@@ -526,27 +624,25 @@ export function CertificadosCartasOficiaisModal({
           {/* PAINEL ESQUERDO COM ABAS DE EDICÃO (5 colunas) */}
           <div className="lg:col-span-5 flex flex-col space-y-3 pr-1 overflow-y-auto max-h-[78vh]">
             
-            {/* Seleção do Tipo de Documento Rápida */}
+            {/* Seleção do Tipo de Certificado (Somente Certificados Solenes, sem cartas) */}
             <div className="bg-white dark:bg-slate-800/80 p-2.5 rounded-xl border shadow-2xs">
               <Label className="text-[11px] font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 mb-1.5">
-                <FileText className="w-3.5 h-3.5 text-primary" />
-                Documento Oficial:
+                <Award className="w-3.5 h-3.5 text-amber-600" />
+                Certificado Solene:
               </Label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
+              <div className="grid grid-cols-3 gap-1">
                 {[
                   { id: "batismo", label: "Batismo", icon: Droplet },
                   { id: "apresentacao", label: "Apresentação", icon: Baby },
-                  { id: "membrasia", label: "Membrasia", icon: Award },
-                  { id: "recomendacao", label: "Recomendação", icon: Send },
-                  { id: "transferencia", label: "Transferência", icon: FileCheck2 }
+                  { id: "membrasia", label: "Membrasia", icon: Award }
                 ].map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => handleDocTypeChange(item.id as DocType)}
-                    className={`py-1.5 px-2 rounded-lg border text-left transition-all flex items-center gap-1.5 text-xs font-bold ${
+                    className={`py-2 px-2 rounded-lg border text-left transition-all flex items-center gap-1.5 text-xs font-bold ${
                       docType === item.id
-                        ? "bg-amber-500/10 border-amber-500 ring-1 ring-amber-500 text-amber-900 dark:text-amber-200"
+                        ? "bg-amber-500/15 border-amber-500 ring-2 ring-amber-500 text-amber-950 dark:text-amber-200"
                         : "bg-background hover:bg-muted text-muted-foreground border-slate-200 dark:border-slate-700"
                     }`}
                   >
@@ -573,25 +669,64 @@ export function CertificadosCartasOficiaisModal({
 
               {/* TAB 1: CONTEÚDO E TEXTOS */}
               <TabsContent value="conteudo" className="space-y-3 pt-2">
-                {/* Auto-preencher por membro */}
-                <div className="bg-white dark:bg-slate-800/80 p-3 rounded-xl border shadow-2xs space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1">
-                    <User className="w-3.5 h-3.5 text-amber-600" />
-                    Auto-preencher com Membro Cadastrado:
-                  </Label>
-                  <Select value={selectedMemberId} onValueChange={handleSelectMember}>
-                    <SelectTrigger className="h-8 text-xs bg-background">
-                      <SelectValue placeholder="Selecione um membro..." />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-52">
-                      <SelectItem value="none">✨ Digitação Manual / Livre</SelectItem>
-                      {members.map(m => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.name} ({m.role || "Membro"})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {/* Escolha entre Selecionar Membro Cadastrado ou Digitação Livre (Anexo 3) */}
+                <div className="bg-white dark:bg-slate-800/80 p-3 rounded-xl border shadow-2xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1">
+                      <User className="w-3.5 h-3.5 text-amber-600" />
+                      Preenchimento dos Dados:
+                    </Label>
+                    <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg border text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setInputMode("member")}
+                        className={`px-2 py-0.5 rounded-md font-bold transition-all ${
+                          inputMode === "member" ? "bg-amber-600 text-white shadow-xs" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Rol de Membros
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInputMode("custom");
+                          setSelectedMemberId("none");
+                        }}
+                        className={`px-2 py-0.5 rounded-md font-bold transition-all ${
+                          inputMode === "custom" ? "bg-amber-600 text-white shadow-xs" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Digitação Livre
+                      </button>
+                    </div>
+                  </div>
+
+                  {inputMode === "member" ? (
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground font-semibold">Selecione o membro do rol:</Label>
+                      <Select value={selectedMemberId} onValueChange={handleSelectMember}>
+                        <SelectTrigger className="h-8 text-xs bg-background font-semibold">
+                          <SelectValue placeholder="Selecione um membro..." />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-56">
+                          <SelectItem value="none">-- Selecionar Membro do Rol --</SelectItem>
+                          {members.map(m => (
+                            <SelectItem key={m.id} value={m.id}>
+                              {m.name} {m.role ? `(${m.role})` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[9.5px] text-muted-foreground">
+                        Puxa automaticamente nome, cargo, data de batismo e filiação cadastrados.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-2 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-[10.5px] text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                      <span>Modo Digitação Livre ativado: preencha ou ajuste livremente o nome, datas e filiação abaixo.</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Campos do Cabeçalho e Título Editáveis */}
@@ -649,7 +784,7 @@ export function CertificadosCartasOficiaisModal({
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground font-semibold">Título Principal do Documento:</Label>
+                    <Label className="text-[10px] text-muted-foreground font-semibold">Título Principal do Certificado:</Label>
                     <Input
                       value={customTitle}
                       onChange={(e) => setCustomTitle(e.target.value)}
@@ -667,11 +802,11 @@ export function CertificadosCartasOficiaisModal({
                   </div>
                 </div>
 
-                {/* Dados Principais do Candidato / Pessoa */}
+                {/* Dados Principais do Candidato / Criança (Digitação Livre ou Editável) */}
                 <div className="bg-white dark:bg-slate-800/80 p-3 rounded-xl border shadow-2xs space-y-2">
                   <Label className="text-[11px] font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1 border-b pb-1">
                     <User className="w-3.5 h-3.5 text-amber-600" />
-                    Dados do Candidato / Criança:
+                    Dados do Candidato / Criança (Edição Livre):
                   </Label>
 
                   <div className="space-y-1">
@@ -679,12 +814,13 @@ export function CertificadosCartasOficiaisModal({
                     <Input
                       value={candidateName}
                       onChange={(e) => setCandidateName(e.target.value)}
+                      placeholder="Digite o nome completo da pessoa"
                       className="h-8 text-xs font-bold uppercase"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground font-semibold">Cargo ou Função Eclesiástica:</Label>
+                    <Label className="text-[10px] text-muted-foreground font-semibold">Cargo ou Condição Eclesiástica:</Label>
                     <Input
                       value={candidateRole}
                       onChange={(e) => setCandidateRole(e.target.value)}
@@ -693,41 +829,32 @@ export function CertificadosCartasOficiaisModal({
                     />
                   </div>
 
-                  {docType === "apresentacao" && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <Label className="text-[10px] text-muted-foreground font-semibold">Nome do Pai:</Label>
-                        <Input
-                          value={fatherName}
-                          onChange={(e) => setFatherName(e.target.value)}
-                          className="h-7 text-xs"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] text-muted-foreground font-semibold">Nome da Mãe:</Label>
-                        <Input
-                          value={motherName}
-                          onChange={(e) => setMotherName(e.target.value)}
-                          className="h-7 text-xs"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {docType === "transferencia" && (
+                  {/* Filiação (Pais) */}
+                  <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground font-semibold">Igreja de Destino:</Label>
+                      <Label className="text-[10px] text-muted-foreground font-semibold">Nome do Pai:</Label>
                       <Input
-                        value={destinationChurch}
-                        onChange={(e) => setDestinationChurch(e.target.value)}
+                        value={fatherName}
+                        onChange={(e) => setFatherName(e.target.value)}
+                        placeholder="Nome do Pai"
                         className="h-7 text-xs"
                       />
                     </div>
-                  )}
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground font-semibold">Nome da Mãe:</Label>
+                      <Input
+                        value={motherName}
+                        onChange={(e) => setMotherName(e.target.value)}
+                        placeholder="Nome da Mãe"
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                  </div>
 
+                  {/* Datas e Localidade */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground font-semibold">Data do Evento / Emissão:</Label>
+                      <Label className="text-[10px] text-muted-foreground font-semibold">Data do Evento / Batismo:</Label>
                       <Input
                         type="date"
                         value={eventDate}
@@ -736,10 +863,62 @@ export function CertificadosCartasOficiaisModal({
                       />
                     </div>
                     <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground font-semibold">Data de Nascimento (Opcional):</Label>
+                      <Input
+                        type="date"
+                        value={candidateBirthDate}
+                        onChange={(e) => setCandidateBirthDate(e.target.value)}
+                        className="h-7 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Livro, Folha e Registro */}
+                  <div className="grid grid-cols-3 gap-1.5 pt-1 border-t">
+                    <div className="space-y-1">
+                      <Label className="text-[9.5px] text-muted-foreground font-semibold">Livro Nº:</Label>
+                      <Input
+                        value={bookNumber}
+                        onChange={(e) => setBookNumber(e.target.value)}
+                        placeholder="Ex: 01"
+                        className="h-7 text-xs text-center"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[9.5px] text-muted-foreground font-semibold">Folha Nº:</Label>
+                      <Input
+                        value={pageNumber}
+                        onChange={(e) => setPageNumber(e.target.value)}
+                        placeholder="Ex: 42"
+                        className="h-7 text-xs text-center"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[9.5px] text-muted-foreground font-semibold">Registro / Termo:</Label>
+                      <Input
+                        value={recordNumber}
+                        onChange={(e) => setRecordNumber(e.target.value)}
+                        placeholder="Ex: 128"
+                        className="h-7 text-xs text-center"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
                       <Label className="text-[10px] text-muted-foreground font-semibold">Cidade / Localidade:</Label>
                       <Input
                         value={eventLocation}
                         onChange={(e) => setEventLocation(e.target.value)}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground font-semibold">Pastor Oficiante / Celebrante:</Label>
+                      <Input
+                        value={celebrantPastor}
+                        onChange={(e) => setCelebrantPastor(e.target.value)}
+                        placeholder="Deixe em branco p/ usar Pastor Titular"
                         className="h-7 text-xs"
                       />
                     </div>
@@ -1509,18 +1688,22 @@ export function CertificadosCartasOficiaisModal({
                       {customText}
                     </p>
 
-                    {/* Detalhes de Apresentação de Bebês */}
-                    {docType === "apresentacao" && (fatherName || motherName) && (
+                    {/* Detalhes de Filiação & Nascimento */}
+                    {(fatherName || motherName || candidateBirthDate) && (
                       <p className="text-xs font-bold text-slate-800 uppercase tracking-wide font-serif">
-                        Filho(a) de: {fatherName} e {motherName}
+                        {(fatherName || motherName) && `Filho(a) de: ${fatherName || "—"} ${motherName ? `e ${motherName}` : ""}`}
+                        {candidateBirthDate && ` • Nascido(a) em: ${formatDateBR(candidateBirthDate)}`}
                       </p>
                     )}
 
-                    {/* Detalhes de Transferência */}
-                    {docType === "transferencia" && destinationChurch && (
-                      <p className="text-xs font-bold text-slate-800 uppercase tracking-wide font-serif">
-                        Encaminhado(a) para: {destinationChurch}
-                      </p>
+                    {/* Registro Eclesiástico e Pastor Celebrante */}
+                    {(bookNumber || pageNumber || recordNumber || celebrantPastor) && (
+                      <div className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider font-mono flex items-center justify-center gap-2 flex-wrap">
+                        {bookNumber && <span>LIVRO: {bookNumber}</span>}
+                        {pageNumber && <span>• FOLHA: {pageNumber}</span>}
+                        {recordNumber && <span>• TERMO Nº: {recordNumber}</span>}
+                        {celebrantPastor && <span>• CELEBRANTE: {celebrantPastor}</span>}
+                      </div>
                     )}
 
                     {/* VERSÍCULO BÍBLICO BORDADO */}

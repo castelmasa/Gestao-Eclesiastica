@@ -7,6 +7,9 @@ export interface CarteirinhaThemeConfig {
   accentColor: string;
   borderColor: string;
   borderWidth?: number; // 1 | 2 | 3 | 4 | 5 (largura da borda / contorno)
+  cardWidthMm?: number; // Largura do crachá em milímetros (padrão: 86)
+  cardHeightMm?: number; // Altura do crachá em milímetros (padrão: 54)
+  cardSizePreset?: string; // '86x54' | '90x60' | '100x70' | '85x55' | '80x50' | 'custom'
   textColor: string;
   tagBg: string;
   tagText: string;
@@ -22,7 +25,62 @@ export interface CarteirinhaThemeConfig {
   showConstituicaoVerso?: boolean; // Fundo oficial da Constituição / Bandeira do Brasil no verso
   isObreiroAltar?: boolean; // Checagem de obreiro do altar vs membro
   validadeOverride?: string; // Validade personalizada
+  pastorPresidenteCodigoOverride?: string; // Código/Registro da credencial do Pastor Presidente
+  pastorLocalCodigoOverride?: string; // Código/Registro da credencial do Pastor Local
 }
+
+export interface CardDimensionPreset {
+  id: string;
+  name: string;
+  widthMm: number;
+  heightMm: number;
+  description: string;
+}
+
+export const CARD_DIMENSION_PRESETS: CardDimensionPreset[] = [
+  {
+    id: "86x54",
+    name: "86 × 54 mm (Padrão PVC / CR-80 Oficial)",
+    widthMm: 86,
+    heightMm: 54,
+    description: "Padrão de cartões plásticos e carteirinhas oficiais.",
+  },
+  {
+    id: "90x60",
+    name: "90 × 60 mm (Porta-Crachá Standard)",
+    widthMm: 90,
+    heightMm: 60,
+    description: "Ideal para porta-crachás comerciais e bolsas plásticas.",
+  },
+  {
+    id: "100x70",
+    name: "100 × 70 mm (Credencial Grande / Eventos)",
+    widthMm: 100,
+    heightMm: 70,
+    description: "Maior destaque visual para congressos e convenções.",
+  },
+  {
+    id: "85x55",
+    name: "85 × 55 mm (Padrão Cartão de Visitas)",
+    widthMm: 85,
+    heightMm: 55,
+    description: "Formato comum de gráficas para papéis couchê.",
+  },
+  {
+    id: "80x50",
+    name: "80 × 50 mm (Compacto / Carteirinha de Bolso)",
+    widthMm: 80,
+    heightMm: 50,
+    description: "Tamanho compacto para porta-documentos de bolso.",
+  },
+  {
+    id: "custom",
+    name: "Personalizado (Definir Milímetros)",
+    widthMm: 86,
+    heightMm: 54,
+    description: "Defina qualquer largura e altura livremente.",
+  },
+];
 
 /**
  * Checagem automática se o cargo do membro corresponde à função de Obreiro do Altar
@@ -193,6 +251,9 @@ export const PRESET_THEMES: Record<string, CarteirinhaThemeConfig> = {
 export const DEFAULT_CARD_THEME: CarteirinhaThemeConfig = {
   ...PRESET_THEMES["verde-esmeralda"],
   borderWidth: 2,
+  cardWidthMm: 86,
+  cardHeightMm: 54,
+  cardSizePreset: "86x54",
   showConstituicaoVerso: true,
   watermarkMode: "parametros",
   watermarkHarmony: "accent",

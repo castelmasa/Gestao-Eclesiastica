@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Plus, Search, Download, Eye, FilterX, Check, ChevronsUpDown, FileText, X, Settings, Trash2, Printer, Activity, Info, RefreshCw, Paperclip, ExternalLink, Leaf, CloudUpload, Building2, Calendar, AlertTriangle, BarChart2, FileSpreadsheet, Sparkles, Camera, Loader2, Lock, Unlock, ShieldCheck, ShieldAlert, FolderArchive, Tag } from "lucide-react"
+import { Plus, Search, Download, Eye, FilterX, Check, ChevronsUpDown, FileText, X, Settings, Trash2, Printer, Activity, Info, RefreshCw, Paperclip, ExternalLink, Leaf, CloudUpload, Building2, Calendar, AlertTriangle, BarChart2, FileSpreadsheet, Sparkles, Camera, Loader2, Lock, Unlock, ShieldCheck, ShieldAlert, FolderArchive, Tag, Calculator, QrCode } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { validateForm } from "@/lib/validation"
@@ -34,6 +34,8 @@ import { AttachmentViewerModal } from "@/components/AttachmentViewerModal"
 import { FinancialEcoPrintModal } from "@/components/financeiro/FinancialEcoPrintModal"
 import { FinancialRechartsPanel } from "@/components/financeiro/FinancialRechartsPanel"
 import { FinancialD3Panel } from "@/components/financeiro/FinancialD3Panel"
+import { FinancialCalculatorModal } from "@/components/financeiro/FinancialCalculatorModal"
+import { CarneDizimoModal } from "@/components/financeiro/CarneDizimoModal"
 import { CloudBackupAndExportModal } from "@/components/financeiro/CloudBackupAndExportModal"
 import { BalanceteMensalModal } from "@/components/financeiro/BalanceteMensalModal"
 import { ClosedMonthManagerModal } from "@/components/financeiro/ClosedMonthManagerModal"
@@ -159,11 +161,12 @@ export function Financeiro() {
   const [chartCategoryFilter, setChartCategoryFilter] = useState("all");
   const [chartCostCenterFilter, setChartCostCenterFilter] = useState("all");
 
-  // Estados para Fechamento e Trava de Meses Contábeis e Capas de Pasta
   const [closedMonths, setClosedMonths] = useState<ClosedFinancialMonth[]>([]);
   const [isLockManagerOpen, setIsLockManagerOpen] = useState(false);
   const [isFolderCoverModalOpen, setIsFolderCoverModalOpen] = useState(false);
   const [isReconciliationModalOpen, setIsReconciliationModalOpen] = useState(false);
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+  const [isCarneModalOpen, setIsCarneModalOpen] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeToClosedMonths((months) => {
@@ -2070,11 +2073,50 @@ export function Financeiro() {
             <FileSpreadsheet className="mr-1.5 h-4 w-4 text-emerald-600" /> Conciliação Bancária (OFX)
           </Button>
 
+          {/* Botão Carnê e Envelope Digital de Dízimos */}
+          <Button
+            variant="outline"
+            onClick={() => setIsCarneModalOpen(true)}
+            className="border-emerald-400 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 font-bold shadow-xs"
+            title="Gerar carnê semestral ou anual com chave Pix estática individual por membro"
+          >
+            <QrCode className="mr-1.5 h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Carnê / Envelope Pix
+          </Button>
+
+          {/* Botão da Calculadora Financeira Eclesiástica */}
+          <Button
+            variant="outline"
+            onClick={() => setIsCalculatorOpen(true)}
+            className="border-purple-300 text-purple-800 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-300 font-semibold shadow-xs"
+            title="Abrir Calculadora Eclesiástica rápida (Dízimos, Ofertas, Divisões e Contas)"
+          >
+            <Calculator className="mr-1.5 h-4 w-4 text-purple-600 dark:text-purple-400" /> Calculadora
+          </Button>
+
           {/* Modal Reutilizável de Visualização de Anexos (Imagem / PDF) com Portal Dialog */}
           <AttachmentViewerModal
             isOpen={!!viewingAttachment}
             onClose={() => setViewingAttachment(null)}
             attachment={viewingAttachment}
+          />
+
+          {/* Modal do Carnê / Envelope Digital de Dízimos Pix */}
+          <CarneDizimoModal
+            isOpen={isCarneModalOpen}
+            onClose={() => setIsCarneModalOpen(false)}
+            members={members}
+            churchData={churchData}
+            activeBranchName={activeBranchName}
+            activeBranchId={activeBranch}
+          />
+
+          {/* Modal de Calculadora Financeira Eclesiástica */}
+          <FinancialCalculatorModal
+            isOpen={isCalculatorOpen}
+            onClose={() => setIsCalculatorOpen(false)}
+            onApplyValue={(val) => {
+              setFormAmount(val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+            }}
           />
 
           {/* Modal de Impressão Econômica de Relatórios Financeiros */}
@@ -2232,7 +2274,20 @@ export function Financeiro() {
                   {/* Valor e Data */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="grid gap-1.5">
-                      <Label htmlFor="amount">Valor (R$)</Label>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="amount">Valor (R$)</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsCalculatorOpen(true)}
+                          className="h-5 px-1.5 text-xs text-purple-600 dark:text-purple-400 font-semibold hover:bg-purple-50 dark:hover:bg-purple-950/40 flex items-center gap-1"
+                          title="Abrir Calculadora Eclesiástica"
+                        >
+                          <Calculator className="w-3 h-3" />
+                          <span>Calculadora</span>
+                        </Button>
+                      </div>
                       <Input 
                         id="amount" 
                         name="amount" 

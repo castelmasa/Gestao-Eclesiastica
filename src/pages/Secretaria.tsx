@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Search, Printer, Mail, FileText, Edit, Trash2, MessageCircle, Download, Contact, Info, Sparkles, Camera, Folder, Bell, Award, Building2, QrCode, FolderClock, CheckCircle2, Image as ImageIcon, FilePlus2, Layers, Eye, RefreshCw, Check, User, Droplet, HeartHandshake, CalendarDays, Baby, Barcode, ClipboardList, Users, IdCard, Mic, Brush, Music } from "lucide-react"
+import { Plus, Search, Printer, Mail, FileText, Edit, Trash2, MessageCircle, Download, Contact, Info, Sparkles, Camera, Folder, Bell, Award, Building2, QrCode, FolderClock, CheckCircle2, Image as ImageIcon, FilePlus2, Layers, Eye, RefreshCw, Check, User, Droplet, HeartHandshake, CalendarDays, Baby, Barcode, ClipboardList, Users, IdCard, Mic, Brush, Music, BookOpen, Heart, Sliders } from "lucide-react"
 import { BarcodeGenerator, generateBarcodeDataUrl } from "@/components/common/BarcodeGenerator"
 import { QRCodeSVG } from "qrcode.react"
 import QRCode from "qrcode"
@@ -63,6 +63,8 @@ import { CertificadosCartasOficiaisModal } from "@/components/secretaria/Certifi
 import { IaSecretariaModal } from "@/components/secretaria/IaSecretariaModal"
 import { CarteirinhaDigitalModal } from "@/components/secretaria/CarteirinhaDigitalModal"
 import { EscalaSemanalWhatsAppModal } from "@/components/secretaria/EscalaSemanalWhatsAppModal"
+import { EbdManagerModal } from "@/components/secretaria/EbdManagerModal"
+import { CertidaoCartaoDigitalModal } from "@/components/secretaria/CertidaoCartaoDigitalModal"
 import { DigitalSignatureField } from "@/components/common/DigitalSignatureField"
 import { printDocument, downloadElementAsPdf } from "@/lib/printUtils"
 import { getRegisteredChurchLogo, drawChurchLogoInPdf, drawSafeChurchReportHeader } from "@/lib/churchLogoHelper"
@@ -288,6 +290,8 @@ export function Secretaria() {
   const [isCertificadosModalOpen, setIsCertificadosModalOpen] = useState(false)
   const [isEscalaSemanalWhatsAppOpen, setIsEscalaSemanalWhatsAppOpen] = useState(false)
   const [isCarteirinhaModalOpen, setIsCarteirinhaModalOpen] = useState(false)
+  const [isEbdModalOpen, setIsEbdModalOpen] = useState(false)
+  const [isCertidaoCartaoModalOpen, setIsCertidaoCartaoModalOpen] = useState(false)
   const [selectedMemberForCard, setSelectedMemberForCard] = useState<any | null>(null)
   const [memberSignatureUrl, setMemberSignatureUrl] = useState("")
   const [memberSignatureFileName, setMemberSignatureFileName] = useState("")
@@ -525,6 +529,12 @@ export function Secretaria() {
   const prevDocName = React.useRef(docName)
 
   const [docSignature, setDocSignature] = useState('')
+
+  // Tipografia e Tamanhos de Fontes Customizáveis (Anexo 4)
+  const [docFontFamily, setDocFontFamily] = useState<string>('times') // 'times' | 'helvetica' | 'courier'
+  const [docTitleFontSize, setDocTitleFontSize] = useState<number>(16)
+  const [docBodyFontSize, setDocBodyFontSize] = useState<number>(12)
+  const [docExtrasFontSize, setDocExtrasFontSize] = useState<number>(10.5)
 
   const [documentHistory, setDocumentHistory] = useState<any[]>(() => {
     const saved = localStorage.getItem("churchDocumentHistory")
@@ -1607,6 +1617,10 @@ export function Secretaria() {
       signature: docSignature,
       extras: docExtras,
       docDate: docDate,
+      fontFamily: docFontFamily,
+      titleFontSize: docTitleFontSize,
+      bodyFontSize: docBodyFontSize,
+      extrasFontSize: docExtrasFontSize,
       memberPhoto: docMemberPhoto || selectedMemberDoc?.photoUrl || null,
       status: 'pendente'
     };
@@ -1632,6 +1646,10 @@ export function Secretaria() {
     const currentExtras = targetDoc?.extras || docExtras || "";
     const currentTemplateId = targetDoc?.templateId || docTemplateId;
     const currentPhoto = targetDoc?.memberPhoto || docMemberPhoto || selectedMemberDoc?.photoUrl || null;
+    const currentFontFamily = targetDoc?.fontFamily || docFontFamily || "times";
+    const currentTitleFontSize = targetDoc?.titleFontSize || docTitleFontSize || 16;
+    const currentBodyFontSize = targetDoc?.bodyFontSize || docBodyFontSize || 12;
+    const currentExtrasFontSize = targetDoc?.extrasFontSize || docExtrasFontSize || 10.5;
 
     const isLetter = currentType.startsWith("carta-") || currentType.startsWith("ata-") || currentSubject.toUpperCase().includes("CARTA") || currentSubject.toUpperCase().includes("ATA");
 
@@ -1741,8 +1759,8 @@ export function Secretaria() {
         // Título e identificação do documento
         const titleX = hasPhoto ? 115 : 105;
         const titleY = hasPhoto ? 56 : 52;
-        doc.setFont("times", "bold");
-        doc.setFontSize(16);
+        doc.setFont(currentFontFamily, "bold");
+        doc.setFontSize(currentTitleFontSize);
         doc.setTextColor(15, 23, 42);
         doc.text(currentSubject.toUpperCase(), titleX, titleY, { align: "center" });
 
@@ -1750,14 +1768,14 @@ export function Secretaria() {
         doc.setDrawColor(140, 140, 140);
         doc.line(titleX - 45, titleY + 3.5, titleX + 45, titleY + 3.5);
 
-        doc.setFont("times", "italic");
-        doc.setFontSize(9.5);
+        doc.setFont(currentFontFamily, "italic");
+        doc.setFontSize(Math.max(7.5, currentTitleFontSize * 0.55));
         doc.setTextColor(100);
         doc.text("Documento Oficial Pastoral", titleX, titleY + 9, { align: "center" });
 
-        // Corpo da carta com fonte Times New Roman elegante
-        doc.setFont("times", "normal");
-        doc.setFontSize(12);
+        // Corpo da carta com fonte e tamanho escolhidos
+        doc.setFont(currentFontFamily, "normal");
+        doc.setFontSize(currentBodyFontSize);
         doc.setTextColor(25, 25, 25);
 
         let textBody = resolveTags(currentContent);
@@ -1767,17 +1785,17 @@ export function Secretaria() {
         paragraphs.forEach((paragraph) => {
             const splitP = doc.splitTextToSize(paragraph.trim(), 170);
             doc.text(splitP, 20, cursorY, { maxWidth: 170, lineHeightFactor: 1.45 });
-            cursorY += (splitP.length * 6.5) + 4;
+            cursorY += (splitP.length * (currentBodyFontSize * 0.52)) + 4;
         });
 
         if (currentExtras) {
             cursorY += 2;
-            doc.setFont("times", "italic");
-            doc.setFontSize(10.5);
+            doc.setFont(currentFontFamily, "italic");
+            doc.setFontSize(currentExtrasFontSize);
             doc.setTextColor(70, 70, 70);
             const splitExtras = doc.splitTextToSize(`Observações: ${currentExtras}`, 170);
             doc.text(splitExtras, 20, cursorY);
-            cursorY += (splitExtras.length * 5.5) + 4;
+            cursorY += (splitExtras.length * (currentExtrasFontSize * 0.5)) + 4;
         }
 
         // Cidade e Data por extenso
@@ -1960,6 +1978,10 @@ export function Secretaria() {
             extras: currentExtras,
             docDate: currentDate,
             memberPhoto: currentPhoto,
+            fontFamily: currentFontFamily,
+            titleFontSize: currentTitleFontSize,
+            bodyFontSize: currentBodyFontSize,
+            extrasFontSize: currentExtrasFontSize,
             status: preventDownload ? 'pendente' : 'aprovado'
         };
         const updatedHistory = [newDoc, ...documentHistory];
@@ -1987,6 +2009,10 @@ export function Secretaria() {
     setDocExtras(docItem.extras || "");
     setDocDate(docItem.docDate || "");
     setDocMemberPhoto(docItem.memberPhoto || null);
+    if (docItem.fontFamily) setDocFontFamily(docItem.fontFamily);
+    if (docItem.titleFontSize) setDocTitleFontSize(docItem.titleFontSize);
+    if (docItem.bodyFontSize) setDocBodyFontSize(docItem.bodyFontSize);
+    if (docItem.extrasFontSize) setDocExtrasFontSize(docItem.extrasFontSize);
     
     // Remove este rascunho da fila para edição
     const remaining = documentHistory.filter((d: any) => d.id !== docItem.id);
@@ -2822,7 +2848,7 @@ export function Secretaria() {
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 w-full">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 w-full">
               <Dialog open={isDocsModalOpen} onOpenChange={setIsDocsModalOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="h-auto flex-col items-start p-3.5 gap-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 hover:bg-primary/5 transition-all text-left w-full shadow-sm rounded-xl overflow-hidden min-w-0">
@@ -3151,17 +3177,99 @@ export function Secretaria() {
                             />
                           </div>
 
+                          {/* Painel de Tipografia e Tamanho de Fontes (Anexo 4) */}
+                          <div className="p-2.5 bg-background rounded-lg border space-y-2">
+                            <div className="flex items-center justify-between border-b pb-1">
+                              <Label className="text-xs font-bold flex items-center gap-1.5 text-primary">
+                                <Sliders className="w-3.5 h-3.5 text-amber-600" />
+                                Tipografia & Tamanhos de Fonte:
+                              </Label>
+                              <Badge variant="outline" className="text-[9.5px] bg-amber-50 text-amber-800 border-amber-300 font-bold">
+                                A4 Retrato
+                              </Badge>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                              {/* Tipo de Fonte */}
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-semibold text-muted-foreground">Tipo de Fonte:</Label>
+                                <Select value={docFontFamily} onValueChange={setDocFontFamily}>
+                                  <SelectTrigger className="h-7 text-xs bg-muted/30 font-semibold">
+                                    <SelectValue placeholder="Fonte" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="times">Times New Roman</SelectItem>
+                                    <SelectItem value="helvetica">Arial / Helvetica</SelectItem>
+                                    <SelectItem value="courier">Courier Datilo</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              {/* Tamanho do Título */}
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-semibold text-muted-foreground">
+                                  Título ({docTitleFontSize}pt):
+                                </Label>
+                                <Input
+                                  type="number"
+                                  min={12}
+                                  max={28}
+                                  value={docTitleFontSize}
+                                  onChange={(e) => setDocTitleFontSize(Number(e.target.value) || 16)}
+                                  className="h-7 text-xs text-center font-bold"
+                                />
+                              </div>
+
+                              {/* Tamanho do Corpo */}
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-semibold text-muted-foreground">
+                                  Corpo ({docBodyFontSize}pt):
+                                </Label>
+                                <Input
+                                  type="number"
+                                  min={9}
+                                  max={18}
+                                  value={docBodyFontSize}
+                                  onChange={(e) => setDocBodyFontSize(Number(e.target.value) || 12)}
+                                  className="h-7 text-xs text-center font-bold"
+                                />
+                              </div>
+
+                              {/* Tamanho das Observações */}
+                              <div className="space-y-1">
+                                <Label className="text-[10px] font-semibold text-muted-foreground">
+                                  Observações ({docExtrasFontSize}pt):
+                                </Label>
+                                <Input
+                                  type="number"
+                                  min={7}
+                                  max={16}
+                                  step={0.5}
+                                  value={docExtrasFontSize}
+                                  onChange={(e) => setDocExtrasFontSize(Number(e.target.value) || 10.5)}
+                                  className="h-7 text-xs text-center font-bold"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
                           <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
                               <Label className="text-xs font-semibold">Corpo da Carta / Conteúdo</Label>
-                              <span className="text-[10px] text-muted-foreground">Times New Roman • A4 Retrato</span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {docFontFamily === 'helvetica' ? 'Arial' : docFontFamily === 'courier' ? 'Courier' : 'Times New Roman'} • {docBodyFontSize}pt • A4 Retrato
+                              </span>
                             </div>
                             <Textarea 
                               value={docContent} 
                               onChange={(e) => setDocContent(e.target.value)} 
                               placeholder="Texto oficial da carta..." 
                               rows={8} 
-                              className="bg-background font-serif text-sm leading-relaxed"
+                              style={{
+                                fontFamily: docFontFamily === 'helvetica' ? 'Arial, sans-serif' : docFontFamily === 'courier' ? 'Courier, monospace' : 'Times New Roman, serif',
+                                fontSize: `${docBodyFontSize}px`
+                              }}
+                              className="bg-background text-sm leading-relaxed"
                             />
                             <p className="text-[11px] text-muted-foreground">
                               Variáveis dinâmicas: <code className="bg-muted px-1 py-0.5 rounded text-[10px]">{"{NOME_MEMBRO}"}</code>, <code className="bg-muted px-1 py-0.5 rounded text-[10px]">{"{CARGO_IGREJA}"}</code>, <code className="bg-muted px-1 py-0.5 rounded text-[10px]">{"{DATA_ATUAL}"}</code>
@@ -3169,11 +3277,15 @@ export function Secretaria() {
                           </div>
 
                           <div className="space-y-1.5">
-                            <Label className="text-xs font-semibold">Observações / Detalhes de Rodapé (Opcional)</Label>
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs font-semibold">Observações / Detalhes de Rodapé (Opcional)</Label>
+                              <span className="text-[10px] text-muted-foreground">{docExtrasFontSize}pt</span>
+                            </div>
                             <Input 
                               value={docExtras} 
                               onChange={(e) => setDocExtras(e.target.value)} 
                               placeholder="Ex: Válida por 60 dias a contar desta data." 
+                              style={{ fontSize: `${docExtrasFontSize}px` }}
                               className="bg-background"
                             />
                           </div>
@@ -3581,7 +3693,7 @@ export function Secretaria() {
                 </div>
                 <div className="w-full min-w-0">
                   <div className="font-semibold text-sm truncate">Relatórios</div>
-                  <div className="text-xs text-muted-foreground font-normal truncate">Fichas e carteirinhas</div>
+                  <div className="text-xs text-muted-foreground font-normal truncate">Listas e Estatísticas</div>
                 </div>
               </Button>
             </DialogTrigger>
@@ -3684,8 +3796,25 @@ export function Secretaria() {
                   {/* Card Preview */}
                   <div className="flex flex-col items-center gap-4 mb-4 pt-2 border-b pb-6">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full px-2 mb-2 gap-2">
-                      <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm">Visualização Online da Carteirinha</h3>
+                      <div>
+                        <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm">Carteirinha Tradicional de Membro (Padrão Impresso)</h3>
+                        <p className="text-xs text-muted-foreground">Cartão físico para impressão em folha A4 ou PVC com filiação e verso oficial.</p>
+                      </div>
                       <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setIsPrintModalOpen(false);
+                            if (previewMember) setSelectedMemberForCard(previewMember);
+                            setIsCarteirinhaModalOpen(true);
+                          }}
+                          className="border-teal-500/50 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950 font-bold gap-1.5 text-xs rounded-xl shadow-2xs"
+                          title="Alternar para a Carteirinha Digital interativa com QR Code"
+                        >
+                          <IdCard className="w-3.5 h-3.5 text-teal-600" />
+                          Alternar para Carteirinha Digital
+                        </Button>
                         <Button variant="outline" size="sm" onClick={() => generateCardsPNG(true)}>
                           <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar PNG
                         </Button>
@@ -4230,7 +4359,35 @@ export function Secretaria() {
             </div>
           </Button>
 
-          {/* 6. Carteirinha Oficial Digital no Celular */}
+          {/* 6. Carteirinha Tradicional de Membro (Física / PVC / Papel) */}
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setPrintTab('cards');
+              const target = selectedMemberForCard || (branchMembers.length > 0 ? branchMembers[0] : members[0]) || null;
+              if (target) {
+                setCardSelection('single');
+                setSelectedMemberId(target.id.toString());
+              }
+              setIsPrintModalOpen(true);
+            }} 
+            className="h-auto flex-col items-start p-3.5 gap-2 border-emerald-300 dark:border-emerald-800 hover:border-emerald-500/60 hover:bg-emerald-500/5 transition-all text-left w-full shadow-sm rounded-xl overflow-hidden min-w-0"
+          >
+            <div className="flex items-center justify-between w-full">
+              <div className="bg-emerald-100 dark:bg-emerald-900/40 p-2 rounded-lg text-emerald-700 dark:text-emerald-300 shrink-0">
+                <Printer className="h-5 w-5" />
+              </div>
+              <span className="text-[9px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold px-1.5 py-0.5 rounded-full border border-emerald-400/30 shrink-0">
+                PADRÃO
+              </span>
+            </div>
+            <div className="w-full min-w-0">
+              <div className="font-semibold text-sm truncate text-foreground">Carteirinha Padrão</div>
+              <div className="text-xs text-muted-foreground font-normal truncate">Impressão PVC / Papel</div>
+            </div>
+          </Button>
+
+          {/* 7. Carteirinha Oficial Digital no Celular */}
           <Button 
             variant="outline" 
             onClick={() => {
@@ -4245,7 +4402,7 @@ export function Secretaria() {
                 <IdCard className="h-5 w-5" />
               </div>
               <span className="text-[9px] bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 font-extrabold px-1.5 py-0.5 rounded-full border border-teal-400/30 shrink-0">
-                NOVO
+                DIGITAL
               </span>
             </div>
             <div className="w-full min-w-0">
@@ -4408,6 +4565,42 @@ export function Secretaria() {
                     <span className="text-[9px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold px-1 rounded">AUTO</span>
                   </div>
                   <div className="text-xs text-muted-foreground font-normal truncate w-full">Resumo da semana pronto</div>
+                </div>
+              </Button>
+
+              {/* 10. Escola Bíblica Dominical (EBD) */}
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEbdModalOpen(true)} 
+                className="h-auto flex-col items-start p-3.5 gap-1.5 border-teal-300 dark:border-teal-800/70 hover:border-teal-500/50 hover:bg-teal-500/5 transition-all text-left w-full overflow-hidden shadow-xs"
+              >
+                <div className="bg-teal-100 dark:bg-teal-900/30 p-2 rounded-lg text-teal-700 dark:text-teal-400 shrink-0">
+                  <BookOpen className="h-5 w-5" />
+                </div>
+                <div className="w-full overflow-hidden">
+                  <div className="font-semibold text-sm truncate w-full flex items-center gap-1">
+                    Escola Bíblica (EBD)
+                    <span className="text-[9px] bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 font-bold px-1 rounded">NOVO</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground font-normal truncate w-full">Chamada, Bíblias & Ofertas</div>
+                </div>
+              </Button>
+
+              {/* 11. Certidão & Ficha em Cartão Digital (Casamento & Bebês) */}
+              <Button 
+                variant="outline" 
+                onClick={() => setIsCertidaoCartaoModalOpen(true)} 
+                className="h-auto flex-col items-start p-3.5 gap-1.5 border-rose-300 dark:border-rose-800/70 hover:border-rose-500/50 hover:bg-rose-500/5 transition-all text-left w-full overflow-hidden shadow-xs"
+              >
+                <div className="bg-rose-100 dark:bg-rose-900/30 p-2 rounded-lg text-rose-700 dark:text-rose-400 shrink-0">
+                  <Heart className="h-5 w-5" />
+                </div>
+                <div className="w-full overflow-hidden">
+                  <div className="font-semibold text-sm truncate w-full flex items-center gap-1">
+                    Cartão Casamento & Bebês
+                    <span className="text-[9px] bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold px-1 rounded">QR</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground font-normal truncate w-full">Casamento & Apresentação</div>
                 </div>
               </Button>
             </div>
@@ -5871,6 +6064,15 @@ export function Secretaria() {
         allMembers={branchMembers && branchMembers.length > 0 ? branchMembers : members}
         onSelectMember={(m: any) => setSelectedMemberForCard(m)}
         branchName={activeBranchName}
+        onOpenTraditionalCards={() => {
+          setIsCarteirinhaModalOpen(false);
+          setPrintTab('cards');
+          if (selectedMemberForCard) {
+            setCardSelection('single');
+            setSelectedMemberId(selectedMemberForCard.id.toString());
+          }
+          setIsPrintModalOpen(true);
+        }}
       />
 
       {/* Modal de Disparo Rápido da Escala Semanal no WhatsApp */}
@@ -5879,6 +6081,24 @@ export function Secretaria() {
         onClose={() => setIsEscalaSemanalWhatsAppOpen(false)}
         branchId={activeBranch}
         branchName={activeBranchName}
+      />
+
+      {/* Modal de Escola Bíblica Dominical (EBD) */}
+      <EbdManagerModal
+        isOpen={isEbdModalOpen}
+        onClose={() => setIsEbdModalOpen(false)}
+        members={members}
+        activeBranchName={activeBranchName}
+        churchData={churchData}
+      />
+
+      {/* Modal de Certidão & Ficha em Cartão Digital (Casamento & Bebês) */}
+      <CertidaoCartaoDigitalModal
+        isOpen={isCertidaoCartaoModalOpen}
+        onClose={() => setIsCertidaoCartaoModalOpen(false)}
+        members={members}
+        activeBranchName={activeBranchName}
+        churchData={churchData}
       />
     </motion.div>
     </TooltipProvider>

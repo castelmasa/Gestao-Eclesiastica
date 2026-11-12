@@ -53,15 +53,24 @@ export function FormulariosFinanceirosSecretariaModal({
   );
   const [activeTab, setActiveTab] = useState<'entradas' | 'saidas' | 'dizimista' | 'fechamento'>('entradas');
 
-  // Nomes para os formulários
-  const [mesAnoReferencia, setMesAnoReferencia] = useState<string>(() => {
+  const MONTH_NAMES = useMemo(() => [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+  ], []);
+
+  const [selectedMes, setSelectedMes] = useState<string>(() => {
+    const now = new Date();
     const months = [
       "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
       "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
     ];
-    const now = new Date();
-    return `${months[now.getMonth()]} / ${now.getFullYear()}`;
+    return months[now.getMonth()];
   });
+  const [selectedAno, setSelectedAno] = useState<string>(() => {
+    return new Date().getFullYear().toString();
+  });
+
+  const mesAnoReferencia = `${selectedMes} / ${selectedAno}`;
 
   // Carrega institucional e liderança com base na congregação selecionada
   const leadership = useMemo(() => {
@@ -290,17 +299,39 @@ export function FormulariosFinanceirosSecretariaModal({
                 </Select>
               </div>
 
-              {/* Mês/Ano */}
+              {/* Seletor de Mês Oficial (Anexo 1) */}
               <div className="flex items-center gap-1.5 bg-muted/60 px-2 py-1 rounded-md border text-xs">
                 <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="font-semibold text-[11px]">Mês/Ano:</span>
-                <input
-                  type="text"
-                  value={mesAnoReferencia}
-                  onChange={(e) => setMesAnoReferencia(e.target.value)}
-                  className="bg-background border rounded px-1.5 py-0.5 text-xs font-bold w-28 text-center"
-                  placeholder="Mês / Ano"
-                />
+                <span className="font-semibold text-[11px]">Mês:</span>
+                <Select value={selectedMes} onValueChange={setSelectedMes}>
+                  <SelectTrigger className="h-7 text-xs font-semibold w-28 bg-background">
+                    <SelectValue placeholder="Selecione o mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTH_NAMES.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Seletor de Ano */}
+              <div className="flex items-center gap-1.5 bg-muted/60 px-2 py-1 rounded-md border text-xs">
+                <span className="font-semibold text-[11px]">Ano:</span>
+                <Select value={selectedAno} onValueChange={setSelectedAno}>
+                  <SelectTrigger className="h-7 text-xs font-semibold w-20 bg-background">
+                    <SelectValue placeholder="Ano" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["2024", "2025", "2026", "2027", "2028", "2029", "2030"].map((y) => (
+                      <SelectItem key={y} value={y}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <Button variant="outline" size="sm" onClick={handleDownloadPdf} className="h-8 text-xs">

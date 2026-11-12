@@ -535,43 +535,60 @@ export function openElementInNewTabForPrint(
           ${headStyles}
           <style>
             @page {
-              size: auto;
+              size: A4 portrait;
               margin: 8mm;
             }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+              box-sizing: border-box;
+            }
             body {
-              background: #ffffff !important;
-              color: #000000 !important;
+              background: #f8fafc !important;
+              color: #0f172a !important;
               margin: 0 !important;
-              padding: 10mm !important;
+              padding: 12mm 8mm !important;
               display: flex !important;
               flex-direction: column !important;
               align-items: center !important;
               justify-content: flex-start !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             }
             .print-action-bar {
-              margin-bottom: 20px;
+              margin-bottom: 24px;
+              width: 100%;
+              max-width: 820px;
+              background: #ffffff;
+              padding: 16px 20px;
+              border-radius: 14px;
+              border: 1px solid #e2e8f0;
+              box-shadow: 0 4px 14px rgba(0,0,0,0.06);
               display: flex;
+              flex-direction: column;
               gap: 12px;
-              background: #f1f5f9;
-              padding: 12px 20px;
-              border-radius: 12px;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            }
+            .print-action-top {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              flex-wrap: wrap;
+              gap: 12px;
             }
             .print-btn {
               background: #059669;
               color: white;
               border: none;
-              padding: 10px 18px;
-              border-radius: 8px;
-              font-weight: bold;
-              font-size: 13px;
+              padding: 11px 22px;
+              border-radius: 9px;
+              font-weight: 700;
+              font-size: 14px;
               cursor: pointer;
               display: flex;
               align-items: center;
-              gap: 6px;
+              gap: 8px;
+              box-shadow: 0 2px 6px rgba(5,150,105,0.3);
+              transition: background 0.2s;
             }
             .print-btn:hover {
               background: #047857;
@@ -580,36 +597,58 @@ export function openElementInNewTabForPrint(
               background: #64748b;
               color: white;
               border: none;
-              padding: 10px 18px;
-              border-radius: 8px;
+              padding: 11px 18px;
+              border-radius: 9px;
               font-weight: 600;
               font-size: 13px;
               cursor: pointer;
+              transition: background 0.2s;
             }
             .close-btn:hover {
               background: #475569;
+            }
+            .print-tip {
+              font-size: 11.5px;
+              color: #475569;
+              background: #f1f5f9;
+              border-left: 3px solid #059669;
+              padding: 8px 12px;
+              border-radius: 6px;
+              line-height: 1.4;
             }
             @media print {
               .print-action-bar {
                 display: none !important;
               }
               body {
+                background: #ffffff !important;
                 padding: 0 !important;
+                margin: 0 !important;
               }
             }
           </style>
         </head>
         <body>
           <div class="print-action-bar">
-            <button class="print-btn" onclick="window.print()">🖨️ Abrir Diálogo de Impressão</button>
-            <button class="close-btn" onclick="window.close()">✕ Fechar Aba</button>
+            <div class="print-action-top">
+              <div>
+                <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #0f172a;">🖨️ Prévia de Impressão Oficial • Folha A4</h3>
+                <p style="margin: 3px 0 0 0; font-size: 12px; color: #64748b;">${title}</p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="print-btn" onclick="window.print()">🖨️ Imprimir Agora</button>
+                <button class="close-btn" onclick="window.close()">✕ Fechar</button>
+              </div>
+            </div>
+            <div class="print-tip">
+              💡 <strong>Dica para Impressão Perfeita:</strong> Na tela de impressão do seu navegador, selecione <strong>"Mais definições"</strong>, marque a opção <strong>"Gráficos de segundo plano"</strong> (para imprimir as cores e o brasão) e configure <strong>"Escala: Padrão (100%)"</strong>.
+            </div>
           </div>
           ${el.outerHTML}
           <script>
-            // Tenta abrir a caixa de impressão automaticamente após carregar os estilos
             setTimeout(() => {
               try { window.print(); } catch (e) {}
-            }, 500);
+            }, 600);
           </script>
         </body>
       </html>

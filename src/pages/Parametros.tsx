@@ -87,9 +87,11 @@ const defaultConfig = {
   tesoureiroSignatureUrl: "",
   tesoureiroSignatureFileName: "",
   pastorPresidente: "Pr. Carlito Carvalho Rodrigues",
+  pastorPresidenteCodigoCredencial: "",
   pastorPresidenteSignatureUrl: "",
   pastorPresidenteSignatureFileName: "",
   pastorLocal: "",
+  pastorLocalCodigoCredencial: "",
   pastorLocalSignatureUrl: "",
   pastorLocalSignatureFileName: "",
   validadeCarteirinhaMembro: "2 Anos",
@@ -477,6 +479,22 @@ export function Parametros() {
                       className="h-10 text-sm font-medium"
                     />
                   </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pastorPresidenteCodigoCredencial" className="font-semibold text-xs text-foreground flex items-center justify-between">
+                      <span>Código / Registro da Credencial (Pastor Presidente)</span>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Verso Credencial</span>
+                    </Label>
+                    <Input
+                      id="pastorPresidenteCodigoCredencial"
+                      value={churchData.pastorPresidenteCodigoCredencial || ""}
+                      onChange={handleChange}
+                      placeholder="Ex: CGADB 12.345, CONFRADER 098..."
+                      className="h-10 text-sm font-mono"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Campo livre de digitação que constará sob a assinatura do Pastor Presidente no verso da credencial.
+                    </p>
+                  </div>
                   <DigitalSignatureField
                     label="Assinatura Digital (Pastor Presidente)"
                     helperText="Assinatura oficial que sai na credencial de obreiros do altar."
@@ -502,6 +520,22 @@ export function Parametros() {
                       placeholder="Nome do Pastor Local"
                       className="h-10 text-sm font-medium"
                     />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pastorLocalCodigoCredencial" className="font-semibold text-xs text-foreground flex items-center justify-between">
+                      <span>Código / Registro da Credencial (Pastor Local)</span>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Verso Credencial</span>
+                    </Label>
+                    <Input
+                      id="pastorLocalCodigoCredencial"
+                      value={churchData.pastorLocalCodigoCredencial || ""}
+                      onChange={handleChange}
+                      placeholder="Ex: IEPC 4567, REG-001..."
+                      className="h-10 text-sm font-mono"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Campo livre de digitação que constará sob a assinatura do Pastor Local no verso da credencial.
+                    </p>
                   </div>
                   <DigitalSignatureField
                     label="Assinatura Digital (Pastor Local)"
